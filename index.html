@@ -147,7 +147,7 @@ details.agree summary { cursor: pointer; padding: 12px 14px; font-weight: 700; l
 details.agree ol { margin: 0; padding: 0 18px 16px 34px; display: grid; gap: 10px; }
 details.agree li { max-width: 62ch; }
 
-.syncline { font-size: 0.78rem; color: var(--muted); display: flex; align-items: center; gap: 6px; min-height: 1.2em; }
+.syncline { font-size: 0.78rem; color: var(--muted); display: flex; align-items: center; gap: 6px; white-space: nowrap; margin-left: auto; }
 .syncline::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--line); flex: none; }
 .syncline.is-live::before { background: var(--jam); }
 .empty { color: var(--muted); text-align: center; padding: 24px 8px; }
@@ -166,6 +166,7 @@ details.agree li { max-width: 62ch; }
   <div class="wrap">
     <div class="brand">
       <h1 class="logo"><span class="logo-mark" role="img" aria-label="TDIF"></span><span>2026</span></h1>
+      <div class="syncline" id="syncline" role="status"></div>
     </div>
     <div class="tabs" role="tablist" aria-label="Day">
       <button class="tab" role="tab" id="tab-thu" data-day="thu"><b>Thu</b><small>Oct 15</small></button>
@@ -174,7 +175,6 @@ details.agree li { max-width: 62ch; }
       <button class="tab" role="tab" id="tab-picks" data-day="picks"><b>★ Picks</b><small id="pickcount">0 saved</small></button>
     </div>
     <input class="search" id="q" type="search" placeholder="Search teachers, classes, words…" autocomplete="off" aria-label="Search the schedule">
-    <div class="syncline" id="syncline" role="status"></div>
   </div>
 </header>
 
@@ -327,13 +327,17 @@ async function refresh() {
   render();
 }
 
+function ago(t) {
+  const m = Math.round((new Date() - t) / 6e4);
+  if (m < 1) return "just now";
+  if (m < 60) return m + " min ago";
+  const h = Math.round(m / 60);
+  return h < 24 ? h + " hr ago" : Math.round(h / 24) + " d ago";
+}
 function syncLabel() {
-  if (sync.mode === "live") {
-    const mins = Math.round((new Date() - sync.at) / 6e4);
-    return `Live from the festival sheet · updated ${mins < 1 ? "just now" : mins + " min ago"}${sync.error ? " · can't reach it right now" : ""}`;
-  }
-  if (sync.mode === "cache") return `Offline copy from ${sync.at.toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit" })} · ${sync.error ? "can't reach the sheet" : "checking for updates…"}`;
-  return sync.error ? "Built-in copy of the schedule · can't reach the sheet" : "Checking the festival sheet for updates…";
+  if (sync.mode === "live") return (sync.error ? "offline · updated " : "updated ") + ago(sync.at);
+  if (sync.mode === "cache") return (sync.error ? "offline · updated " : "updating… · ") + ago(sync.at);
+  return sync.error ? "offline copy" : "updating…";
 }
 
 const DAYS = { thu: { label: "Thursday", date: [2026, 9, 15] }, fri: { label: "Friday", date: [2026, 9, 16] }, sat: { label: "Saturday", date: [2026, 9, 17] } };

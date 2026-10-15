@@ -1,0 +1,534 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="TDIF 2026">
+<meta name="theme-color" content="#EDF1F4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0E141B" media="(prefers-color-scheme: dark)">
+<title>TDIF 2026 Schedule</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&display=swap">
+<style>
+/* Layout: one narrow reading column; sticky header with day tabs; sessions grouped under time-slot rails. */
+:root {
+  --bg: #EDF1F4;
+  --surface: #FFFFFF;
+  --ink: #15202B;
+  --muted: #5A6875;
+  --line: #D5DDE4;
+  --accent: #2847D9;
+  --accent-soft: #E3E8FC;
+  --jam: #0E7C6B;
+  --jam-soft: #DDF2EE;
+  --now: #E09B00;
+  --now-soft: #FFF2D1;
+  --star: #E0A100;
+  --warn: #B4361E;
+  --font-display: "Syne", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Atkinson Hyperlegible", -apple-system, "Segoe UI", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0E141B; --surface: #17202A; --ink: #E5ECF2; --muted: #93A1AE; --line: #283442;
+    --accent: #93A8FF; --accent-soft: #1F2A4F; --jam: #5FD1BD; --jam-soft: #133630;
+    --now: #FFC53D; --now-soft: #3A2E10; --star: #FFC53D; --warn: #FF8A70;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0E141B; --surface: #17202A; --ink: #E5ECF2; --muted: #93A1AE; --line: #283442;
+  --accent: #93A8FF; --accent-soft: #1F2A4F; --jam: #5FD1BD; --jam-soft: #133630;
+  --now: #FFC53D; --now-soft: #3A2E10; --star: #FFC53D; --warn: #FF8A70;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { margin: 0; }
+body {
+  background: var(--bg); color: var(--ink);
+  font-family: var(--font-body); font-size: 17px; line-height: 1.5;
+  -webkit-text-size-adjust: 100%;
+}
+.wrap {
+  max-width: 640px; margin: 0 auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+header.top {
+  position: sticky; top: 0; z-index: 10;
+  background: color-mix(in srgb, var(--bg) 92%, transparent);
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--line);
+}
+.top .wrap { padding-block: calc(12px + env(safe-area-inset-top, 0px)) 10px; display: grid; gap: 10px; }
+.brand { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+h1 {
+  font-family: var(--font-display); font-weight: 800; font-size: 1.55rem; letter-spacing: -0.01em;
+  margin: 0; line-height: 1.05;
+}
+h1 span { color: var(--accent); }
+.place { font-size: 0.78rem; color: var(--muted); text-align: right; }
+.tabs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.tab {
+  font: inherit; font-size: 0.9rem; border: 1px solid var(--line); background: var(--surface); color: var(--ink);
+  border-radius: 10px; padding: 7px 4px 6px; cursor: pointer; display: grid; line-height: 1.15;
+}
+.tab b { font-family: var(--font-display); font-weight: 700; font-size: 1rem; }
+.tab small { color: var(--muted); font-size: 0.75rem; }
+.tab[aria-selected="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.tab[aria-selected="true"] small { color: inherit; opacity: 0.75; }
+.tab:focus-visible, button:focus-visible, a:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.search {
+  width: 100%; font: inherit; font-size: 16px; padding: 9px 12px; border-radius: 10px;
+  border: 1px solid var(--line); background: var(--surface); color: var(--ink);
+}
+main .wrap { padding-block: 14px calc(48px + env(safe-area-inset-bottom, 0px)); display: grid; gap: 22px; }
+
+.nowcard {
+  background: var(--now-soft); border: 1px solid color-mix(in srgb, var(--now) 45%, transparent);
+  border-radius: 14px; padding: 12px 14px; display: grid; gap: 6px;
+}
+.nowcard .eyebrow { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink); opacity: 0.75; }
+.nowcard p { margin: 0; }
+.nowcard .big { font-family: var(--font-display); font-weight: 700; font-size: 1.1rem; line-height: 1.25; }
+
+.slot { display: grid; gap: 8px; }
+.slot-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.slot-time {
+  font-family: var(--font-display); font-weight: 700; font-size: 1.15rem; margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+.slot-meta { color: var(--muted); font-size: 0.85rem; }
+.pill { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; padding: 2px 8px; border-radius: 999px; }
+.pill.now { background: var(--now); color: #1B1300; }
+.pill.done { background: var(--line); color: var(--muted); }
+.list { display: grid; gap: 8px; }
+
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+.card.kind-jam { border-left: 4px solid var(--jam); }
+.card.kind-class { border-left: 4px solid var(--accent); }
+.card.kind-performance { border-left: 4px solid var(--now); }
+.card.quiet { background: transparent; border-style: dashed; }
+.row { display: grid; grid-template-columns: 1fr auto; align-items: start; }
+.opener {
+  font: inherit; color: inherit; text-align: left; background: none; border: 0; padding: 12px 6px 12px 14px;
+  cursor: pointer; display: grid; gap: 2px; min-width: 0;
+}
+.opener[disabled] { cursor: default; }
+.who { font-weight: 700; font-size: 1rem; }
+.ctitle { font-family: var(--font-display); font-weight: 700; font-size: 1.12rem; line-height: 1.25; text-wrap: balance; }
+.kind-jam .ctitle, .kind-break .ctitle, .kind-logistics .ctitle, .kind-circle .ctitle, .kind-performance .ctitle { font-size: 1.02rem; }
+.where { color: var(--muted); font-size: 0.86rem; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.where .tag { font-size: 0.68rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; padding: 1px 6px; border-radius: 5px; background: var(--accent-soft); color: var(--accent); }
+.kind-jam .where .tag { background: var(--jam-soft); color: var(--jam); }
+.more { color: var(--accent); font-size: 0.85rem; font-weight: 700; margin-top: 4px; }
+.kind-jam .more { color: var(--jam); }
+.starbtn {
+  font: inherit; background: none; border: 0; cursor: pointer; color: var(--muted);
+  width: 48px; height: 48px; display: grid; place-items: center; margin: 2px 2px 0 0; border-radius: 10px;
+}
+.starbtn svg { width: 24px; height: 24px; }
+.starbtn[aria-pressed="true"] { color: var(--star); }
+.detail { padding: 0 16px 16px 14px; display: grid; gap: 10px; border-top: 1px solid var(--line); padding-top: 12px; }
+.detail p { margin: 0; max-width: 62ch; white-space: pre-line; }
+.detail h4 { margin: 6px 0 0; font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.detail .bio { color: var(--muted); font-size: 0.95rem; }
+.detail a { color: var(--accent); font-weight: 700; }
+.linkbtn { font: inherit; color: var(--jam); font-weight: 700; background: none; border: 0; padding: 0; cursor: pointer; text-align: left; text-decoration: underline; }
+
+details.agree { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
+details.agree summary { cursor: pointer; padding: 12px 14px; font-weight: 700; list-style-position: inside; }
+details.agree ol { margin: 0; padding: 0 18px 16px 34px; display: grid; gap: 10px; }
+details.agree li { max-width: 62ch; }
+
+.syncline { font-size: 0.78rem; color: var(--muted); display: flex; align-items: center; gap: 6px; min-height: 1.2em; }
+.syncline::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--line); flex: none; }
+.syncline.is-live::before { background: var(--jam); }
+.empty { color: var(--muted); text-align: center; padding: 24px 8px; }
+.conflict { color: var(--warn); font-size: 0.85rem; font-weight: 700; }
+.foot { color: var(--muted); font-size: 0.8rem; text-align: center; }
+@media (prefers-reduced-motion: no-preference) {
+  .detail { animation: open .18s ease-out; }
+  @keyframes open { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+}
+</style>
+</head>
+<body>
+
+
+<header class="top">
+  <div class="wrap">
+    <div class="brand">
+      <h1>TDIF <span>2026</span></h1>
+      <div class="place">Texas Dance Improvisation Festival<br>Oct 15–17</div>
+    </div>
+    <div class="tabs" role="tablist" aria-label="Day">
+      <button class="tab" role="tab" id="tab-thu" data-day="thu"><b>Thu</b><small>Oct 15</small></button>
+      <button class="tab" role="tab" id="tab-fri" data-day="fri"><b>Fri</b><small>Oct 16</small></button>
+      <button class="tab" role="tab" id="tab-sat" data-day="sat"><b>Sat</b><small>Oct 17</small></button>
+      <button class="tab" role="tab" id="tab-picks" data-day="picks"><b>★ Picks</b><small id="pickcount">0 saved</small></button>
+    </div>
+    <input class="search" id="q" type="search" placeholder="Search teachers, classes, words…" autocomplete="off" aria-label="Search the schedule">
+    <div class="syncline" id="syncline" role="status"></div>
+  </div>
+</header>
+
+<main>
+  <div class="wrap" id="view"></div>
+</main>
+
+<script>
+const SHEET_ID = "15NiJhOGEeBF8iTkYaiveX-CUP5SJ0w5YWuzn9NJ4S-w";
+const SOURCES = [
+  `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&headers=0&gid=0`,
+  `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=0`
+];
+const BAKED = {"classes": [{"id": "c9fri", "key": "wells", "day": "fri", "start": "09:00", "room": "Jowers B178", "who": "Scott Wells", "title": "The Landscape of Touch", "desc": ["Contact skills and thrills, pathways from earth to sky. We’ll explore my favorite contact exercises and current curiosities, developed or discovered over decades of investigation and indulgence."], "bio": ["Scott Wells has been practicing contact improv in 1981, has an MFA in dance, and directs an award winning dance company in San Francisco. He has created works for skateboarders, for boxers and choreographed West Side Story for Sonoma State University. Scott has twice received the Isadora Duncan (San Francisco’s most prestigious dance award) for Outstanding Choreography. He has been teaching in Europe for the last 30 years at festivals in Moscow, Barcelona, Budapest, Berlin, Vienna, Zagreb, Bucharest, and Ankara to name a few. His current research passions are Eyebody practice, moving from the organs and contact improvisation."]}, {"id": "d9fri", "key": "dewitt", "day": "fri", "start": "09:00", "room": "Jowers B175", "who": "Veronica DeWitt", "title": "DanceAbility: Space, Skin, Weight", "desc": ["DanceAbility is an improvisational dance class for people of all abilities, designed to cultivate connection, curiosity, and embodied awareness through movement exploration. This class welcomes diverse bodies, experiences, and access needs while introducing or reinforcing the fundamentals of weight sharing. Participants investigate gradients of touch, support, and shared balance through space, skin, and weight, discovering how contact can pass through the skin to reveal structure and mutual support. Through guided improvisation exercises that share history with some of CI’s most notable pioneers, dancers build trust, communication, confidence while expanding their relationship to touch in a collaborative and supportive community atmosphere."], "bio": ["Veronica DeWitt is a professional dancer, choreographer, aerialist, and Master Teacher of DanceAbility based in San Marcos. Raised in Sixes, OR and central Texas, she earned a BA in Dance from University of Oregon in 2003. She has performed with Body Shift, KDH Dance Company (+more) and has  presented at festivals including NDEO.  Currently, V teaches at Austin Community College and guest teaches wherever invited!"]}, {"id": "e9fri", "key": "lass", "day": "fri", "start": "09:00", "room": "Jowers 170", "who": "Sarah Lass", "title": "Dancing With", "desc": ["Dancing With is an improvisation class embedded in a Western postmodern dance lineage. Drawing on experiential anatomy and ecological psychology, dancers investigate how attention reorganizes movement and relation in real time. Solo scores focus on attending to the body’s “soft places”—intimate, vulnerable, or overlooked areas—allowing sensation, desire, and peripheral awareness to redirect emerging form. Duet and ensemble scores explore coordination with space, sound, and others without merging: moving in close relation while maintaining distinction, agency, and difference. Together, these practices investigate how subtle sensation and desire might disrupt dominant understandings of control, virtuosity, certainty, and power in dance."], "bio": ["Sarah Lass is a transdisciplinary dance artist whose work moves between choreography and writing. Grounded in improvisation as both technique and philosophical stance, she explores embodiment, perception, temporality, and relation, asking how movement and acts of attending might interrupt dominant Western logics of mastery and certainty. She has collaborated with artists including Bebe Miller, Angie Hauser, Chris Aiken, and others. Her writing appears in The Maine Review, Conversations Across the Field of Dance Studies, and others. Her choreography has been supported by residencies at Ucross, Basin, Arts, and other venues. She holds an MFA in Dance from Smith College."]}, {"id": "f9fri", "key": "cartwright", "day": "fri", "start": "09:00", "room": "Gym 219", "who": "John T. Cartwright", "title": "Flocking Sensation", "desc": ["In this class we’ll explore group improvisation scores to build kinesthetic awareness for ensemble practices in performance and composition. Building on the foundations of Mary Overlie’s and Anne Bogart’s Viewpoints, students will have the opportunity to expand their experience of moving, making, and performing in a group. We will investigate how our senses aid us, what it means to respond as an individual within a group, the possibilities of moving with our voice, and who we become when we focus on the collective. Contact is not mandatory; students may engage in contact in certain elements of the class with consent."], "bio": ["John T. Cartwright is multi-disciplinary intermedia dance artist and educator. He holds an M.F.A. in Dance with a Graduate Interdisciplinary Specialization in Fine Arts from The Ohio State University and a B.S. in Dance – Arts Administration from Butler University. His professional performance credits include the Louisville Ballet, Thodos Dance Chicago, and Chicago Repertory Ballet. His professional teaching credits include Hubbard Street Dance Chicago and The Ohio State University. Currently, John is the Dance Composition Faculty and the Chair of the Dance Program at the Kentucky Governor’s School for the Arts, and a Lecturer in Dance at Texas A&M University."]}, {"id": "g9fri", "key": "ellis", "day": "fri", "start": "09:00", "room": "Gym 221", "who": "Erin Ellis", "title": "The Creative Well", "desc": ["Exploring the connectivity between two seemingly unrelated concepts in order to derive meaning when inspiration feels arid. By utilizing chance, lists, and storytelling framework, we will work toward creating a malleable score that will enable you to draw from your own unique life experience and interests, regardless of where you are within your creative journey. Meaning-making becomes a tool for creation, but what exactly is meaning? Do we need it? Do we desire it?"], "bio": ["Erin Ellis, M.F.A. is a dance artist, choreographer, and educator based in Austin, Texas. She is adjunct faculty in the Dance Department at Austin Community College and a founding collaborator with Allysen Hooks Projects, an Austin-based dance company. Her research and creative practice explores archetypal symbolism, embodied storytelling, and somatic entryways into movement, with a focus on performance as a site of openness---where ideas and questions emerge that may not resolve, but invite audiences to leave altered or newly attuned."]}, {"id": "c10fri", "key": "barnard", "day": "fri", "start": "11:15", "room": "Jowers B178", "who": "Rai Barnard", "title": "Attention, Attunement, & Play", "desc": ["Let’s investigate our capacity for simultaneously holding internal and external awareness! We’ll use somatic improvisation and spontaneous composition tools to explore collective attunement- finding opportunities to build trust, take risks, and discover play.", "Our practice will begin with a guided warm-up, drawing on Bartenieff fundamentals and establishing individual internal awareness of sensation through breath and weight. Solo practices with somatic cueing will help us identify imminent personal impulses for particular pathways, shapes, and rhythms. Shifting our attention beyond our own bodies, we’ll utilize constraints on space, timing, and movement vocabulary (borrowing ideas from Ensemble Thinking) to find a sense of collective attunement. We’ll experiment with variations on these scores, identifying constraints that support sustained attunement while creating opportunity for delightful risk.", "How do we honor both individual impulse and remain committed to collective tasks? How do our responses to constraint affect our movement choices and ensemble relationships? By attuning our attention and leaning into constraint, we’ll discover the joys and challenges of ensemble improvisation, making room for play along the way!"], "bio": ["Rai Barnard (they/them) is a queer Dallas-based dance artist and arts organizer invested in crafting community-oriented offerings.", "They hold a B.A. in Dance and a B.S. in Biology from UT Dallas, informing their creative and analytical approach to dance practices. Since 2024, Rai has organized and facilitated Collective Reflection, a monthly workshop series offering somatic-centered, guided improvisation experiences for all levels. Their collaborative performance and choreographic work includes projects with Jennifer Mabus, Christie Bondade, and Lauren Kravitz. Rai serves on the Agora Artists Advisory Committee - producing programming and supporting professional development of DFW dance artists."]}, {"id": "d10fri", "key": "fuchs", "day": "fri", "start": "11:15", "room": "Jowers B175", "who": "Jordan Fuchs", "title": "Contact Improvisation - Accompanying", "desc": ["Working in duets we will explore strategies for accompanying a partner through touch and proximity in order to expand our mobility, articulation and responsiveness to our environment before shifting to explore such strategies in larger ensembles."], "bio": ["Jordan Fuchs is Professor and Head of the Dance Division at Texas Woman’s University and the founder of the Texas Dance Improvisation Festival. His choreography for stage, screens, museums and outdoor spaces is grounded in improvisational practice, specifically the bias towards disorientation, sensation and process of contact improvisation, a movement form he has been practicing for more than 30 years. His choreography has been presented across the US and internationally in Europe, Asia and Australia. He holds a BA in Religion from Oberlin College and an MFA in Choreography from Ohio State University. www.jordanfuchs.org, @jfchs11"]}, {"id": "e10fri", "key": "lima/mockli", "day": "fri", "start": "11:15", "room": "Jowers 170", "who": "Bárbara Lima & Shannon Mockli", "title": "Unrefined", "desc": ["Co-facilitated by Bárbara Lima and Shannon Mockli, this workshop shares movement structures developed through (un)refined, a duet exploring identity and relationality through improvisation. Emphasizing process, transformation, and relational exchange, participants will work in partnership using practices of entering, conversation, weight sharing, and interruption to create their own short improvisational studies. Through sensing, listening, and responsiveness, dancers will investigate how perception and movement evolve in relationship with self, others, and space. The workshop asks: How do we meet ourselves and one another within relationships that are continually unfolding?"], "bio": ["Shannon Mockli is an Associate Professor at the University of Oregon with an emphasis in choreography and performance. Notable presentations include the Texas Dance Improvisation Festival, the World Dance Alliance Global Summit in Newfoundland, Physical Theatre Lab in Slovenia, and the Festival Internacional Danza al Borde in Tijuana, Mexico. Her dance film, “Fluctuating Frequencies” was one of three highlighted at the World Dance Alliance Americas Assembly at the Universidad de las Américas Puebla 2016. She has the honor of performing with Leah Glenn Dance Theatre and Company Movimiento directed by Cynthia Gutierrez. Mockli is a recipient of the Herman Award for Specialized Pedagogy from the University of Oregon and is certified to teach in the DanceAbility® Method."]}, {"id": "g10fri", "key": "lain", "day": "fri", "start": "11:15", "room": "Gym 221", "who": "Katherine Lain", "title": "Fluid Dynamics", "desc": ["In this Contact Improvisation class we will use spiraling forms naturally occurring in the body and nature to cultivate support, efficiency, and ease in our dancing. Drawing inspiration from our fluid system, the sea, and qualities of water we will explore tone, weight sharing, and listening touch. Principles of fluid dynamics will help us find sustainability, flowing kinetic energy, and suppleness when meeting the earth or another's body. Solo explorations, guided partner exercises, open scores, and witnessing will structure our time together. All levels of experience with CI are welcome."], "bio": ["Katherine Lain is a movement improviser, dance facilitator, writer, and bodyworker living between Austin, TX and Athens, GR. She is interested in improvisation as an ensemble art-making process — listening together to what emerges from the present moment. Katherine draws inspiration from observing nature and animals, caring for small humans, studying developmental movement patterns, swimming in wild places, and a decade of massage therapy practice. She has organized and taught at Austin’s weekly CI jam since 2022 and presented original work at M54 (Athens), Jardin d'Alice (France), and the Austin Dance Festival. Katherine is currently pursuing a Masters in Counseling Psychology in Athens and taking many naps by the sea."]}, {"id": "c12fri", "key": "wells", "day": "fri", "start": "15:00", "room": "Jowers B178", "who": "Scott Wells", "title": "Scores, Improv and the Poetics of Presence", "desc": ["A playful and focused approach to scores. Includes: movement sourcing, tuning scores, ensemble states, instant composition. We start with sensation and spatial explorations to drop into our own movement. Let you body show you how to dance. Composition as mediation; as the art or bodies in space. We will explore the intangibles (curiosity, vulnerability, commitment, presence), and with the spirit of exploration we will learn as much by watching as performing.\nSourcing–connecting with your body, impulses + spontaneity\nEnsemble states–tuning exercises, composition and non-composition,\nMovement as Art.\nScores–the way in, Aesthetics–how we watch."], "bio": ["Scott Wells has been practicing contact improv in 1981, has an MFA in dance, and directs an award winning dance company in San Francisco. He has created works for skateboarders, for boxers and choreographed West Side Story for Sonoma State University. Scott has twice received the Isadora Duncan (San Francisco’s most prestigious dance award) for Outstanding Choreography. He has been teaching in Europe for the last 30 years at festivals in Moscow, Barcelona, Budapest, Berlin, Vienna, Zagreb, Bucharest, and Ankara to name a few. His current research passions are Eyebody practice, moving from the organs and contact improvisation."]}, {"id": "d12fri", "key": "smith", "day": "fri", "start": "15:00", "room": "Jowers B175", "who": "Wayne Smith", "title": "Get Set…Action", "desc": ["This workshop will utilize some of the principles of Action Theatre, a body centered form of physical theatre that uses open improvisation, physical tasks, and sensory prompts as a means of generating scores. Class structures, approaches, and forms will vary based on how participants respond to material and interact with each other. The purpose is to explore embodied improvisation and to push the boundaries of a performer’s presence. Focus will be on movement, spontaneity, and sensory experience, and may include working with narrative. This class is great for all levels of dancers."], "bio": ["Wayne is a native of Memphis, TN, and a longtime dance professor, plus an alum at the University of Memphis. He holds an MFA degree from the Ohio State University, and a BFA in Theatre/Dance (minor Mathematics) from Memphis. His areas of expertise are in dance improvisation, experimental dance theatre research, mindful movement practices, and modern and jazz dance techniques. Wayne sometimes does community outreach under the auspices of his own company SmithWorks, as well as through Playback Memphis (EveryStory), an improvisational audience-interactive theatre company. He also is a teaching artist with Company d, a dance performance company in Memphis for dancers with Downs Syndrome. Additionally, Wayne is on the advisory board committee for TDIF since 2013."]}, {"id": "e12fri", "key": "martin", "day": "fri", "start": "15:00", "room": "Jowers 170", "who": "Shayla “Lashay” Martin", "title": "Street & Club Freestyle", "desc": ["Street & Club Freestyle explores improvisation through the foundations of groove, musicality, and movement exploration rooted in Street and Club dance culture. Dancers will build tools for freestyle by developing rhythm awareness, texture, dynamics, and personal expression while learning how to respond authentically to music in real time. This class emphasizes both technique and creative freedom, helping movers strengthen their improvisational instincts while deepening their understanding of how freestyle functions within social and cultural dance spaces."], "bio": ["Shayla “Lashay” Martin is a Texas-based multidisciplinary artist, dancer, and educator trained in Contemporary, Jazz Technique, Hip Hop Foundation, and Street/Club styles including House, Vogue, and Waacking. She is the founder of Texas’s first Waacking-focused group and is affiliated with World of Dance and BgirlCity. Lashay has performed at venues including the Hobby Center, Wortham Center, and Miller Outdoor Theatre, and has taught at universities including Rice University, UT Austin, Texas A&M, and Sam Houston State University. Her work centers on honoring the cultural roots of movement while fostering artistic growth and community."]}, {"id": "f12fri", "key": "sharma", "day": "fri", "start": "15:00", "room": "Gym 219", "who": "Sanchita Sharma", "title": "Attentive Motion", "desc": ["This class views attention as the primary resource, tool, and impulse to generate, trace, and organize bodily movement. In this improvisational practice, we tune into presence, somatic memory, and situatedness as we open ourselves towards the relational and social aspects of the world that we move through, embody, and inhabit. We build upon this relational and embodied knowledge and work to enhance spinal articulation and mobility, reconnect with our breath, and ground our bodies."], "bio": ["Sanchita is a New Delhi-born, Austin-based performing artist, choreographer, and dance scholar with a PhD in Culture and Performance from UCLA. Sharma’s research interests include dissent and the dancing body, migration and belonging, and somatic attention and improvisational dance practices. She is an Adjunct Associate Professor of Dance at Austin Community College, Development Advisor for Future Front Texas and Chair for the Dance Studies Association’s Working Group, Practice-as-Research. Her dances have been presented at ARCOS Presents Long-Form, Austin Dance Festival, Preheat Film Festival, Keshet Center for the Arts, Seoul International Short Film Festival, Gati Dance Forum, and Maya Dance Theatre."]}, {"id": "h12fri", "key": "gamborino", "day": "fri", "start": "15:00", "room": "Outside · meet at registration table", "who": "Rebeca Gamborino", "title": "Placemaking: Ecofeminist Approaches to Dancemaking", "desc": ["Improvisation workshop exploring body, space, and narrative through ecofeminist approaches. Rooted in placemaking, participants investigate how bodies shape— and are shaped by—environments. Three practices guide the class: Topography of the Body (trace contours to generate spatial relationships), Make a Pattern, Break a Pattern (build and disrupt motifs as metaphors for harm, resistance, transformation), and Movement Talks (free movement paired with stream-of-consciousness speech to produce embodied narrative). Participants leave with tools for embodied storytelling, site-responsive improvisation, and activist practice that foregrounds our role in shaping places."], "bio": ["Rebeca Gamborino is an interdisciplinary artist whose movement projects arise from her perspective as a woman, immigrant, Latina, and mother. This lived experience lies at the heart of her pedagogy and choreographic work, where she uses dance-making as a form of activism. She has taught dance throughout Texas for the past twenty years and has showcased her work on stage and screen both nationally and internationally. She earned her MFA from Texas Woman's University in 2023. Recently, she and her partner moved from Denton to McAllen with their son to join the Department of Dance at the University of Texas Rio Grande Valley as an Assistant Professor of Dance and director of the Dance Ensemble."]}, {"id": "c19sat", "key": "wells", "day": "sat", "start": "11:15", "room": "Jowers B178", "who": "Scott Wells", "title": "Zero to Flying", "desc": ["Contact improv skills and principles/ flying maneuvers / fluid acrobatics We start with body awareness and connection with gravity to find satisfying contact dances. We will work with physics and somatics to practice lifts and flying.", "I call it Zero to Flying to let you know there will be some flying action fun. I call it Zero to give me the leeway to adapt to the needs and wishes of the group. Zero also refers to researching deep contact , somatic and cellular touch.\nAerial aspects of contact improvisation: flying, catching, landing, lifting and fluid acrobatics. For the acrobatics. Everyone will work at their own level and will learn best by building group safety and trust. We will practice integrating the flying and acrobatics into the contact flow.\n(I aim to connect the work to somatic knowledge. For example, Jumping ≠ Flying because jumping is a muscular action, whereas flying is in the bones and is affected greatly by emotions and attitude.)"], "bio": ["Scott Wells has been practicing contact improv in 1981, has an MFA in dance, and directs an award winning dance company in San Francisco. He has created works for skateboarders, for boxers and choreographed West Side Story for Sonoma State University. Scott has twice received the Isadora Duncan (San Francisco’s most prestigious dance award) for Outstanding Choreography. He has been teaching in Europe for the last 30 years at festivals in Moscow, Barcelona, Budapest, Berlin, Vienna, Zagreb, Bucharest, and Ankara to name a few. His current research passions are Eyebody practice, moving from the organs and contact improvisation."]}, {"id": "d19sat", "key": "bascom", "day": "sat", "start": "11:15", "room": "Jowers B175", "who": "Megan Bascom", "title": "Good Conversation - A Physical Dialogue", "desc": ["What makes a good conversation - feeling heard, understood, and seen? This session offers a space to explore this question through movement, evaluating outcomes from a choreographic lens. Basic scores are offered to clarify communication fundamentals and then layered to represent complex and dynamic realities within human engagement. Dancers will explore reflexivity versus calculated response, sensing how time can alter engagements and intention. Participants will generate material, witness, and refine choices, translating emergent interactions into choreographic strategies that support process, authorship, and collaboration. Attention to proximity, breath, and touch—where nuance, timing, detail, and closeness converge—deepens a shared, unfolding awareness between bodies."], "bio": ["Megan Bascom is a choreographer, performer, somatic practitioner, and faculty member at Wichita State University. Her work centers on connection—between bodies, contexts, and lived experience—through collaborative, relationship-driven practices. Her work invites explorations of human interaction through physical dialogue and embodied awareness. She spent fourteen years in New York City, teaching, sharing projects through Megan Bascom & Dancers, and working as an independent artist. Her choreography and teaching have been shared across national and international communities, cultivating spaces for curiosity, empathy, and play. Megan holds a BA from the University of South Florida and an MFA from the University of Michigan."]}, {"id": "e19sat", "key": "big rig dance collective", "day": "sat", "start": "11:15", "room": "Jowers 170", "who": "Big Rig Dance Collective", "title": "Four Phases", "desc": ["From the Movement Fundamentals curriculum by Jane Hawley, the Four Phases practice is patterned around the infinity concept: layered within each phase is the whole. Through prompts and reflective questions, the class will move through the phases of preparation, moving, dancing, and witnessing. Paper and writing/drawing materials will be available for reflection."], "bio": ["Big Rig Dance Collective Co-Directors: Crysta Caulkins-Clouse, Whitney Geldon, and Lily Sloan", "Big Rig Dance Collective is directed by Crysta Caulkins-Clouse, Whitney Geldon, Amanda Jackson, and Lily Sloan, who are certified Movement Fundamentals Artists. In our creative process, we value what each individual brings to the group, and that is often the impetus for our work. Whether our collaborations lead us to light-hearted theatrical movement or raw energy and explosive physicality, we always start making dance by looking to what drives us in the here and now. Our methods for creating often include improvisation, set choreography, and collaborations with other artists."]}, {"id": "f19sat", "key": "davis/totzke", "day": "sat", "start": "11:15", "room": "Gym 219", "who": "Scott Davis & Tamin Totzke", "title": "Being With", "desc": ["Being With introduces approaches to Contact Improvisation and ensemble improvisation that foster personal relationships among the dancers and invite a sense of non-linear story for the viewer. Working with proximity, contact, and how we use our gaze and eye contact, Totzke and Davis will share tools that add complexity to your dances and generate curiosity in your viewers."], "bio": ["Tamin Totzke and Scott Davis have been practicing, performing, and teaching dance improvisation since the early 2000s. They are founding members of AVID, a Seattle-based dance collective committed to weaving their dance practice into life beyond the studio. AVID researches, teaches, and performs ensemble improvisation with a focus on softening the distinction between the practice of improvisation in a studio without viewers and its performance."]}, {"id": "g19sat", "key": "dodini", "day": "sat", "start": "11:15", "room": "Gym 221", "who": "Meg Dodini", "title": "Fountains of Expressive Flow", "desc": ["This class investigates improvisation as a practice of embodied perception, responsiveness, and creative agency. Through guided movement explorations, sensory awareness, and compositional inquiry, students practice accessing their individual logic of sensation, movement, and creation within the dynamic context of the collective.", "We engage inner resources such as intuition, perception, action, and attention, cultivating both specificity and openness in our dancing. Emphasis is placed on developing precision, range, softness, rigor, and responsiveness as expressive tools within improvisational practice.", "A central focus of the course is the spine as a primary site of movement initiation, organization, sensation, and expression. We explore the spine as both structural and imaginative material — a channel through which internal experience and external environment continually inform one another. Through this work, students expand their physical vocabulary, deepen their relationship to improvisation, and strengthen their capacity for presence, choice-making, and embodied communication.  NOTE*: I was taught this pedagogy by a grad school mentor of mine, Sigal Zouk, who was a member of Batsheva Dance Company between 1994 and 1999."], "bio": ["Meg Dodini is a dancer and artist committed to making dance accessible to all. She holds a BFA in Dance Education from Brigham Young University and an MFA in Dance Performance from Hollins University. After three years performing in Europe, she returned to the U.S. with over a decade of professional experience across contemporary companies in Utah, New York, and Norway, including Odyssey Dance Theatre, Carte Blanche, and ImproLaB.", "Meg has performed works by renowned choreographers such as Ohad Naharin, Martha Graham, and José Limón, and her own work has been presented internationally at festivals in Reykjavik, Oslo, Plovdiv, and Barcelona. A recipient of multiple grants and residencies in Norway, she is also an established dance filmmaker whose work has screened globally.", "She has taught at Cornell University and the Oslo National Academy of the Arts, and is currently on faculty at Dallas College. Her research explores ageism and ableism in dance, the body as a site of memory, and movement as a vehicle for expressing generational trauma."]}, {"id": "c21sat", "key": "rabbers", "day": "sat", "start": "15:00", "room": "Jowers B178", "who": "Carolyn Pampalone Rabbers", "title": "Falling Horizontally", "desc": ["Improvisational based exploration of falling through space, with support of the Countertechnique Toolbox. This is done through postural awareness, spatial trajectories, and understanding space through Laban theory."], "bio": ["Carolyn Pampalone Rabbers is an Instructional Assistant Professor in Dance at Texas A&M and the Executive Artistic Director of CPR Dance: Inhale Movement. She holds an MFA from the University of the Arts and a BFA as Presidential Scholar from Western Michigan University. Carolyn has performed nationally and internationally with companies including Wellspring/Cori Terry & Dancers, Diavolo, Royal and Celebrity Cruises, Clairobscur, and LACDC, in works by Sidra Bell, Seyong Kim, Erik Hawkins, Yvonne Rainer, Loïe Fuller, Antony Tudor, and Gerald Arpino. Her choreography has been featured nationally and internationally. She choreographed Chase Your Dreams for Texas A&M’s Virtual Production Institute with Academy Award-nominated director Brandon Oldenburg and Limbert Fabian, as well as THAW, an interarts production. Carolyn is certified in ABT NTC Level VII, Graham Technique, PBT, PCT, Pilates, Reiki, Yoga. Recently she is al Research MODULE artist, Atelier Artist in Residence, and is an Countertechnique Teacher (2026)."]}, {"id": "d21sat", "key": "nina martin", "day": "sat", "start": "15:00", "room": "Jowers B175", "who": "Nina Martin", "title": "Contact Improvisation · ReWire Movement States™", "desc": ["Nina’s class will introduce ReWire Movement States™ as a fresh investigation into CI that does not assume we know what CI is.", "We will be guided by what Steve Paxton once said to her, “People forget that there are two words in the title — Contact and Improvisation.”"], "bio": ["Nina Martin, MFA, PhD: choreographer, pedagogue, dance theorist and performer. Centered in the phenomena of perception, composition and spontaneous movement states her research springs from 40 years of embodied research and applied dance. Martin’s dance systems: Ensemble Thinking and ReWire Movement Method complement her practice in Contact Improvisation. Martin joins the Lower Left Performance Collective www.lowerleft.org, is professor of dance at TCU School of Classical & Contemporary Dance and hosts dance events in Marfa, Texas."]}, {"id": "e21sat", "key": "dalsimer", "day": "sat", "start": "15:00", "room": "Jowers 170", "who": "Hallie Dalsimer", "title": "Tools for Play: Interested is Interesting", "desc": ["There is a wonderful quote from Doris Humphrey that offers a vital lesson for improvisers: \"Don't just do something, stand there.\" When we unhook from the idea that we are need to be constantly doing/moving — and release the pressure to make what we are doing interesting (or good) — a whole world of possibility opens up for us. This class will offer practices and strategies for reorienting our attention deeper into our internal felt sense of the present moment, while simultaneously inviting us to widen our awareness to include how we are co-creating the evolving relationships within a shared space."], "bio": ["Hallie Dalsimer is an embodied systems artist working across movement, sound, and collective practice. (Th)eir practice is rooted in the belief that inhabiting our bodies in real time is a deeply radical and permissionary act, one that we can model for each other as an invitation to both inhabit our own lives more fully and to re-member ourselves as part of a larger collective body. Hallie has been dancing for over 35 years and teaching and performing a wide variety of improvisational practices regularly since 2010. E hails from Santa Fe, NM."]}, {"id": "f21sat", "key": "hoelscher", "day": "sat", "start": "15:00", "room": "Gym 219", "who": "Evelyn Joy Hoelscher", "title": "Partner & Play", "desc": ["Partner & Play is an exploratory workshop designed for artists to move, connect, and experiment. We approach partnering through the lens of play—offering prompts, games, and technical concepts to build your toolbelt and expand how you sense and support another body. Starting with guided connection and sensory awareness, we explore structured contact improv and dynamic partnering concepts. With a focus on body mechanics and efficient lifting, dancers learn to partner with ease—not force. Leave feeling stronger, more connected, and ready to fly."], "bio": ["Evelyn Joy Hoelscher is an Austin-based choreographer, performer, and educator, and has served for over a decade as Artistic Director of Spaces of Fontana, a contemporary dance collaboration she founded in NYC and now leads in Austin. Her work bridges structured choreography and improvisational partnering practices rooted in trust, play, and embodied storytelling. She has taught as a guest artist at Texas A&M, TDIF, and 254 DanceFest, and regularly leads workshops for the Austin community. With a background in dance kinesiology and over 1,000 classes in yoga and Pilates, her approach integrates somatics, relational movement, and improvisation as tools for connection."]}, {"id": "g21sat", "key": "weiss bambara", "day": "sat", "start": "15:00", "room": "Gym 221", "who": "Celia Weiss Bambara", "title": "Eco-Somatic Scores for Water and the Moon", "desc": ["This workshop will draw upon eco-somatic scores that have arisen through practice-based research and dance making with the CCBdance Project and through a current work about the moon’s cycles. Beginning with a floor-based meditation and combination of yoga and Klien Mahler practices the work will begin focusing on alignment, breath, and floor-oriented movement to sink into the body and find our edges. Participants will engage two sets of scores for drifting, pooling, and waxing and waning. The body-based work will adapt somatic practices embedded in score(s) that engage mindfulness, slowness, working with water in the body, and locating cyclical movements.  The workshop period will culminate in a group river score that incorporates these practices within and through listening to the ensemble of participants."], "bio": ["Dr. Celia Weiss Bambara is an accomplished dancer, choreographer and scholar as well as a dual citizen of the US and Burkina Faso. She is the artistic director of the CCBdance Project, which was co-founded with Burkina Faso born dance and theater artist, Christian Bambara in 2006. Her choreography, improvisation, site-dance work, and screen dance has been shown in the United States, Asia, The Middle East, Canada, the Caribbean, West Africa, and in Europe. Celia’s most recent work is published in the Journal of Dance and Somatics Practices and The Routledge Companion to Site-Specific Performance. Celia is the Head of Dance at the University of Wisconsin, Whitewater and an Assistant Professor of the program."]}], "extras": {"welcome and opening circle": {"desc": ["Welcoming and logistical information"]}, "jam": {"desc": ["Open dance space with musicians. Keep social talking to a minimum; the focus is on dancing or witnessing."]}, "quiet jam": {"desc": ["Open dance space without musicians. Keep social talking to a minimum; the focus is on dancing or witnessing."]}, "jam and closing circle": {"desc": ["Open dance space with musicians. Keep social talking to a minimum; the focus is on dancing or witnessing."]}, "tech in harrison theatre": {"link": "https://maps.app.goo.gl/NMsibq6N5aWN9jM3A"}, "performance": {"desc": ["Performance in the lobby starts at 6:40 pm."], "link": "https://maps.app.goo.gl/NMsibq6N5aWN9jM3A"}}, "agreements": ["I agree to consistently take responsibility for myself about how, when and if I choose to interact with others. I will reach out to the Response Team if I need support or help.", "I agree to contribute to a culture of consent by using full body listening and paying attention to the multiple ways that someone can signal yes or no.", "I agree to refrain from moving the sensual practice of CI toward the sexual during classes or jams at the festival.", "I agree to exercise awareness about how identity, background, and experience level can create complex dynamics that affect people’s ability to proactively indicate or verbally say “no” to interactions. Therefore, I will strive to ascertain through someone’s words or body language if they want to dance with me or not and respond accordingly.  I will not assume that people want to be touched or do contact in any specific way just because they showed up for this event.", "I agree to not engage in discriminatory behaviors towards others including: violence, sexual harassment or assault, offensive comments or behavior related to sex, gender identity and expression, sexual orientation, disability, mental illness, physical appearance, body size, age, race, religion, nationality, lifestyle choices and practices, including those related to food, health, parenting, drugs, and employment.", "I agree to engage respectfully if a concern is raised about my behavior, to address my behavior, if necessary, with the Response Team, which may include, the request to leave the immediate space or the entire event if the Team determines that my continued presence poses a risk to the safe enjoyment of the festival for other participants."]};
+const SNAPSHOT = "TDIF 2026 Schedule,,,,,,,\" Hover over boxes to see more info\n*This schedule is subject to change and slight modifications      \",,,\nTHURSDAY,JOWERS Lobby,JOW B178,JOW B175,JOW 170,GYM 219,GYM 221,,,,\n5:30 pm - 7:00 pm,Registration 5:30-8:00pm,,,,,,,,,\n7:00 pm - 7:30 pm,,Welcome and Opening Circle,,,,,,,,\n7:30 pm - 10:00 pm,,JAM,Quiet JAM,,,,,,,\n,,,,,,,,,,\nFRIDAY,JOWERS Lobby,JOW B178,JOW B175,JOW 170,GYM 219,GYM 221,Outside/Site Specific meet at registration lobby,,,\n,Registration 8:30-10:00am,,,,,,,,,\n9:00 am - 10:45 am,,Wells,Dewitt,Lass,Cartwright,Ellis,,,,\n11:15 am - 1:00pm,,Barnard,Fuchs,Lima/Mockli,NO CLASS,Lain,,,,\n1:00 pm - 3:00 pm,Registration 2:00-3:00 pm,Break,,,,,,,,\n3:00 pm - 4:45 pm,,Wells,Smith,Martin,Sharma,,\"Gamborino (Outside), meet at registration table\",,,\n6:00 pm - 8:00 pm,Registration 7:30-8:30 pm   ,Break,,,,,,,,\n7:30 pm - 10:00 pm,,JAM,Quiet JAM,,,,,,,\n,,,,,,,,,,\nSATURDAY,JOWERS Lobby,JOW B178,JOW B175,JOW 170,GYM 219,GYM 221,,Performing Arts Center,,\n,Registration 8:30-10:00am,,,,,,,,,\n9:00 am - 10:45 am,,Morning Jam,,Wells Rehearsal (not a class),,,,,,\n11:15 am - 1:00 pm,,Wells,Bascom,Big Rig Dance Collective,Davis/Totzke,Dodini,,,,\n1:00 pm - 3:00 pm,Registration 2:00-3:00 pm     (Advisory Committee Lunch 1-3pm),Break,,,,,,TECH in Harrison Theatre,,\n3:00 pm - 4:45 pm,,Rabbers,Nina Martin,Dalsimer,Hoelscher,Weiss Bambara,,,,\n4:45 pm - 7:00 pm,                                               Break,,,,,,,,,\n7:00 pm - 8:30 pm,\"PERFORMANCE AT PERFORMING ARTS CENTER, Harrison Theatre - Performance in Lobby starts at 6:40\",,,,,,,,,\n8:30 pm - 10:30 pm,,JAM and Closing Circle,Quiet JAM,,,,,,,\n";
+let DATA = { sessions: [], agreements: BAKED.agreements };
+let sync = { mode: "snapshot", at: null, error: false };
+
+function parseCSV(text) {
+  const rows = []; let row = [], f = "", q = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (q) {
+      if (c === '"') { if (text[i + 1] === '"') { f += '"'; i++; } else q = false; }
+      else f += c;
+    } else if (c === '"') q = true;
+    else if (c === ",") { row.push(f); f = ""; }
+    else if (c === "\n" || c === "\r") {
+      if (c === "\r" && text[i + 1] === "\n") i++;
+      row.push(f); rows.push(row); row = []; f = "";
+    } else f += c;
+  }
+  if (f || row.length) { row.push(f); rows.push(row); }
+  return rows;
+}
+
+function norm(t) { return String(t || "").toLowerCase().split("(")[0].replace(/\s+/g, " ").trim(); }
+
+function to24(h, m, ap) {
+  h = +h; m = +(m || 0);
+  if (ap === "pm" && h < 12) h += 12;
+  if (ap === "am" && h === 12) h = 0;
+  return String(h).padStart(2, "0") + ":" + String(m).padStart(2, "0");
+}
+// Finds "9:00 am - 10:45 am", "5:30-8:00pm", "11:15 am - 1:00pm" etc.
+function parseRange(text) {
+  const m = String(text || "").toLowerCase().match(/(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\s*[-–]\s*(\d{1,2})(?::(\d{2}))?\s*(am|pm)/);
+  if (!m) return null;
+  const endAp = m[6];
+  let startAp = m[3] || endAp;
+  const end = to24(m[4], m[5], endAp);
+  let start = to24(m[1], m[2], startAp);
+  if (!m[3] && start > end) start = to24(m[1], m[2], endAp === "pm" ? "am" : "pm");
+  return { start, end };
+}
+
+function roomName(h) {
+  h = String(h || "").trim();
+  if (/^outside/i.test(h)) return "Outside · meet at registration lobby";
+  return h.replace(/^JOWERS\b/i, "Jowers").replace(/^JOW\b/i, "Jowers").replace(/^GYM\b/i, "Gym");
+}
+
+const DAYWORDS = { thursday: "thu", friday: "fri", saturday: "sat" };
+
+function classify(text) {
+  const t = text.toLowerCase();
+  if (t === "no class") return null;
+  if (t.startsWith("registration")) return "logistics";
+  if (t === "break") return "break";
+  if (t.includes("jam")) return "jam";
+  if (t.startsWith("welcome")) return "circle";
+  if (t.startsWith("performance")) return "performance";
+  if (t.includes("rehearsal") || t.startsWith("tech")) return "logistics";
+  return "class";
+}
+
+function lookupClass(label, day, start, room) {
+  const k = norm(label);
+  const all = BAKED.classes.filter(c => c.key === k);
+  return all.find(c => c.day === day && c.start === start)
+    || all.find(c => c.day === day && c.room === room)
+    || (all.filter(c => c.day === day).length === 1 ? all.find(c => c.day === day) : null)
+    || (all.length === 1 ? all[0] : null);
+}
+
+function buildSessions(rows) {
+  const out = []; let day = null, rooms = [];
+  for (const r of rows) {
+    const a = (r[0] || "").trim();
+    const dw = DAYWORDS[a.toLowerCase()];
+    if (dw) { day = dw; rooms = r.map(roomName); continue; }
+    if (!day) continue;
+    const rowTime = parseRange(a);
+    for (let c = 1; c < r.length; c++) {
+      const raw = (r[c] || "").replace(/\s+/g, " ").trim();
+      if (!raw) continue;
+      const kind = classify(raw);
+      if (!kind) continue;
+      const time = (kind === "logistics" && parseRange(raw)) || rowTime || parseRange(raw);
+      if (!time) continue;
+      let room = rooms[c] || "";
+      const s = { day, start: time.start, end: time.end, kind, room, label: raw, desc: [] };
+      if (kind === "class") {
+        const b = lookupClass(raw, day, time.start, room);
+        s.who = b ? b.who : raw.split("(")[0].trim();
+        s.title = b ? b.title : null;
+        s.desc = b ? b.desc : [];
+        s.bio = b ? b.bio : [];
+        s.id = b ? "c-" + b.id : "c-" + day + "-" + norm(raw).replace(/\W+/g, "") + "-" + time.start;
+      } else {
+        const short = raw.match(/^registration/i) ? "Registration"
+          : kind === "performance" ? "Performance"
+          : raw.replace(/\b\w+/g, w => w.length > 3 && w === w.toUpperCase() ? w[0] + w.slice(1).toLowerCase() : w).replace(/\bJAM\b/g, "Jam");
+        s.title = short;
+        if (kind === "logistics" && /^registration/i.test(raw)) room = s.room = rooms[c] || "Jowers Lobby";
+        if (kind === "performance") s.room = "Harrison Theatre, Performing Arts Center";
+        if (kind === "break") s.room = "";
+        const extra = BAKED.extras[norm(raw)] || BAKED.extras[kind];
+        if (extra) { if (extra.desc) s.desc = extra.desc; if (extra.link) s.link = extra.link; }
+        if (raw.toLowerCase() !== short.toLowerCase() && !(extra && extra.desc)) s.desc = [raw];
+        s.id = kind + "-" + day + "-" + time.start + "-" + norm(short).replace(/\W+/g, "") + "-" + c;
+      }
+      out.push(s);
+    }
+  }
+  return out;
+}
+
+function applyCSV(text) {
+  const sessions = buildSessions(parseCSV(text));
+  if (sessions.filter(s => s.kind === "class").length < 5) throw new Error("Sheet layout not recognized");
+  DATA = { sessions, agreements: BAKED.agreements };
+}
+
+async function refresh() {
+  for (const url of SOURCES) {
+    try {
+      const res = await fetch(url, { cache: "no-store" });
+      if (!res.ok) continue;
+      const text = await res.text();
+      if (!/thursday/i.test(text)) continue;
+      applyCSV(text);
+      sync = { mode: "live", at: new Date(), error: false };
+      store.set("tdif26-cache", { text, at: sync.at.toISOString() });
+      render();
+      return;
+    } catch (e) { /* try next source */ }
+  }
+  sync.error = true;
+  render();
+}
+
+function syncLabel() {
+  if (sync.mode === "live") {
+    const mins = Math.round((new Date() - sync.at) / 6e4);
+    return `Live from the festival sheet · updated ${mins < 1 ? "just now" : mins + " min ago"}${sync.error ? " · can't reach it right now" : ""}`;
+  }
+  if (sync.mode === "cache") return `Offline copy from ${sync.at.toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit" })} · ${sync.error ? "can't reach the sheet" : "checking for updates…"}`;
+  return sync.error ? "Built-in copy of the schedule · can't reach the sheet" : "Checking the festival sheet for updates…";
+}
+
+const DAYS = { thu: { label: "Thursday", date: [2026, 9, 15] }, fri: { label: "Friday", date: [2026, 9, 16] }, sat: { label: "Saturday", date: [2026, 9, 17] } };
+const ORDER = ["thu", "fri", "sat"];
+const STAR_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.8l2.8 5.9 6.4.8-4.7 4.4 1.2 6.4L12 17.2l-5.7 3.1 1.2-6.4L2.8 9.5l6.4-.8z" fill="currentColor" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>';
+const STAR_OFF = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.8l2.8 5.9 6.4.8-4.7 4.4 1.2 6.4L12 17.2l-5.7 3.1 1.2-6.4L2.8 9.5l6.4-.8z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>';
+
+const store = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+};
+let stars = new Set(store.get("tdif26-stars", []));
+let openIds = new Set();
+let day = null;
+let query = "";
+
+function at(d, hhmm) { const [y, m, dd] = DAYS[d].date; const [h, mi] = hhmm.split(":").map(Number); return new Date(y, m, dd, h, mi); }
+function fmt(hhmm) {
+  let [h, m] = hhmm.split(":").map(Number); const ap = h >= 12 ? "pm" : "am"; h = h % 12 || 12;
+  return m ? `${h}:${String(m).padStart(2, "0")}` + ap : `${h}` + ap;
+}
+function range(s) {
+  const a = fmt(s.start), b = fmt(s.end);
+  const same = a.slice(-2) === b.slice(-2);
+  return (same ? a.slice(0, -2) : a) + "–" + b;
+}
+function esc(t) { return String(t).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]); }
+function status(s, now) { const a = at(s.day, s.start), b = at(s.day, s.end); return now >= b ? "done" : now >= a ? "now" : "soon"; }
+function matches(s) {
+  if (!query) return true;
+  const hay = [s.who, s.title, s.label, s.room, ...(s.desc || []), ...(s.bio || [])].join(" ").toLowerCase();
+  return query.toLowerCase().split(/\s+/).every(w => hay.includes(w));
+}
+
+function groupSlots(list) {
+  const map = new Map();
+  for (const s of list) {
+    const k = s.day + s.start + s.end;
+    if (!map.has(k)) map.set(k, { day: s.day, start: s.start, end: s.end, items: [] });
+    map.get(k).items.push(s);
+  }
+  const rank = { class: 0, performance: 0, circle: 1, jam: 2, break: 3, logistics: 4 };
+  return [...map.values()]
+    .sort((a, b) => ORDER.indexOf(a.day) - ORDER.indexOf(b.day) || a.start.localeCompare(b.start) || a.end.localeCompare(b.end))
+    .map(g => (g.items.sort((x, y) => rank[x.kind] - rank[y.kind]), g));
+}
+
+function cardHTML(s) {
+  const isClass = s.kind === "class";
+  const hasMore = (s.desc && s.desc.length) || (s.bio && s.bio.length) || s.link || s.kind === "jam";
+  const open = openIds.has(s.id);
+  const quiet = s.kind === "break" || s.kind === "logistics";
+  const tag = isClass ? "Class" : s.kind === "jam" ? "Jam" : s.kind === "performance" ? "Show" : "";
+  let head = isClass
+    ? `<span class="who">${esc(s.who)}</span><span class="ctitle">${esc(s.title || "Class description not posted yet")}</span>`
+    : `<span class="ctitle">${esc(s.title)}</span>`;
+  const where = `<span class="where">${tag ? `<span class="tag">${tag}</span>` : ""}${s.room ? esc(s.room) : ""}${query ? ` · ${DAYS[s.day].label.slice(0, 3)} ${range(s)}` : ""}</span>`;
+  const more = hasMore && !open ? `<span class="more">${isClass ? "Read description" : "Details"}</span>` : "";
+  let detail = "";
+  if (open && hasMore) {
+    detail = `<div class="detail" id="d-${s.id}">`;
+    for (const p of s.desc || []) detail += `<p>${esc(p)}</p>`;
+    if (s.bio && s.bio.length) { detail += `<h4>About the teacher${s.who.includes("&") || s.who.includes("Collective") ? "s" : ""}</h4>`; for (const p of s.bio) detail += `<p class="bio">${esc(p)}</p>`; }
+    if (s.kind === "jam") detail += `<button class="linkbtn" data-agree>Read the community agreements</button>`;
+    if (s.link) detail += `<a href="${esc(s.link)}" target="_blank" rel="noopener">Map to Harrison Theatre ↗</a>`;
+    detail += `</div>`;
+  }
+  const starBtn = isClass || s.kind === "performance" || s.kind === "jam"
+    ? `<button class="starbtn" data-star="${s.id}" aria-pressed="${stars.has(s.id)}" aria-label="${stars.has(s.id) ? "Remove from" : "Add to"} my picks">${stars.has(s.id) ? STAR_ICON : STAR_OFF}</button>` : "";
+  return `<article class="card kind-${s.kind}${quiet ? " quiet" : ""}">
+    <div class="row">
+      <button class="opener" data-open="${s.id}" ${hasMore ? `aria-expanded="${open}"` : "disabled"}>${head}${where}${more}</button>
+      ${starBtn}
+    </div>${detail}</article>`;
+}
+
+function slotHTML(g, now, showDay) {
+  const st = status(g, now);
+  const n = g.items.filter(i => i.kind === "class").length;
+  return `<section class="slot">
+    <div class="slot-head">
+      <h2 class="slot-time">${showDay ? DAYS[g.day].label + " · " : ""}${range(g)}</h2>
+      ${n > 1 ? `<span class="slot-meta">${n} classes</span>` : ""}
+      ${st === "now" ? `<span class="pill now">Now</span>` : st === "done" ? `<span class="pill done">Done</span>` : ""}
+    </div>
+    <div class="list">${g.items.map(cardHTML).join("")}</div>
+  </section>`;
+}
+
+function agreementsHTML() {
+  return `<details class="agree" id="agreements"><summary>Community agreements for jams and classes</summary><ol>${DATA.agreements.map(a => `<li>${esc(a.replace(/^I agree to /, "I agree to "))}</li>`).join("")}</ol></details>`;
+}
+
+function nowCardHTML(now) {
+  const first = at("thu", "17:30"), last = at("sat", "22:30");
+  if (now < first) {
+    const days = Math.ceil((new Date(2026, 9, 15) - new Date(now.getFullYear(), now.getMonth(), now.getDate())) / 864e5);
+    return `<div class="nowcard"><span class="eyebrow">Coming up</span><p class="big">Registration opens Thursday at 5:30pm${days === 1 ? " — tomorrow" : days > 1 ? ` — in ${days} days` : ""}.</p><p>Star classes to build your picks. Your stars stay on this phone.</p></div>`;
+  }
+  if (now > last) return "";
+  const all = DATA.sessions.filter(s => s.kind !== "logistics");
+  const live = all.filter(s => status(s, now) === "now" && s.kind !== "break");
+  const upcoming = all.filter(s => at(s.day, s.start) > now && s.kind !== "break").sort((a, b) => at(a.day, a.start) - at(b.day, b.start));
+  const nextStart = upcoming[0];
+  const next = nextStart ? upcoming.filter(s => s.day === nextStart.day && s.start === nextStart.start) : [];
+  const pickNext = next.filter(s => stars.has(s.id));
+  let html = `<div class="nowcard"><span class="eyebrow">Right now</span>`;
+  html += live.length ? `<p class="big">${live.map(s => esc(s.kind === "class" ? s.who : s.title)).join(" · ")}</p>` : `<p class="big">Break</p>`;
+  if (nextStart) {
+    const mins = Math.round((at(nextStart.day, nextStart.start) - now) / 6e4);
+    const when = mins < 90 ? `in ${mins} min` : `${DAYS[nextStart.day].label} ${fmt(nextStart.start)}`;
+    html += `<p><b>Next, ${when}:</b> ${pickNext.length ? "★ " + pickNext.map(s => esc((s.who || s.title) + " in " + s.room)).join(", ") : next.length + (next.length === 1 ? " session" : " sessions") + " — " + next.map(s => esc(s.who || s.title)).join(", ")}</p>`;
+  }
+  return html + `</div>`;
+}
+
+function render() {
+  const now = new Date();
+  const sl = document.getElementById("syncline");
+  sl.textContent = syncLabel();
+  sl.classList.toggle("is-live", sync.mode === "live" && !sync.error);
+  const view = document.getElementById("view");
+  document.querySelectorAll(".tab").forEach(t => t.setAttribute("aria-selected", String(!query && t.dataset.day === day)));
+  document.getElementById("pickcount").textContent = stars.size + " saved";
+  let html = "";
+  if (query) {
+    const hits = DATA.sessions.filter(s => s.kind !== "break" && s.kind !== "logistics" && matches(s));
+    html += hits.length
+      ? `<div class="list">${hits.map(cardHTML).join("")}</div>`
+      : `<p class="empty">Nothing matches “${esc(query)}”.</p>`;
+  } else if (day === "picks") {
+    html += nowCardHTML(now);
+    const picks = DATA.sessions.filter(s => stars.has(s.id));
+    if (!picks.length) html += `<p class="empty">Tap the ☆ on any class to save it here.<br>You'll get a single list of your weekend, with time clashes flagged.</p>`;
+    for (const d of ORDER) {
+      const mine = picks.filter(s => s.day === d);
+      if (!mine.length) continue;
+      const slots = groupSlots(mine);
+      html += `<section class="slot"><div class="slot-head"><h2 class="slot-time">${DAYS[d].label}</h2></div><div class="list">`;
+      for (const g of slots) {
+        const clash = g.items.length > 1 ? `<span class="conflict">${g.items.length} picks at ${range(g)}. Choose one.</span>` : "";
+        html += `<div class="slot"><div class="slot-head"><span class="slot-meta">${range(g)}</span>${clash}</div>${g.items.map(cardHTML).join("")}</div>`;
+      }
+      html += `</div></section>`;
+    }
+  } else {
+    html += nowCardHTML(now);
+    const slots = groupSlots(DATA.sessions.filter(s => s.day === day));
+    html += slots.map(g => slotHTML(g, now, false)).join("");
+    html += agreementsHTML();
+  }
+  html += `<p class="foot">Schedule from the TDIF 2026 sheet. Times are subject to change.</p>`;
+  view.innerHTML = html;
+}
+
+function defaultDay() {
+  const now = new Date();
+  for (const d of ORDER) { const [y, m, dd] = DAYS[d].date; if (now.getFullYear() === y && now.getMonth() === m && now.getDate() === dd) return d; }
+  return "thu";
+}
+
+document.querySelector(".tabs").addEventListener("click", e => {
+  const t = e.target.closest(".tab"); if (!t) return;
+  day = t.dataset.day; query = ""; document.getElementById("q").value = "";
+  store.set("tdif26-day", day); render(); window.scrollTo({ top: 0 });
+});
+document.getElementById("q").addEventListener("input", e => { query = e.target.value.trim(); render(); });
+document.getElementById("view").addEventListener("click", e => {
+  const st = e.target.closest("[data-star]");
+  if (st) {
+    const id = st.dataset.star; stars.has(id) ? stars.delete(id) : stars.add(id);
+    store.set("tdif26-stars", [...stars]); render(); return;
+  }
+  if (e.target.closest("[data-agree]")) {
+    const d = document.getElementById("agreements");
+    if (d) { d.open = true; d.scrollIntoView({ behavior: "smooth", block: "start" }); }
+    else { day = "thu"; query = ""; render(); const a = document.getElementById("agreements"); a.open = true; a.scrollIntoView({ block: "start" }); }
+    return;
+  }
+  const op = e.target.closest("[data-open]");
+  if (op && !op.disabled) { const id = op.dataset.open; openIds.has(id) ? openIds.delete(id) : openIds.add(id); render(); }
+});
+
+(function initData() {
+  const c = store.get("tdif26-cache", null);
+  if (c && c.text) { try { applyCSV(c.text); sync = { mode: "cache", at: new Date(c.at), error: false }; return; } catch (e) {} }
+  applyCSV(SNAPSHOT);
+})();
+day = defaultDay();
+const saved = store.get("tdif26-day", null);
+const now0 = new Date();
+if (saved && (now0 < at("thu", "00:00") || saved === "picks")) day = saved;
+render();
+refresh();
+setInterval(() => { if (!document.hidden) render(); }, 60000);
+setInterval(() => { if (!document.hidden) refresh(); }, 5 * 60000);
+document.addEventListener("visibilitychange", () => { if (!document.hidden) refresh(); });
+</script>
+
+</body>
+</html>

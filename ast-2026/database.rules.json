@@ -1,0 +1,46 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "crews": {
+      "$crew": {
+        ".read": "auth != null && $crew.length >= 10",
+        "plan": {
+          ".write": "auth != null && $crew.length >= 10",
+          ".validate": "newData.child('stops').exists() || !newData.exists() || newData.hasChildren(['ts'])"
+        },
+        "members": {
+          "$uid": {
+            ".write": "auth != null && auth.uid === $uid",
+            ".validate": "!newData.exists() || (newData.child('name').isString() && newData.child('name').val().length <= 40)"
+          }
+        },
+        "status": {
+          "$uid": { ".write": "auth != null && auth.uid === $uid" }
+        },
+        "pos": {
+          "$uid": {
+            ".write": "auth != null && auth.uid === $uid",
+            ".validate": "!newData.exists() || (newData.child('lat').isNumber() && newData.child('lng').isNumber() && newData.child('ts').isNumber())"
+          }
+        },
+        "meetups": {
+          "$mid": {
+            "meta": {
+              ".write": "auth != null && $crew.length >= 10 && (newData.exists() || data.child('by').val() === auth.uid)"
+            },
+            "props": {
+              "$pid": {
+                ".write": "auth != null && $crew.length >= 10 && (!data.exists() || data.child('by').val() === auth.uid)",
+                ".validate": "!newData.exists() || (newData.child('by').val() === auth.uid && newData.child('when').isNumber() && newData.child('lat').isNumber() && newData.child('lng').isNumber())"
+              }
+            },
+            "votes": {
+              "$uid": { ".write": "auth != null && auth.uid === $uid" }
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#FBF5EE">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<title>Studio Tour Crew — AST 2026 by bike</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+<style>
+:root{
+  --cream:#FBF5EE; --paper:#fff; --ink:#1E1915; --mute:#6f665e; --line:#e9dfd3;
+  --coral:#E2533F; --coral-2:#fbe3dd; --teal:#16756F; --teal-2:#dff0ee; --gold:#E9A21B; --gold-2:#fdf1d6;
+  --sky:#2F6FD6; --violet:#7a4fd6;
+  --st:env(safe-area-inset-top,0px); --sb:env(safe-area-inset-bottom,0px);
+  --peek:132px;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:var(--cream);color:var(--ink);font:15px/1.45 Inter,system-ui,-apple-system,sans-serif;overscroll-behavior:none}
+button{font:inherit;color:inherit;cursor:pointer}
+h1,h2,h3{font-family:Fraunces,Georgia,serif;margin:0;letter-spacing:-.01em}
+#map{position:fixed;inset:0;background:#e8e4dc}
+/* top bar */
+#top{position:fixed;left:0;right:0;top:0;z-index:900;padding:calc(8px + var(--st)) 10px 8px;background:linear-gradient(var(--cream) 70%,rgba(251,245,238,0));pointer-events:none}
+#top>*{pointer-events:auto}
+.brand{display:flex;align-items:center;gap:8px;justify-content:space-between}
+.brand h1{font-size:19px;font-weight:800}
+.brand h1 span{color:var(--coral)}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;background:var(--paper);border:1px solid var(--line);border-radius:999px;padding:5px 10px}
+.dot{width:8px;height:8px;border-radius:50%;background:#bbb;display:inline-block}
+.dot.on{background:#27a35a}
+.days{display:flex;gap:6px;margin-top:8px;overflow-x:auto;scrollbar-width:none}
+.days::-webkit-scrollbar{display:none}
+.chip{border:1px solid var(--line);background:var(--paper);border-radius:999px;padding:6px 11px;font-size:13px;font-weight:600;white-space:nowrap}
+.chip.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.chip.sm{padding:4px 9px;font-size:12px;font-weight:500}
+.chip.plan.on{background:var(--teal);border-color:var(--teal)}
+/* map buttons */
+.mapbtns{position:fixed;right:10px;z-index:850;display:flex;flex-direction:column;gap:8px;transition:bottom .25s}
+.fab{width:44px;height:44px;border-radius:12px;background:var(--paper);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;box-shadow:0 2px 10px rgba(0,0,0,.14)}
+.fab svg{width:21px;height:21px}
+.fab.on{background:var(--sky);color:#fff;border-color:var(--sky)}
+.fab.share{background:var(--violet);color:#fff;border-color:var(--violet)}
+/* drawer */
+#drawer{position:fixed;left:0;right:0;bottom:0;z-index:880;background:var(--paper);border-radius:18px 18px 0 0;box-shadow:0 -8px 30px rgba(0,0,0,.16);display:flex;flex-direction:column;height:calc(var(--peek) + var(--sb));transition:height .25s ease}
+#drawer .handle,#dhead{touch-action:none}
+#drawer.half{height:56%}
+#drawer.full{height:calc(100% - 64px - var(--st))}
+#drawer .handle{flex:none;padding:7px 0 3px;cursor:grab}
+#drawer .handle i{display:block;width:40px;height:5px;border-radius:3px;background:#d9d2ca;margin:0 auto}
+#dhead{flex:none;padding:0 12px 8px;touch-action:none}
+#dbody{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:0 12px calc(16px + var(--sb));touch-action:pan-y;overscroll-behavior:contain}
+.seg{display:flex;background:var(--cream);border:1px solid var(--line);border-radius:11px;padding:3px;gap:3px}
+.seg button{flex:1;border:0;background:none;border-radius:8px;padding:7px 4px;font-size:13px;font-weight:600;color:var(--mute);position:relative}
+.seg button.on{background:var(--paper);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.seg .badge{position:absolute;top:1px;right:6px;background:var(--coral);color:#fff;border-radius:999px;font-size:10px;min-width:15px;height:15px;line-height:15px;padding:0 4px}
+.sum{display:flex;align-items:center;gap:8px;margin-top:8px}
+.card{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:10px}
+.muted{color:var(--mute)}
+.small{font-size:12px}
+.row{display:flex;align-items:center;gap:8px}
+.grow{flex:1;min-width:0}
+.btn{border:0;border-radius:10px;padding:10px 12px;font-weight:600;background:var(--ink);color:#fff;display:inline-flex;align-items:center;justify-content:center;gap:6px;text-decoration:none;font-size:14px;white-space:nowrap}
+.btn svg{width:16px;height:16px;flex:none}
+.btn.coral{background:var(--coral)} .btn.teal{background:var(--teal)} .btn.violet{background:var(--violet)}
+.btn.ghost{background:var(--paper);color:var(--ink);border:1px solid var(--line)}
+.btn.sm{padding:7px 10px;font-size:13px;border-radius:9px}
+.btn.block{width:100%}
+.btn:disabled{opacity:.45}
+.btns{display:flex;gap:8px;flex-wrap:wrap}
+.btns>*{flex:1}
+.num{flex:none;width:34px;height:34px;border-radius:10px;background:var(--ink);color:#fff;font-weight:700;display:flex;align-items:center;justify-content:center;font-size:13px}
+.num.plan{background:var(--teal)} .num.fav{background:var(--gold)} .num.done{background:#b8afa6}
+.tag{display:inline-block;font-size:11px;padding:2px 7px;border-radius:999px;background:var(--cream);border:1px solid var(--line);margin:2px 3px 0 0;color:var(--mute)}
+.tag.hot{background:var(--coral-2);border-color:#f3c3b8;color:#a63322}
+.tag.fam{background:var(--teal-2);border-color:#bfe0dc;color:var(--teal)}
+.tag.crew{background:#efe7fb;border-color:#d9c9f5;color:#5b33b4}
+.stop{display:flex;gap:10px;align-items:flex-start;padding:11px 0;border-bottom:1px solid var(--line)}
+.stop h3{font:600 15px Inter,sans-serif;margin:0 0 1px}
+.icon-btn{border:1px solid var(--line);background:var(--paper);border-radius:10px;width:38px;height:38px;display:flex;align-items:center;justify-content:center;flex:none}
+.icon-btn.on.star{background:var(--gold-2);border-color:#f1d38f;color:#b07400}
+.icon-btn.on.add{background:var(--teal-2);border-color:#bfe0dc;color:var(--teal)}
+.icon-btn svg{width:19px;height:19px}
+input[type=search],input[type=text],input[type=time],select.inp,textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px 12px;font:inherit;background:var(--cream);color:var(--ink)}
+.filters{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;margin-top:8px}
+.filters::-webkit-scrollbar{display:none}
+select.chip{appearance:none;-webkit-appearance:none;padding-right:22px;background:var(--paper) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23666'/%3E%3C/svg%3E") no-repeat right 8px center}
+.person{padding:12px 0;border-bottom:1px solid var(--line)}
+.person .ph{width:64px;height:64px;border-radius:10px;object-fit:cover;background:var(--cream);flex:none}
+.person p{margin:6px 0 0;font-size:14px}
+.person .lbl{font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--mute);margin-top:8px}
+.leg{font-size:12px;color:var(--mute);padding:0 0 0 44px;margin:-4px 0 4px}
+.late{color:var(--coral);font-weight:600}
+.next{background:linear-gradient(135deg,var(--teal),#0f5752);color:#fff;border:0}
+.next .muted{color:#cfe8e5}
+.next .btn.ghost{background:rgba(255,255,255,.14);color:#fff;border-color:rgba(255,255,255,.3)}
+.toast{position:fixed;left:50%;top:calc(96px + var(--st));transform:translateX(-50%);background:var(--ink);color:#fff;padding:9px 14px;border-radius:999px;font-size:13px;z-index:1200;opacity:0;transition:opacity .2s;pointer-events:none;max-width:92%;text-align:center}
+.toast.on{opacity:1}
+.toast.low{top:auto;bottom:calc(20px + var(--sb))}
+.toast button{pointer-events:auto;background:none;border:0;color:#9fe0d8;font-weight:700;margin-left:8px}
+.modal{position:fixed;inset:0;background:rgba(30,25,21,.45);z-index:1100;display:none;align-items:flex-end}
+.modal.on{display:flex}
+.modal .box{background:var(--paper);width:100%;border-radius:18px 18px 0 0;padding:16px 14px calc(16px + var(--sb));max-height:88%;overflow-y:auto}
+label.f{display:block;font-size:12px;font-weight:600;color:var(--mute);margin:12px 0 4px}
+.sugg,.friend{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line)}
+.av{width:30px;height:30px;border-radius:50%;background:var(--violet);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex:none}
+.empty{padding:22px 12px;text-align:center;color:var(--mute)}
+.hr{height:1px;background:var(--line);margin:10px 0}
+.prop{border:1px solid var(--line);border-radius:12px;padding:10px;margin-top:8px}
+.prop.lead{border-color:var(--coral);background:#fff8f6}
+.prop.locked{border-color:var(--teal);background:var(--teal-2)}
+.bar{height:6px;border-radius:3px;background:var(--cream);overflow:hidden;margin-top:6px}
+.bar i{display:block;height:100%;background:var(--coral)}
+.switch{position:relative;width:46px;height:28px;flex:none}
+.switch input{opacity:0;width:0;height:0}
+.switch span{position:absolute;inset:0;background:#d8d0c7;border-radius:999px;transition:.2s}
+.switch span:before{content:"";position:absolute;width:22px;height:22px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s}
+.switch input:checked+span{background:var(--sky)}
+.switch input:checked+span:before{transform:translateX(18px)}
+/* markers */
+.mk{border-radius:50%;display:flex;align-items:center;justify-content:center;font:700 10px Inter,sans-serif;color:#fff;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.35)}
+.mk.base{background:#5b524b} .mk.dim{background:#b9b1a9;opacity:.7}
+.mk.fav{background:var(--gold)} .mk.plan{background:var(--teal);font-size:12px} .mk.done{background:#9c948c}
+.mk.meet{background:var(--coral);border-radius:9px 9px 9px 0;font-size:11px}
+.mk.meet.alt{background:#f19a8c}
+.mk.friend{background:var(--violet)}
+.sel .mk{outline:3px solid var(--ink);outline-offset:1px}
+.me{width:18px;height:18px;border-radius:50%;background:var(--sky);border:3px solid #fff;box-shadow:0 0 0 6px rgba(47,111,214,.25),0 1px 4px rgba(0,0,0,.3)}
+.leaflet-container{font-family:Inter,sans-serif}
+.leaflet-control-attribution{font-size:9px}
+.leaflet-top.leaflet-left{display:none}
+</style>
+</head>
+<body>
+<div id="map"></div>
+
+<div id="top">
+  <div class="brand">
+    <h1>Studio Tour <span>Crew</span></h1>
+    <button class="pill" data-act="tab" data-v="crew" id="syncPill"><span class="dot" id="syncDot"></span><span id="syncTxt">Solo</span></button>
+  </div>
+  <div class="days" id="days"></div>
+</div>
+
+<div class="mapbtns" id="mapbtns">
+  <button class="fab" id="gpsBtn" data-act="gps" title="My location"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3.5"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="8"/></svg></button>
+  <button class="fab" data-act="fit" title="Show whole route"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
+  <button class="fab" data-act="filters" title="Filters"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M7 12h10M10 18h4"/></svg></button>
+</div>
+
+<div id="drawer" class="half">
+  <div class="handle" id="handle"><i></i></div>
+  <div id="dhead"></div>
+  <div id="dbody"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+<div class="modal" id="modal"><div class="box" id="modalBox"></div></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script src="data.js"></script>
+<script src="config.js"></script>
+<script>
+(function(){
+"use strict";
+// ================= DATA =================
+const D = window.AST_DATA, M = D.M, IMG_BASE='https://atxstudiotour.com/wp-content/uploads/';
+const DAYS=[{b:1,lbl:'Sat 11/14',d:'2026-11-14'},{b:2,lbl:'Sun 11/15',d:'2026-11-15'},{b:4,lbl:'Sat 11/21',d:'2026-11-21'},{b:8,lbl:'Sun 11/22',d:'2026-11-22'}];
+const EAST={s:30.215,n:30.322,w:-97.745,e:-97.655};
+const LOC=new Map();
+D.L.forEach(l=>{ l.people=[]; l.meds=new Set(); l.dm=0; LOC.set(l.n,l); });
+D.P.forEach(([name,t,m,locs,e,u,b,img,cat])=>{ locs.forEach(([n,days,hrs])=>{ const l=LOC.get(n); if(!l) return; l.people.push({name,t,m,days,hrs,e,u,b,img,cat}); m.forEach(i=>l.meds.add(i)); l.dm|=days; }); });
+D.L.forEach(l=>{
+  if(!l.dm) l.dm=l.d||15;
+  l.east=l.lat>=EAST.s&&l.lat<=EAST.n&&l.lng>=EAST.w&&l.lng<=EAST.e;
+  const arts=l.people.filter(p=>p.t!=='H'); l.nArt=arts.length;
+  if(!l.v) l.v = arts.length===1?arts[0].name:(arts.length?arts[0].name+' + '+(arts.length-1)+' more':'Location '+l.n);
+  l.hay=(l.n+' #'+l.n+' '+l.v+' '+(l.v2||[]).join(' ')+' '+l.a+' '+l.people.map(p=>p.name+' '+p.m.map(i=>M[i]).join(' ')).join(' ')).toLowerCase();
+  const x=(l.x||[]).join(' '); l.drinks=/Drinks|Food/.test(x); l.music=/Music|Performance/.test(x); l.demo=/Demonstration|Art Making|Artist Talk/.test(x);
+});
+const ALL=D.L;
+
+// ================= STATE =================
+const KEY='ast26-crew-v2';
+const ld=(()=>{ try{ return JSON.parse(localStorage.getItem(KEY)||'{}'); }catch(e){ return {}; } })();
+function defaultDay(){ const t=new Date(); const iso=t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0')+'-'+String(t.getDate()).padStart(2,'0'); return (DAYS.find(x=>x.d>=iso)||DAYS[0]).b; }
+const S={
+  favs:new Set(ld.favs||[]), plan:ld.plan||[], visited:ld.visited||[], cur:ld.cur||null, day:ld.day||defaultDay(),
+  f:Object.assign({east:true,med:'',fam:false,drinks:false,music:false,demo:false,favs:false,hide:false},ld.f||{}),
+  speed:ld.speed||9, dwell:ld.dwell||20, name:ld.name||'', crew:ld.crew||null, src:ld.src||'crew', localMeets:ld.localMeets||{},
+  gpsOn:false, shareOn:false, shareUntil:0, gps:null,
+  tab:'route', stop:null, planMode:!!ld.planMode, drawer:'half', q:''
+};
+function save(){ try{ localStorage.setItem(KEY,JSON.stringify({favs:[...S.favs],plan:S.plan,visited:S.visited,cur:S.cur,day:S.day,f:S.f,speed:S.speed,dwell:S.dwell,name:S.name,crew:S.crew,src:S.src,localMeets:S.localMeets,planMode:S.planMode})); }catch(e){} }
+const urlCrew=new URLSearchParams(location.search).get('crew');
+if(urlCrew && /^[a-z0-9]{8,24}$/.test(urlCrew)) S.crew=urlCrew;
+
+// ================= CREW (Firebase) =================
+const C={fb:null,uid:null,ready:false,err:null,plan:null,members:{},status:{},pos:{},meets:{}};
+const crewOn=()=>!!(C.ready&&S.crew);
+const shared=()=>crewOn()&&S.src==='crew';
+function plan(){ return shared()&&C.plan?(C.plan.stops||[]):S.plan; }
+function visited(){ return new Set(shared()&&C.plan?(C.plan.visited||[]):S.visited); }
+function meetups(){ return crewOn()?C.meets:S.localMeets; }
+function setPlan(patch){
+  const cur={stops:plan().slice(),visited:[...visited()]};
+  const next=Object.assign(cur,patch);
+  if(shared()){ C.plan=Object.assign({},next,{ts:Date.now(),by:C.uid}); fbSet('plan',{stops:next.stops,visited:next.visited,ts:Date.now(),by:C.uid}); }
+  else { S.plan=next.stops; S.visited=next.visited; save(); }
+  pushStatus(); renderAll();
+}
+function nameOf(uid){ if(uid===(C.uid||'me')) return 'You'; return (C.members[uid]&&C.members[uid].name)||'Crew member'; }
+function initial(uid){ const n=nameOf(uid); return n==='You'?(S.name||'Y')[0].toUpperCase():(n[0]||'?').toUpperCase(); }
+const FBV='10.12.2';
+async function initCrew(){
+  const cfg=window.AST_FIREBASE;
+  if(!cfg||!cfg.apiKey||!cfg.databaseURL){ C.err='nocfg'; renderAll(); return; }
+  if(!S.crew){ renderAll(); return; }
+  try{
+    const [app,auth,db]=await Promise.all([
+      import('https://www.gstatic.com/firebasejs/'+FBV+'/firebase-app.js'),
+      import('https://www.gstatic.com/firebasejs/'+FBV+'/firebase-auth.js'),
+      import('https://www.gstatic.com/firebasejs/'+FBV+'/firebase-database.js')]);
+    const fa=app.initializeApp(cfg); const au=auth.getAuth(fa); const d=db.getDatabase(fa);
+    C.fb={db,d,root:'crews/'+S.crew};
+    const cred=await auth.signInAnonymously(au); C.uid=cred.user.uid;
+    const r=p=>db.ref(d,C.fb.root+(p?'/'+p:''));
+    db.onValue(r('plan'),s=>{ const v=s.val(); C.plan=v?{stops:v.stops||[],visited:v.visited||[],ts:v.ts,by:v.by}:{stops:[],visited:[]}; C.ready=true; renderAll(); },e=>{ C.err=String(e.code||e); renderAll(); });
+    db.onValue(r('members'),s=>{ C.members=s.val()||{}; renderAll(); });
+    db.onValue(r('status'),s=>{ C.status=s.val()||{}; renderAll(); });
+    db.onValue(r('pos'),s=>{ C.pos=s.val()||{}; renderMapPeople(); if(S.tab==='crew') renderDrawer(); });
+    db.onValue(r('meetups'),s=>{ C.meets=s.val()||{}; renderAll(); });
+    if(S.name) fbSet('members/'+C.uid,{name:S.name.slice(0,40),ts:Date.now()});
+    else setTimeout(()=>askName(),400);
+    if(new URLSearchParams(location.search).get('new')){ history.replaceState(null,'',location.pathname+'?crew='+S.crew); S._created=()=>{ S._created=null; openModal('<h2 style="font-size:20px">Crew created</h2><p class="small muted">Send this link to your friends. Anyone with it can join, see the route and meetups, and see live locations of people who opt in.</p><div class="card" style="background:var(--cream);word-break:break-all">'+esc(crewLink())+'</div><div class="btns"><button class="btn violet" data-act="shareCrew">Share invite</button></div>'); }; if(S.name) setTimeout(S._created,600); }
+    db.onDisconnect(r('pos/'+C.uid)).remove();
+  }catch(e){ C.err=String(e.code||e.message||e); renderAll(); }
+}
+function fbSet(p,v){ if(!C.fb) return Promise.resolve(); return C.fb.db.set(C.fb.db.ref(C.fb.d,C.fb.root+'/'+p),v).catch(e=>toast('Sync failed: '+(e.code||e.message))); }
+function fbRemove(p){ if(!C.fb) return; C.fb.db.remove(C.fb.db.ref(C.fb.d,C.fb.root+'/'+p)).catch(()=>{}); }
+let stT=null;
+function pushStatus(){ if(!C.fb||!C.uid) return; clearTimeout(stT); stT=setTimeout(()=>{ const p=plan(),v=visited(); fbSet('status/'+C.uid,{at:(S.cur&&S.cur.n)||null,next:p.find(n=>!v.has(n))||null,favs:[...S.favs].slice(0,80),ts:Date.now()}); },700); }
+function newCode(){ const a='abcdefghjkmnpqrstuvwxyz23456789'; let s=''; const r=crypto.getRandomValues(new Uint8Array(12)); r.forEach(x=>s+=a[x%a.length]); return s; }
+function crewLink(){ return location.origin+location.pathname+'?crew='+S.crew; }
+
+// ================= GEO =================
+function hav(a,b){ const R=3958.8,r=Math.PI/180; const dLat=(b.lat-a.lat)*r,dLng=(b.lng-a.lng)*r; const x=Math.sin(dLat/2)**2+Math.cos(a.lat*r)*Math.cos(b.lat*r)*Math.sin(dLng/2)**2; return 2*R*Math.asin(Math.sqrt(x)); }
+const bikeMi=(a,b)=>hav(a,b)*1.3;
+const mins=mi=>Math.max(1,Math.round(mi/S.speed*60));
+const fmtMi=mi=>mi<0.1?'<0.1 mi':mi.toFixed(1)+' mi';
+const fmtT=m=>m<60?m+' min':Math.floor(m/60)+'h '+String(m%60).padStart(2,'0')+'m';
+function clock(d){ let h=d.getHours(),m=d.getMinutes(); const ap=h>=12?'pm':'am'; h=h%12||12; return h+':'+String(m).padStart(2,'0')+ap; }
+function here(){ if(S.gpsOn&&S.gps) return {lat:S.gps.lat,lng:S.gps.lng,n:S.cur&&S.cur.n&&hav(S.gps,LOC.get(S.cur.n))<0.06?S.cur.n:null,gps:true}; return S.cur; }
+
+// GPS
+let watchId=null, lastShare=null, nearAsked={};
+function startGps(){
+  if(!navigator.geolocation){ toast('This browser has no location access'); return; }
+  watchId=navigator.geolocation.watchPosition(p=>{
+    S.gps={lat:p.coords.latitude,lng:p.coords.longitude,acc:p.coords.accuracy,ts:Date.now()};
+    if(!S._fix){ S._fix=true; if(map) map.setView([S.gps.lat,S.gps.lng],Math.max(map.getZoom(),15)); }
+    renderMe(); maybeShare(); nearCheck(); if(S.tab==='route'||S.tab==='stops') renderDrawerSoon();
+  },e=>{ toast(e.code===1?'Location permission denied — turn it on in your browser settings':'Can’t get your location right now'); stopGps(); },{enableHighAccuracy:true,maximumAge:10000,timeout:20000});
+  S.gpsOn=true; renderAll();
+}
+function stopGps(){ S._fix=false; if(watchId!=null) navigator.geolocation.clearWatch(watchId); watchId=null; S.gpsOn=false; S.gps=null; stopShare(); renderMe(); renderAll(); }
+function startShare(hours){ S.shareOn=true; S.shareUntil=Date.now()+hours*3600e3; lastShare=null; if(!S.gpsOn) startGps(); maybeShare(true); renderAll(); toast('Sharing your location with the crew for '+hours+'h'); }
+function stopShare(){ if(S.shareOn){ S.shareOn=false; fbRemove('pos/'+C.uid); renderAll(); } }
+function maybeShare(force){
+  if(!S.shareOn||!S.gps||!C.fb) return;
+  if(Date.now()>S.shareUntil){ stopShare(); toast('Location sharing ended'); return; }
+  const g=S.gps; const moved=lastShare?hav(lastShare,g)*1609:1e9; const age=lastShare?Date.now()-lastShare.ts:1e9;
+  if(force||moved>60||age>90e3){ lastShare={lat:g.lat,lng:g.lng,ts:Date.now()}; fbSet('pos/'+C.uid,{lat:+g.lat.toFixed(5),lng:+g.lng.toFixed(5),acc:Math.round(g.acc||0),ts:Date.now(),until:S.shareUntil}); }
+}
+function nearCheck(){
+  if(!S.gps) return; let best=null,bd=1e9;
+  ALL.forEach(l=>{ if(!openToday(l)) return; const d=hav(S.gps,l)*1609; if(d<bd){bd=d;best=l;} });
+  if(best && bd<70 && !(S.cur&&S.cur.n===best.n) && !nearAsked[best.n]){ nearAsked[best.n]=1; toast('You’re at #'+best.n+' '+best.v,{label:'Check in',fn:()=>setHere(best.n)},6000); }
+}
+
+// ================= FILTERS =================
+const openToday=l=>(l.dm&S.day)!==0;
+const personOpen=p=>(p.days&S.day)!==0;
+function passes(l){ const f=S.f; if(!openToday(l)) return false; if(f.east&&!l.east) return false; if(f.med!==''&&!l.meds.has(+f.med)) return false; if(f.fam&&!l.f) return false; if(f.drinks&&!l.drinks) return false; if(f.music&&!l.music) return false; if(f.demo&&!l.demo) return false; if(f.favs&&!S.favs.has(l.n)&&!plan().includes(l.n)) return false; if(f.hide&&visited().has(l.n)) return false; return true; }
+function crewStars(n){ return Object.entries(C.status).filter(([u,s])=>u!==C.uid&&s&&(s.favs||[]).includes(n)).length; }
+
+// ================= LINKS =================
+function apple(l){ const dest=(l.n&&l.a)?(/TX/.test(l.a)?l.a:l.a+', Austin, TX'):(l.lat+','+l.lng); return 'https://maps.apple.com/directions?destination='+encodeURIComponent(dest)+'&mode=cycling'; }
+function google(l){ return 'https://www.google.com/maps/dir/?api=1&destination='+l.lat+','+l.lng+'&travelmode=bicycling'; }
+function googleRoute(stops){ if(!stops.length) return '#'; const last=stops[stops.length-1],mid=stops.slice(0,-1).slice(0,8); let u='https://www.google.com/maps/dir/?api=1&travelmode=bicycling&destination='+last.lat+','+last.lng; const c=here(); if(c) u+='&origin='+c.lat+','+c.lng; if(mid.length) u+='&waypoints='+encodeURIComponent(mid.map(s=>s.lat+','+s.lng).join('|')); return u; }
+function navBtns(l){ return '<div class="btns" style="margin-top:8px"><a class="btn teal" target="_blank" rel="noopener" href="'+apple(l)+'">'+I.nav+' Apple Maps</a><a class="btn ghost" target="_blank" rel="noopener" href="'+google(l)+'">'+I.g+' Google Maps</a></div>'; }
+
+// ================= ICONS / UTILS =================
+const I={
+ star:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.8l2.8 5.8 6.3.9-4.6 4.4 1.1 6.3L12 17.2l-5.6 3 1.1-6.3L2.9 9.5l6.3-.9z"/></svg>',
+ starO:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2.8l2.8 5.8 6.3.9-4.6 4.4 1.1 6.3L12 17.2l-5.6 3 1.1-6.3L2.9 9.5l6.3-.9z"/></svg>',
+ plus:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 5v14M5 12h14"/></svg>',
+ check:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
+ up:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M6 15l6-6 6 6"/></svg>',
+ down:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M6 9l6 6 6-6"/></svg>',
+ x:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M6 6l12 12M18 6L6 18"/></svg>',
+ back:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M15 6l-6 6 6 6"/></svg>',
+ pin:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>',
+ nav:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l7 18-7-4-7 4z"/></svg>',
+ g:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 12h-8M20 12a8 8 0 1 1-2.3-5.7"/></svg>',
+ clock:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
+};
+const $=s=>document.querySelector(s);
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let tT=null, toastFn=null;
+function toast(m,action,ms){ const t=$('#toast'); t.innerHTML=esc(m)+(action?'<button id="toastBtn">'+esc(action.label)+'</button>':''); toastFn=action?action.fn:null; t.classList.toggle('low',S.drawer==='full'); t.classList.add('on'); t.style.pointerEvents=action?'auto':'none'; if(action) $('#toastBtn').onclick=()=>{ t.classList.remove('on'); toastFn&&toastFn(); }; clearTimeout(tT); tT=setTimeout(()=>{ t.classList.remove('on'); t.style.pointerEvents='none'; },ms||2400); }
+async function copy(txt,msg){ try{ if(navigator.share && /iPhone|Android/.test(navigator.userAgent)){ await navigator.share({text:txt}); return; } }catch(e){ if(e&&e.name==='AbortError') return; } try{ await navigator.clipboard.writeText(txt); toast(msg||'Copied'); }catch(e){ openModal('<h2 style="font-size:19px">Copy this</h2><textarea rows="8" readonly>'+esc(txt)+'</textarea><div class="btns" style="margin-top:10px"><button class="btn ghost" data-act="closeModal">Close</button></div>'); } }
+function openModal(h){ $('#modalBox').innerHTML=h; $('#modal').classList.add('on'); }
+function closeModal(){ $('#modal').classList.remove('on'); }
+function numCls(l){ if(visited().has(l.n)) return 'done'; if(plan().includes(l.n)) return 'plan'; if(S.favs.has(l.n)) return 'fav'; return ''; }
+function stopTags(l){ let t=''; if(l.nArt) t+='<span class="tag hot">'+l.nArt+' artist'+(l.nArt>1?'s':'')+'</span>'; if(l.f) t+='<span class="tag fam">Family</span>'; if(l.drinks) t+='<span class="tag">Drinks/food</span>'; if(l.music) t+='<span class="tag">Music</span>'; if(l.demo) t+='<span class="tag">Demos/talks</span>'; const cs=crewStars(l.n); if(cs) t+='<span class="tag crew">★ '+cs+' crew</span>'; return t; }
+function dayDate(b){ return DAYS.find(d=>d.b===b).d; }
+
+// ================= MAP =================
+let map, markers=new Map(), routeLayer=null, doneLayer=null, meMk=null, meAcc=null, peopleMks=[], meetMks=[];
+function initMap(){
+  map=L.map('map',{zoomControl:false,minZoom:11,maxZoom:19,maxBounds:[[29.9,-98.2],[30.7,-97.3]]});
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> · routes OSRM'}).addTo(map);
+  map.setView([30.262,-97.712],14);
+  map.on('click',e=>{
+    if(S.pick){ const fn=S.pick; S.pick=null; fn({lat:+e.latlng.lat.toFixed(5),lng:+e.latlng.lng.toFixed(5)}); return; }
+    if(S.tab==='stop'){ setTab(S.prevTab||'route'); }
+  });
+}
+function mkIcon(l){
+  const c=numCls(l), sel=S.stop===l.n, idx=plan().indexOf(l.n);
+  const lbl=c==='plan'?(idx+1):c==='fav'?'★':c==='done'?'✓':(sel?l.n:'');
+  const dim=!passes(l); const sz=c==='plan'?26:(c?22:(sel?28:13));
+  return L.divIcon({className:sel?'sel':'',html:'<div class="mk '+(c||(dim?'dim':'base'))+'" style="width:'+sz+'px;height:'+sz+'px">'+lbl+'</div>',iconSize:[sz,sz],iconAnchor:[sz/2,sz/2]});
+}
+function renderMarkers(){
+  if(!map) return;
+  ALL.forEach(l=>{
+    const c=numCls(l);
+    let m=markers.get(l.n);
+    if(!openToday(l)&&!c&&S.stop!==l.n){ if(m){ map.removeLayer(m); markers.delete(l.n); } return; }
+    const icon=mkIcon(l);
+    if(!m){ m=L.marker([l.lat,l.lng],{icon,keyboard:false}).on('click',ev=>{ L.DomEvent.stopPropagation(ev); onMarker(l.n); }).addTo(map); markers.set(l.n,m); }
+    else m.setIcon(icon);
+    m.setZIndexOffset(c==='plan'?600:(S.stop===l.n?800:(c?400:0)));
+  });
+}
+// --- bike routing (OSRM, bike profile) ---
+let routeKey='', routeData=null, routeTimer=null;
+function routePts(){ const v=visited(); const rem=plan().map(n=>LOC.get(n)).filter(l=>l&&!v.has(l.n)); const h=here(); const pts=(h?[h]:[]).concat(rem); return {pts,rem,hasStart:!!h}; }
+function scheduleRoute(){ clearTimeout(routeTimer); routeTimer=setTimeout(fetchRoute,500); }
+async function fetchRoute(){
+  const {pts}=routePts();
+  const key=pts.map((p,i)=>p.lat.toFixed(i===0&&p.gps?3:4)+','+p.lng.toFixed(i===0&&p.gps?3:4)).join(';');
+  if(key===routeKey) { drawRoute(); return; }
+  routeKey=key;
+  if(pts.length<2){ routeData=null; drawRoute(); return; }
+  try{
+    const url='https://routing.openstreetmap.de/routed-bike/route/v1/driving/'+pts.map(p=>p.lng.toFixed(5)+','+p.lat.toFixed(5)).join(';')+'?overview=full&geometries=geojson&steps=false';
+    const r=await fetch(url); const j=await r.json();
+    if(key!==routeKey) return;
+    if(j.code==='Ok'){ const rt=j.routes[0]; routeData={key,geom:rt.geometry.coordinates.map(c=>[c[1],c[0]]),legs:rt.legs.map(g=>g.distance/1609.34)}; }
+    else routeData=null;
+  }catch(e){ routeData=null; }
+  drawRoute(); renderDrawerSoon();
+}
+function drawRoute(){
+  if(!map) return;
+  if(routeLayer){ map.removeLayer(routeLayer); routeLayer=null; }
+  if(doneLayer){ map.removeLayer(doneLayer); doneLayer=null; }
+  const {pts}=routePts();
+  if(pts.length>=2){
+    if(routeData&&routeData.key===routeKey){ routeLayer=L.layerGroup([L.polyline(routeData.geom,{color:'#fff',weight:8,opacity:.9}),L.polyline(routeData.geom,{color:'#16756F',weight:5,opacity:.95})]).addTo(map); }
+    else routeLayer=L.polyline(pts.map(p=>[p.lat,p.lng]),{color:'#16756F',weight:4,opacity:.85,dashArray:'8 7'}).addTo(map);
+  }
+  const v=visited(); const done=plan().map(n=>LOC.get(n)).filter(l=>l&&v.has(l.n));
+  if(done.length>1) doneLayer=L.polyline(done.map(l=>[l.lat,l.lng]),{color:'#9c948c',weight:3,opacity:.6,dashArray:'3 6'}).addTo(map);
+}
+function legMiles(i,a,b){ if(routeData&&routeData.key===routeKey&&routeData.legs[i]!=null) return routeData.legs[i]; return bikeMi(a,b); }
+function renderMe(){
+  if(!map) return;
+  if(meMk){ map.removeLayer(meMk); meMk=null; } if(meAcc){ map.removeLayer(meAcc); meAcc=null; }
+  const h=here(); if(!h) { $('#gpsBtn').classList.toggle('on',S.gpsOn); return; }
+  if(S.gpsOn&&S.gps&&S.gps.acc) meAcc=L.circle([h.lat,h.lng],{radius:S.gps.acc,color:'#2F6FD6',weight:1,fillOpacity:.08,interactive:false}).addTo(map);
+  meMk=L.marker([h.lat,h.lng],{icon:L.divIcon({className:'',html:'<div class="me"></div>',iconSize:[18,18],iconAnchor:[9,9]}),zIndexOffset:1000,interactive:false}).addTo(map);
+  $('#gpsBtn').classList.toggle('on',S.gpsOn); $('#gpsBtn').classList.toggle('share',S.shareOn);
+  scheduleRoute();
+}
+function renderMapPeople(){
+  if(!map) return;
+  peopleMks.forEach(m=>map.removeLayer(m)); peopleMks=[];
+  if(!crewOn()) return;
+  Object.entries(C.pos).forEach(([uid,p])=>{ if(uid===C.uid||!p||Date.now()-p.ts>30*60e3||(p.until&&Date.now()>p.until)) return;
+    const ageMin=Math.round((Date.now()-p.ts)/60e3);
+    peopleMks.push(L.marker([p.lat,p.lng],{icon:L.divIcon({className:'',html:'<div class="mk friend" style="width:26px;height:26px;font-size:12px">'+esc(initial(uid))+'</div>',iconSize:[26,26],iconAnchor:[13,13]}),zIndexOffset:950}).bindTooltip(esc(nameOf(uid))+' · '+(ageMin<1?'now':ageMin+' min ago'),{direction:'top'}).addTo(map)); });
+}
+function renderMeetMarkers(){
+  if(!map) return;
+  meetMks.forEach(m=>map.removeLayer(m)); meetMks=[];
+  upcomingMeets().forEach(mt=>{ const props=sortedProps(mt); props.forEach((p,i)=>{ const lead=i===0; if(!lead&&mt.meta.locked) return;
+    meetMks.push(L.marker([p.lat,p.lng],{icon:L.divIcon({className:'',html:'<div class="mk meet'+(lead?'':' alt')+'" style="width:'+(lead?28:22)+'px;height:'+(lead?28:22)+'px">'+(lead?'M':'?')+'</div>',iconSize:[28,28],iconAnchor:[2,28]}),zIndexOffset:lead?970:930}).on('click',ev=>{ L.DomEvent.stopPropagation(ev); setTab('meet'); }).bindTooltip(esc(p.label)+' · '+clock(new Date(p.when)),{direction:'top'}).addTo(map)); }); });
+}
+function fitRoute(){ const {pts}=routePts(); const all=pts.map(p=>[p.lat,p.lng]); plan().forEach(n=>{ const l=LOC.get(n); if(l) all.push([l.lat,l.lng]); }); if(all.length>1) map.fitBounds(all,{paddingTopLeft:[30,110],paddingBottomRight:[30,drawerPx()+20]}); else if(all.length) map.setView(all[0],16); else toast('Tap stops on the map to build your route'); }
+function onMarker(n){
+  if(S.planMode){ togglePlan(n); return; }
+  openStop(n);
+}
+
+// ================= DRAWER =================
+function drawerPx(){ return $('#drawer').getBoundingClientRect().height; }
+function setDrawer(st){ S.drawer=st; const d=$('#drawer'); d.classList.remove('half','full'); if(st!=='peek') d.classList.add(st); setTimeout(posBtns,260); posBtns(); }
+function posBtns(){ $('#mapbtns').style.bottom=(Math.min(drawerPx(),window.innerHeight*0.6)+12)+'px'; }
+(function(){ const h=[$('#handle'),$('#dhead')]; let y0=null,t0=0;
+  h.forEach(el=>{ el.addEventListener('touchstart',e=>{ if(e.target.closest('button,input,select,a')) return; y0=e.touches[0].clientY; t0=Date.now(); },{passive:true});
+    el.addEventListener('touchend',e=>{ if(y0==null) return; const dy=e.changedTouches[0].clientY-y0; y0=null; const order=['peek','half','full']; let i=order.indexOf(S.drawer); if(dy<-40) i=Math.min(2,i+1); else if(dy>40) i=Math.max(0,i-1); else if(Math.abs(dy)<8&&Date.now()-t0<300&&e.target.closest('.handle')) i=(i+1)%3; setDrawer(order[i]); },{passive:true}); });
+  $('#handle').addEventListener('click',()=>{ if('ontouchstart' in window) return; const order=['peek','half','full']; setDrawer(order[(order.indexOf(S.drawer)+1)%3]); });
+})();
+function setTab(t){ if(t!=='stop'){ S.prevTab=t; S.stop=null; } S.tab=t; if(S.drawer==='peek'&&t!=='route') setDrawer('half'); renderAll(); $('#dbody').scrollTop=0; }
+let rdT=null; function renderDrawerSoon(){ clearTimeout(rdT); rdT=setTimeout(renderDrawer,120); }
+function head(){
+  const v=visited(); const remN=plan().filter(n=>!v.has(n)).length;
+  const nMeet=upcomingMeets().length;
+  const tabs=[['route','Route',remN],['stops','Stops',0],['meet','Meet',nMeet],['crew','Crew',0]];
+  if(S.tab==='stop') return '<div class="row"><button class="btn sm ghost" data-act="back">'+I.back+' Back</button><div class="grow"></div><button class="btn sm ghost" data-act="expand">'+(S.drawer==='full'?'Less':'More')+'</button></div>';
+  return '<div class="seg">'+tabs.map(([k,l,b])=>'<button class="'+(S.tab===k?'on':'')+'" data-act="tab" data-v="'+k+'">'+l+(b?'<span class="badge">'+b+'</span>':'')+'</button>').join('')+'</div>'+(S.tab==='route'?routeSummary():'');
+}
+function routeSummary(){
+  const ls=legs(); const h=here();
+  if(!plan().length) return '<div class="sum"><div class="grow small muted">'+(S.planMode?'Plan mode on — tap stops on the map to add them.':'Tap a stop on the map, then “Add to route”.')+'</div><button class="chip sm plan '+(S.planMode?'on':'')+'" data-act="planMode">'+(S.planMode?'Planning…':'Plan mode')+'</button></div>';
+  const mi=ls.reduce((a,x)=>a+x.mi,0), ride=ls.reduce((a,x)=>a+x.m,0); const end=ls.length?new Date(ls[ls.length-1].eta.getTime()+S.dwell*60e3):null;
+  return '<div class="sum"><div class="grow small"><b>'+ls.length+' to go</b> · '+fmtMi(mi)+' · '+fmtT(ride)+' riding'+(end&&h?' · done <span class="'+(end.getHours()>=17?'late':'')+'">~'+clock(end)+'</span>':'')+'</div><button class="chip sm plan '+(S.planMode?'on':'')+'" data-act="planMode">'+(S.planMode?'Planning…':'Plan mode')+'</button></div>';
+}
+function renderDrawer(){
+  $('#dhead').innerHTML=head();
+  const b=$('#dbody'); const st=b.scrollTop;
+  if(S.tab==='stop') b.innerHTML=stopView(LOC.get(S.stop));
+  else if(S.tab==='route') b.innerHTML=routeView();
+  else if(S.tab==='stops') b.innerHTML=stopsView();
+  else if(S.tab==='meet') b.innerHTML=meetView();
+  else if(S.tab==='crew') b.innerHTML=crewView();
+  b.scrollTop=st;
+  if(S.tab==='stops'){ const q=$('#q'); if(q){ q.value=S.q; q.oninput=()=>{ S.q=q.value; clearTimeout(qT); qT=setTimeout(()=>{ const pos=q.selectionStart; renderDrawer(); const q2=$('#q'); q2.focus(); q2.setSelectionRange(pos,pos); },200); }; } const ms=$('#medSel'); if(ms) ms.onchange=e=>{ S.f.med=e.target.value; save(); renderAll(); }; }
+}
+let qT=null;
+
+// ---- stop view (full descriptions) ----
+function openStop(n){ if(S.tab!=='stop') S.prevTab=S.tab; S.stop=n; S.tab='stop'; if(S.drawer==='peek') setDrawer('half'); const l=LOC.get(n); renderAll(); $('#dbody').scrollTop=0;
+  const y=map.getSize().y; const off=Math.min(drawerPx(),y*0.6)/2; map.panTo(map.unproject(map.project([l.lat,l.lng]).add([0,off-40])),{animate:true}); }
+function stopView(l){
+  if(!l) return '';
+  const fav=S.favs.has(l.n), inPlan=plan().includes(l.n), vis=visited().has(l.n); const h=here(); const d=h?bikeMi(h,l):null;
+  const ppl=l.people.filter(p=>p.t!=='H').sort((a,b)=>personOpen(b)-personOpen(a)); const hosts=l.people.filter(p=>p.t==='H');
+  let s='<div class="row"><div class="num '+numCls(l)+'">'+l.n+'</div><div class="grow"><h2 style="font-size:20px;line-height:1.15">'+esc(l.v)+'</h2><div class="small muted">'+esc(l.a)+(d!=null?' · '+fmtMi(d)+' · ~'+mins(d)+' min':'')+'</div></div></div>';
+  s+='<div style="margin-top:6px">'+stopTags(l)+'</div>';
+  s+='<div class="btns" style="margin-top:10px"><button class="btn '+(inPlan?'ghost':'teal')+'" data-act="togglePlan" data-n="'+l.n+'">'+(inPlan?I.x+' Remove from route':I.plus+' Add to route')+'</button><button class="icon-btn star '+(fav?'on':'')+'" data-act="fav" data-n="'+l.n+'" style="flex:none;width:44px;height:42px">'+(fav?I.star:I.starO)+'</button></div>';
+  s+='<div class="btns" style="margin-top:8px"><button class="btn sm '+(vis?'ghost':'coral')+'" data-act="here" data-n="'+l.n+'">'+(vis?'Visited ✓':'I’m here')+'</button><button class="btn sm ghost" data-act="proposeAt" data-n="'+l.n+'">Meet here…</button></div>';
+  s+=navBtns(l);
+  s+='<div class="card" style="margin-top:12px;background:var(--cream)"><div class="small">'+I.clock.replace('<svg','<svg width="13" height="13" style="vertical-align:-2px"')+' '+(l.h?esc(l.h):'11am–5pm on its tour days')+'</div>'+(l.nav?'<div class="small muted" style="margin-top:4px">📍 '+esc(l.nav)+'</div>':'')+'</div>';
+  hosts.forEach(p=>{ if(!p.b&&!p.e) return; s+='<div class="person"><div class="lbl">Host'+(p.cat?' · '+esc(p.cat):'')+'</div><div style="font-weight:700;font-size:16px;margin-top:2px">'+esc(p.name)+'</div>'+(p.b?'<p>'+esc(p.b)+'</p>':'')+(p.e?'<div class="lbl">What to expect</div><p>'+esc(p.e)+'</p>':'')+'<a class="small" style="color:var(--coral)" target="_blank" rel="noopener" href="https://atxstudiotour.com/'+esc(p.u)+'/">Official listing ↗</a></div>'; });
+  if(ppl.length) s+='<h3 style="font-size:17px;margin-top:14px">'+ppl.length+' artist'+(ppl.length>1?'s':'')+' here</h3>';
+  ppl.forEach(p=>{ const open=personOpen(p);
+    s+='<div class="person" style="'+(open?'':'opacity:.55')+'"><div class="row" style="align-items:flex-start;gap:10px">'+(p.img?'<img class="ph" loading="lazy" alt="" src="'+IMG_BASE+esc(p.img)+'" onerror="this.remove()">':'')+'<div class="grow"><div style="font-weight:700;font-size:16px;line-height:1.2">'+esc(p.name)+(p.t==='G'?' <span class="tag">group</span>':'')+'</div><div>'+p.m.map(i=>'<span class="tag">'+esc(M[i])+'</span>').join('')+(open?'':'<span class="tag hot">not here '+DAYS.find(d=>d.b===S.day).lbl+'</span>')+(p.hrs?'<span class="tag">'+esc(p.hrs)+'</span>':'')+'</div></div></div>'+
+      (p.e?'<div class="lbl">What to expect</div><p>'+esc(p.e)+'</p>':'')+(p.b?'<div class="lbl">About</div><p>'+esc(p.b)+'</p>':'')+
+      '<a class="small" style="color:var(--coral)" target="_blank" rel="noopener" href="https://atxstudiotour.com/'+esc(p.u)+'/">Official profile ↗</a></div>'; });
+  s+='<div class="small muted" style="margin-top:10px">From atxstudiotour.com — check the official profile for last-minute changes.</div>';
+  return s;
+}
+
+// ---- route ----
+function legs(){ const {pts,rem,hasStart}=routePts(); const out=[]; let t=new Date(); rem.forEach((l,i)=>{ const prev=hasStart?pts[i]:(i?rem[i-1]:null); const mi=prev?legMiles(hasStart?i:i-1,prev,l):0; const m=prev?mins(mi):0; t=new Date(t.getTime()+(i?S.dwell*60e3:0)+m*60e3); out.push({l,mi,m,eta:new Date(t)}); }); return out; }
+function optimize(){
+  const p=plan(), v=visited(); const done=p.filter(n=>v.has(n)); const rem=p.filter(n=>!v.has(n)).map(n=>LOC.get(n)).filter(Boolean);
+  if(rem.length<2){ toast('Need at least 2 stops left'); return; }
+  const start=here(); let pool=rem.slice(), order=[], cur=start||pool.shift(); if(!start) order.push(cur);
+  while(pool.length){ let bi=0,bd=1e9; pool.forEach((s,i)=>{ const d=hav(cur,s); if(d<bd){bd=d;bi=i;} }); cur=pool.splice(bi,1)[0]; order.push(cur); }
+  let arr=start?[start].concat(order):order; const len=a=>a.reduce((s,x,i)=>i?s+hav(a[i-1],x):0,0);
+  for(let g=0,imp=true;imp&&g<50;g++){ imp=false; for(let i=start?1:0;i<arr.length-1;i++) for(let k=i+1;k<arr.length;k++){ const nn=arr.slice(0,i).concat(arr.slice(i,k+1).reverse(),arr.slice(k+1)); if(len(nn)+1e-9<len(arr)){ arr=nn; imp=true; } } }
+  setPlan({stops:done.concat((start?arr.slice(1):arr).map(l=>l.n))}); toast('Re-ordered for the shortest ride');
+}
+function suggestions(k){ const h=here(); if(!h) return []; const p=plan(), v=visited();
+  return ALL.filter(l=>passes(l)&&!v.has(l.n)&&!p.includes(l.n)).map(l=>{ const d=bikeMi(h,l); let s=d; if(S.favs.has(l.n)) s-=1.2; s-=Math.min(l.nArt,12)*0.04; if(!l.nArt) s+=0.6; s-=crewStars(l.n)*0.4; return {l,d,s}; }).sort((a,b)=>a.s-b.s).slice(0,k||4); }
+function routeView(){
+  const p=plan(), v=visited(), ls=legs(), h=here();
+  let s='';
+  if(shared()&&C.plan&&!(C.plan.stops||[]).length&&S.plan.length) s+='<div class="card"><div class="small">The crew route is empty. You have '+S.plan.length+' stops saved on this phone.</div><button class="btn sm teal" style="margin-top:8px" data-act="pushMine">Use my saved route for the crew</button></div>';
+  if(shared()) s+='<div class="small muted" style="margin:2px 0 8px">Shared crew route · last change by '+esc(C.plan&&C.plan.by?nameOf(C.plan.by):'—')+'</div>';
+  if(!h) s+='<div class="card"><div class="row"><div class="grow small"><b>Where are you?</b><div class="muted">Turn on location, or set a start point, to get ride times.</div></div></div><div class="btns" style="margin-top:8px"><button class="btn sm teal" data-act="gps">Use my location</button><button class="btn sm ghost" data-act="pickStart">'+I.pin+' Tap on map</button></div></div>';
+  if(ls.length){ const n=ls[0];
+    s+='<div class="card next"><div class="small muted">Next up</div><div class="row" style="margin-top:4px"><div class="num" style="background:#fff;color:var(--teal)">'+n.l.n+'</div><div class="grow"><h2 style="font-size:19px">'+esc(n.l.v)+'</h2><div class="small muted">'+esc(n.l.a)+(h?' · '+fmtMi(n.mi)+' · ~'+n.m+' min':'')+'</div></div></div>'+navBtns(n.l)+
+      '<div class="btns" style="margin-top:8px"><button class="btn sm ghost" data-act="here" data-n="'+n.l.n+'">Arrived ✓</button><button class="btn sm ghost" data-act="skip" data-n="'+n.l.n+'">Skip</button><button class="btn sm ghost" data-act="open" data-n="'+n.l.n+'">Details</button></div></div>'; }
+  const sg=suggestions(4);
+  if(sg.length){ s+='<div class="card"><h3 style="font-size:16px">Close by, not on the route</h3>'; sg.forEach(({l,d})=>{ s+='<div class="sugg"><div class="num '+numCls(l)+'" style="width:30px;height:30px">'+l.n+'</div><div class="grow" data-act="open" data-n="'+l.n+'"><div style="font-weight:600;font-size:14px">'+esc(l.v)+'</div><div class="small muted">'+fmtMi(d)+' · '+mins(d)+' min · '+l.nArt+' artist'+(l.nArt!==1?'s':'')+(S.favs.has(l.n)?' · ★':'')+'</div></div><button class="btn sm teal" data-act="addNext" data-n="'+l.n+'">Next</button></div>'; }); s+='</div>'; }
+  if(!p.length){ s+='<div class="empty">No stops yet.<br>Tap stops on the map — or switch on <b>Plan mode</b> to add with one tap each.</div>'; return s; }
+  s+='<div class="row" style="margin:12px 0 2px"><h3 class="grow" style="font-size:18px">Route</h3><span class="small muted">'+p.length+' stops · '+v.size+' done</span></div>';
+  const remN=ls.map(x=>x.l.n);
+  p.forEach(n=>{ const l=LOC.get(n); if(!l) return; const done=v.has(n), li=remN.indexOf(n), lg=li>=0?ls[li]:null; const late=lg&&lg.eta.getHours()>=17;
+    if(lg&&h&&lg.mi>0) s+='<div class="leg" style="margin-top:6px">↓ '+fmtMi(lg.mi)+' · '+lg.m+' min</div>';
+    s+='<div class="stop" style="'+(done?'opacity:.55':'')+'"><div class="num '+(done?'done':'plan')+'">'+(done?'✓':li+1)+'</div><div class="grow" data-act="open" data-n="'+n+'"><h3>#'+n+' '+esc(l.v)+'</h3><div class="small muted">'+esc(l.a.replace(/ \d{5}$/,''))+(lg&&h?' · <span class="'+(late?'late':'')+'">ETA '+clock(lg.eta)+'</span>':'')+(openToday(l)?'':' · <span class="late">closed today</span>')+'</div></div><div class="row" style="gap:4px">'+
+      (done?'<button class="icon-btn" data-act="unvisit" data-n="'+n+'">↺</button>':'<button class="icon-btn" data-act="mv" data-d="-1" data-n="'+n+'">'+I.up+'</button><button class="icon-btn" data-act="mv" data-d="1" data-n="'+n+'">'+I.down+'</button>')+'<button class="icon-btn" data-act="togglePlan" data-n="'+n+'">'+I.x+'</button></div></div>'; });
+  s+='<div class="btns" style="margin-top:12px"><button class="btn teal" data-act="optimize">Optimize order</button><a class="btn ghost" target="_blank" rel="noopener" href="'+googleRoute(ls.map(x=>x.l))+'">'+I.g+' Whole route</a></div>';
+  s+='<div class="btns" style="margin-top:8px"><button class="btn ghost" data-act="sharePlan">Share as text</button><button class="btn ghost" data-act="importPlan">Import</button></div>';
+  s+='<div class="card" style="margin-top:12px"><div class="row"><div class="grow small"><b>Pace</b> '+S.speed+' mph</div><button class="btn sm ghost" data-act="speed" data-d="-1">−</button><button class="btn sm ghost" data-act="speed" data-d="1">+</button></div><div class="row" style="margin-top:8px"><div class="grow small"><b>Time at each stop</b> '+S.dwell+' min</div><button class="btn sm ghost" data-act="dwell" data-d="-5">−</button><button class="btn sm ghost" data-act="dwell" data-d="5">+</button></div><div class="small muted" style="margin-top:6px">Ride distances follow bike-friendly streets (OSRM). Most stops close at 5pm.</div><div class="hr"></div><button class="btn sm ghost" data-act="clearPlan">Clear route</button> <button class="btn sm ghost" data-act="clearVisited">Reset visited</button></div>';
+  return s;
+}
+
+// ---- stops list ----
+let listLimit=50;
+function stopsView(){
+  const f=S.f, h=here();
+  const medOpts='<option value="">All mediums</option>'+M.map((m,i)=>'<option value="'+i+'"'+(String(f.med)===String(i)?' selected':'')+'>'+esc(m)+'</option>').join('');
+  const chips=['east:East side','favs:★ / route','hide:Hide visited','fam:Family','drinks:Drinks/food','music:Music','demo:Demos/talks'].map(x=>{ const [k,l]=x.split(':'); return '<button class="chip sm '+(f[k]?'on':'')+'" data-f="'+k+'">'+l+'</button>'; });
+  chips.splice(1,0,'<select class="chip sm" id="medSel">'+medOpts+'</select>');
+  let s='<input id="q" type="search" placeholder="Search artists, venues, streets, #numbers…" autocomplete="off"><div class="filters">'+chips.join('')+'</div>';
+  const q=S.q.trim().toLowerCase();
+  let rows=ALL.filter(passes).filter(l=>!q||q.split(/\s+/).every(w=>l.hay.includes(w)));
+  if(h) rows.sort((a,b)=>hav(h,a)-hav(h,b)); else rows.sort((a,b)=>(b.nArt-a.nArt)||(a.n-b.n));
+  const total=rows.length;
+  s+='<div class="small muted" style="margin:8px 0 0">'+total+' stops open '+DAYS.find(d=>d.b===S.day).lbl+(f.east?' · East side':'')+(h?' · nearest first':' · biggest first')+'</div>';
+  if(!total) s+='<div class="empty">Nothing matches — try clearing a filter.</div>';
+  rows.slice(0,listLimit).forEach(l=>{ const fav=S.favs.has(l.n), inP=plan().includes(l.n), d=h?bikeMi(h,l):null;
+    s+='<div class="stop"><div class="num '+numCls(l)+'">'+l.n+'</div><div class="grow" data-act="open" data-n="'+l.n+'"><h3>'+esc(l.v)+'</h3><div class="small muted">'+esc(l.a.replace(/ \d{5}$/,''))+(d!=null?' · '+fmtMi(d)+' · '+mins(d)+' min':'')+'</div><div>'+stopTags(l)+[...l.meds].slice(0,3).map(i=>'<span class="tag">'+esc(M[i])+'</span>').join('')+'</div></div><div style="display:flex;flex-direction:column;gap:6px"><button class="icon-btn star '+(fav?'on':'')+'" data-act="fav" data-n="'+l.n+'">'+(fav?I.star:I.starO)+'</button><button class="icon-btn add '+(inP?'on':'')+'" data-act="togglePlan" data-n="'+l.n+'">'+(inP?I.check:I.plus)+'</button></div></div>'; });
+  if(total>listLimit) s+='<button class="btn ghost block" style="margin-top:10px" data-act="more">Show more ('+(total-listLimit)+')</button>';
+  return s;
+}
+
+// ---- meetups: propose / vote / alternatives ----
+function sortedProps(mt){ const votes=mt.votes||{}; const count={}; Object.values(votes).forEach(pid=>count[pid]=(count[pid]||0)+1);
+  const arr=Object.entries(mt.props||{}).map(([id,p])=>Object.assign({id,votes:count[id]||0,voters:Object.entries(votes).filter(([u,v])=>v===id).map(([u])=>u)},p));
+  arr.sort((a,b)=>(mt.meta.locked===b.id)-(mt.meta.locked===a.id)||b.votes-a.votes||a.ts-b.ts); return arr; }
+function upcomingMeets(){ const m=meetups()||{}; return Object.entries(m).filter(([id,x])=>x&&x.meta&&x.props).map(([id,x])=>Object.assign({id},x)).filter(mt=>{ const ps=sortedProps(mt); return ps.length && Math.max(...ps.map(p=>p.when||0)) > Date.now()-2*3600e3; }).sort((a,b)=>sortedProps(a)[0].when-sortedProps(b)[0].when); }
+function meetView(){
+  const ms=upcomingMeets(); const myVote=mt=>(mt.votes||{})[C.uid||'me'];
+  let s='<div class="row" style="margin:2px 0 8px"><div class="grow small muted">'+(crewOn()?'Anyone can suggest a time and place. Everyone votes or proposes an alternative.':'Join a crew (Crew tab) so friends can see and vote.')+'</div></div>';
+  s+='<button class="btn coral block" data-act="newMeet">'+I.plus+' Suggest a meetup</button>';
+  if(!ms.length) s+='<div class="empty">No upcoming meetups.</div>';
+  ms.forEach(mt=>{ const ps=sortedProps(mt); const total=Object.keys(mt.votes||{}).length; const mine=myVote(mt);
+    s+='<div class="card" style="margin-top:12px"><div class="row"><h3 class="grow" style="font-size:17px">'+esc(mt.meta.title||'Meetup')+'</h3>'+(mt.meta.locked?'<span class="tag fam">Locked in ✓</span>':'<span class="tag">'+total+' vote'+(total!==1?'s':'')+'</span>')+'</div><div class="small muted">Suggested by '+esc(nameOf(mt.meta.by))+'</div>';
+    ps.forEach((p,i)=>{ const l=p.n?LOC.get(p.n):null; const h=here(); const d=h?bikeMi(h,p):null; const when=new Date(p.when); const past=p.when<Date.now(); const locked=mt.meta.locked===p.id; const lead=!mt.meta.locked&&i===0&&p.votes>0;
+      if(mt.meta.locked&&!locked) return;
+      s+='<div class="prop '+(locked?'locked':lead?'lead':'')+'"><div class="row"><div class="grow"><div style="font-weight:700">'+esc(p.label)+(l?' <span class="small muted">#'+l.n+'</span>':'')+'</div><div class="small"><b>'+esc(DAYS.find(x=>x.d===p.day)?DAYS.find(x=>x.d===p.day).lbl:when.toLocaleDateString([], {weekday:'short',month:'numeric',day:'numeric'}))+' · '+clock(when)+'</b>'+(past?' <span class="late">(past)</span>':'')+(d!=null?' · <span class="muted">'+fmtMi(d)+' away</span>':'')+'</div>'+(p.note?'<div class="small muted">'+esc(p.note)+'</div>':'')+'<div class="small muted">by '+esc(nameOf(p.by))+'</div></div>'+
+        (!mt.meta.locked?'<button class="btn sm '+(mine===p.id?'coral':'ghost')+'" data-act="vote" data-m="'+mt.id+'" data-p="'+p.id+'">'+(mine===p.id?'Voted ✓':'Vote')+'</button>':'')+'</div>'+
+        (!mt.meta.locked?'<div class="bar"><i style="width:'+(total?Math.round(p.votes/total*100):0)+'%"></i></div><div class="small muted" style="margin-top:3px">'+p.votes+' · '+p.voters.map(u=>esc(nameOf(u))).join(', ')+'</div>':'')+
+        '<div class="btns" style="margin-top:8px"><a class="btn sm teal" target="_blank" rel="noopener" href="'+apple(l||p)+'">'+I.nav+' Apple</a><a class="btn sm ghost" target="_blank" rel="noopener" href="'+google(p)+'">'+I.g+' Google</a><button class="btn sm ghost" data-act="showOnMap" data-lat="'+p.lat+'" data-lng="'+p.lng+'">Map</button></div></div>'; });
+    s+='<div class="btns" style="margin-top:10px">'+(mt.meta.locked?'<button class="btn sm ghost" data-act="unlock" data-m="'+mt.id+'">Reopen voting</button>':'<button class="btn sm ghost" data-act="altMeet" data-m="'+mt.id+'">Propose alternative</button><button class="btn sm teal" data-act="lock" data-m="'+mt.id+'"'+(ps.length?'':' disabled')+'>Lock in leader</button>')+'<button class="btn sm ghost" data-act="shareMeet" data-m="'+mt.id+'">Share</button></div>';
+    if(mt.meta.by===(C.uid||'me')) s+='<button class="btn sm ghost" style="margin-top:8px" data-act="delMeet" data-m="'+mt.id+'">Delete meetup</button>';
+    s+='</div>'; });
+  return s;
+}
+// proposal editor
+function meetEditor(opts){
+  // opts: {mid?, title?, place?:{n,lat,lng,label}}
+  S._draft=Object.assign({day:dayDate(S.day),time:'',note:''},opts||{});
+  const dr=S._draft; const pl=dr.place;
+  const now=new Date(); const def=(()=>{ const d=new Date(now.getTime()+60*60e3); return String(d.getHours()).padStart(2,'0')+':'+String(Math.round(d.getMinutes()/15)*15%60).padStart(2,'0'); })();
+  openModal('<h2 style="font-size:20px">'+(dr.mid?'Propose an alternative':'Suggest a meetup')+'</h2>'+
+    (!dr.mid?'<label class="f">What’s it for?</label><input type="text" id="mTitle" maxlength="60" placeholder="e.g. Lunch break, regroup, final drinks" value="'+esc(dr.title||'')+'">':'')+
+    '<label class="f">Where</label><div class="card" style="margin:0;background:var(--cream)" id="mPlace">'+(pl?'<b>'+esc(pl.label)+'</b>'+(pl.n?' <span class="small muted">#'+pl.n+'</span>':''):'<span class="muted small">Not chosen yet</span>')+'</div>'+
+    '<div class="btns" style="margin-top:8px"><button class="btn sm ghost" data-act="mPickMap">'+I.pin+' Tap on map</button><button class="btn sm ghost" data-act="mPickStop">Pick a stop</button>'+(here()?'<button class="btn sm ghost" data-act="mPickHere">Where I am</button>':'')+'</div>'+
+    '<label class="f">Place name</label><input type="text" id="mLabel" maxlength="60" value="'+esc(pl&&pl.label||'')+'" placeholder="e.g. Canopy courtyard">'+
+    '<label class="f">Day</label><select class="inp" id="mDay">'+DAYS.map(d=>'<option value="'+d.d+'"'+(d.d===dr.day?' selected':'')+'>'+d.lbl+'</option>').join('')+'</select>'+
+    '<label class="f">Time</label><input type="time" id="mTime" step="300" value="'+esc(dr.time||def)+'">'+
+    '<label class="f">Note (optional)</label><input type="text" id="mNote" maxlength="120" value="'+esc(dr.note||'')+'" placeholder="e.g. by the bike racks">'+
+    '<div class="btns" style="margin-top:14px"><button class="btn ghost" data-act="closeModal">Cancel</button><button class="btn coral" data-act="saveProp">'+(dr.mid?'Propose':'Suggest')+'</button></div>');
+}
+function readDraft(){ const d=S._draft; if($('#mTitle')) d.title=$('#mTitle').value; d.day=$('#mDay').value; d.time=$('#mTime').value; d.note=$('#mNote').value; if(d.place) d.place.label=$('#mLabel').value||d.place.label; }
+function saveProp(){
+  readDraft(); const d=S._draft;
+  if(!d.place){ toast('Choose a place first'); return; }
+  if(!d.time){ toast('Choose a time'); return; }
+  const [Y,Mo,Da]=d.day.split('-').map(Number), [hh,mm]=d.time.split(':').map(Number);
+  const when=new Date(Y,Mo-1,Da,hh,mm).getTime();
+  if(when<Date.now()){ toast('Pick a time in the future'); return; }
+  const me=C.uid||'me'; const pid='p'+Date.now().toString(36)+Math.random().toString(36).slice(2,5);
+  const prop={by:me,ts:Date.now(),n:d.place.n||null,lat:d.place.lat,lng:d.place.lng,label:(d.place.label||'Meetup spot').slice(0,60),when,day:d.day,note:(d.note||'').slice(0,120)};
+  closeModal();
+  if(d.mid){ writeMeet(d.mid,'props/'+pid,prop); writeMeet(d.mid,'votes/'+me,pid); toast('Alternative proposed — your vote moved to it'); }
+  else { const mid='m'+Date.now().toString(36)+Math.random().toString(36).slice(2,5); writeMeet(mid,'meta',{by:me,ts:Date.now(),title:(d.title||'Meetup').slice(0,60),locked:null}); writeMeet(mid,'props/'+pid,prop); writeMeet(mid,'votes/'+me,pid); toast('Meetup suggested — crew can vote'); }
+  setTab('meet');
+}
+function writeMeet(mid,sub,val){
+  if(crewOn()){ if(val==null) fbRemove('meetups/'+mid+'/'+sub); else fbSet('meetups/'+mid+'/'+sub,val); }
+  else { const m=S.localMeets; m[mid]=m[mid]||{}; const parts=sub.split('/'); if(parts.length===1){ if(val==null) delete m[mid][parts[0]]; else m[mid][parts[0]]=val; } else { m[mid][parts[0]]=m[mid][parts[0]]||{}; if(val==null) delete m[mid][parts[0]][parts[1]]; else m[mid][parts[0]][parts[1]]=val; } save(); renderAll(); }
+}
+
+// ---- crew ----
+function crewView(){
+  const cfg=window.AST_FIREBASE&&window.AST_FIREBASE.apiKey;
+  let s='';
+  if(!cfg){ s+='<div class="card"><h3 style="font-size:17px">Crew sync isn’t set up yet</h3><div class="small muted" style="margin-top:6px">The site owner needs to add a free Firebase project (see “_About AST 2026.md” in the repo). Until then, everything works on this phone and you can share plans as text.</div></div>'; }
+  else if(!S.crew){ s+='<div class="card"><h3 style="font-size:17px">Ride together</h3><div class="small muted" style="margin:6px 0 10px">Start a crew and send the link to your friends. Everyone with the link shares the route, meetups and check-ins.</div><button class="btn violet block" data-act="newCrew">Start a crew</button><label class="f">Have a crew code or link?</label><div class="row"><input type="text" id="joinCode" placeholder="paste link or code"><button class="btn sm ghost" data-act="joinCrew">Join</button></div></div>'; }
+  else {
+    s+='<div class="card"><div class="row"><div class="grow"><h3 style="font-size:17px">Your crew</h3><div class="small muted">'+(C.ready?'<span class="dot on"></span> Live':'Connecting…')+(C.err&&C.err!=='nocfg'?' · '+esc(C.err):'')+'</div></div><button class="btn sm violet" data-act="shareCrew">Invite</button></div>';
+    s+='<div class="row" style="margin-top:10px"><div class="grow small">You appear as <b>'+esc(S.name||'—')+'</b></div><button class="btn sm ghost" data-act="askName">Change</button></div>';
+    s+='<div class="small" style="margin-top:10px;font-weight:600">Route</div><div class="row" style="margin-top:4px;gap:6px"><button class="chip sm '+(S.src==='crew'?'on':'')+'" data-act="src" data-v="crew">Shared crew route</button><button class="chip sm '+(S.src==='me'?'on':'')+'" data-act="src" data-v="me">Just mine</button></div>';
+    s+='</div>';
+    // location sharing
+    s+='<div class="card"><div class="row"><div class="grow"><b>My location</b><div class="small muted">Only used on this phone unless you share it.</div></div><label class="switch"><input type="checkbox" id="gpsSw" '+(S.gpsOn?'checked':'')+'><span></span></label></div>';
+    s+='<div class="hr"></div><div class="row"><div class="grow"><b>Share live location with crew</b><div class="small muted">'+(S.shareOn?'On until '+clock(new Date(S.shareUntil))+'. Updates while this page is open.':'Off. Opt in for 1–6 hours; it turns itself off.')+'</div></div><label class="switch"><input type="checkbox" id="shareSw" '+(S.shareOn?'checked':'')+'><span></span></label></div>';
+    s+='<div class="small muted" style="margin-top:8px">Phones only send location while this page is open on screen. Your dot disappears when you stop sharing or close the page.</div></div>';
+    // who's where
+    const mem=Object.keys(C.members);
+    s+='<div class="card"><h3 style="font-size:17px">Who’s where</h3>';
+    if(!mem.length) s+='<div class="small muted" style="margin-top:6px">Nobody else yet — tap Invite.</div>';
+    mem.sort((a,b)=>((C.status[b]||{}).ts||0)-((C.status[a]||{}).ts||0)).forEach(uid=>{ const st=C.status[uid]||{}; const pos=C.pos[uid]; const at=st.at?LOC.get(st.at):null, nx=st.next?LOC.get(st.next):null; const live=pos&&Date.now()-pos.ts<30*60e3;
+      const h=here(); const dist=live&&h?bikeMi(h,pos):null;
+      s+='<div class="friend"><div class="av" style="'+(uid===C.uid?'background:var(--sky)':'')+'">'+esc(initial(uid))+'</div><div class="grow"><div style="font-weight:600">'+esc(nameOf(uid))+(live?' <span class="tag" style="background:#efe7fb;color:#5b33b4;border-color:#d9c9f5">live</span>':'')+'</div><div class="small muted">'+(at?'At #'+at.n+' '+esc(at.v):'No check-in')+(nx?' → next #'+nx.n:'')+(st.ts?' · '+ago(st.ts):'')+(dist!=null&&uid!==C.uid?' · '+fmtMi(dist)+' away':'')+'</div></div>'+(live&&uid!==C.uid?'<button class="btn sm ghost" data-act="showOnMap" data-lat="'+pos.lat+'" data-lng="'+pos.lng+'">Map</button>':'')+'</div>'; });
+    s+='</div>';
+    s+='<button class="btn sm ghost" data-act="leaveCrew">Leave crew on this phone</button>';
+  }
+  s+='<div class="btns" style="margin-top:12px"><button class="btn ghost" data-act="sharePlan">Share route as text</button><button class="btn ghost" data-act="importPlan">Import</button></div>';
+  s+='<div class="small muted" style="margin-top:12px">Studio data from atxstudiotour.com/explore (Nov 10, 2026). Map © OpenStreetMap contributors. Bike routing: OSRM / FOSSGIS.</div>';
+  return s;
+}
+function ago(ts){ const m=Math.round((Date.now()-ts)/60e3); if(m<1) return 'just now'; if(m<60) return m+' min ago'; return Math.round(m/60)+'h ago'; }
+function askName(){ openModal('<h2 style="font-size:20px">What should the crew call you?</h2><label class="f">Name</label><input type="text" id="nameIn" maxlength="30" value="'+esc(S.name)+'" placeholder="e.g. Ryan"><div class="btns" style="margin-top:14px"><button class="btn violet" data-act="saveName">Save</button></div>'); setTimeout(()=>$('#nameIn')&&$('#nameIn').focus(),100); }
+function gpsPrompt(){
+  openModal('<h2 style="font-size:20px">Use your location?</h2><p class="small muted">Your phone will ask for permission. Location is used on this phone for the blue dot, distances, and “you’re at a stop” check-ins. Nothing is sent to anyone unless you also turn on crew sharing.</p>'+
+    '<div class="btns" style="margin-top:12px"><button class="btn ghost" data-act="closeModal">Not now</button><button class="btn teal" data-act="gpsOn">Use on this phone</button></div>'+
+    (crewOn()?'<div class="hr"></div><div class="small" style="font-weight:600">Also share live with your crew for…</div><div class="btns" style="margin-top:8px"><button class="btn sm violet" data-act="shareFor" data-h="1">1 hour</button><button class="btn sm violet" data-act="shareFor" data-h="3">3 hours</button><button class="btn sm violet" data-act="shareFor" data-h="6">6 hours</button></div>':''));
+}
+
+// ================= RENDER =================
+function renderTop(){
+  $('#days').innerHTML=DAYS.map(d=>'<button class="chip '+(S.day===d.b?'on':'')+'" data-act="day" data-b="'+d.b+'">'+d.lbl+'</button>').join('');
+  const live=Object.entries(C.pos).filter(([u,p])=>u!==C.uid&&p&&Date.now()-p.ts<30*60e3).length;
+  $('#syncDot').className='dot'+(C.ready?' on':'');
+  $('#syncTxt').textContent=C.ready?(Object.keys(C.members).length+' in crew'+(live?' · '+live+' live':'')):(S.crew&&!C.err?'Connecting…':'Solo');
+}
+function renderAll(){ renderTop(); renderMarkers(); renderMe(); renderMapPeople(); renderMeetMarkers(); scheduleRoute(); drawRoute(); renderDrawer(); }
+
+// ================= ACTIONS =================
+function togglePlan(n){ const p=plan().slice(); const i=p.indexOf(n); if(i>=0){ p.splice(i,1); setPlan({stops:p}); toast('Removed #'+n,{label:'Undo',fn:()=>{ const q=plan().slice(); q.splice(i,0,n); setPlan({stops:q}); }}); } else { p.push(n); setPlan({stops:p}); toast('#'+n+' added as stop '+p.length,{label:'Undo',fn:()=>setPlan({stops:plan().filter(x=>x!==n)})}); } }
+function setHere(n){
+  const l=LOC.get(n); S.cur={lat:l.lat,lng:l.lng,n}; save();
+  const v=[...visited()]; if(!v.includes(n)) v.push(n); setPlan({visited:v});
+  const ls=legs(), sg=suggestions(3);
+  let h='<h2 style="font-size:20px">Checked in at #'+n+'</h2><div class="small muted">'+esc(l.v)+'</div>';
+  if(ls.length){ const x=ls[0]; h+='<div class="card next" style="margin-top:12px"><div class="small muted">Planned next</div><div style="font-weight:700;font-size:16px;margin-top:2px">#'+x.l.n+' '+esc(x.l.v)+'</div><div class="small muted">'+fmtMi(x.mi)+' · ~'+x.m+' min</div>'+navBtns(x.l)+'</div>'; }
+  if(sg.length){ h+='<div style="font-weight:600;margin:12px 0 4px">Or change plans — nearby:</div>'; sg.forEach(({l:s,d})=>{ h+='<div class="sugg"><div class="num '+numCls(s)+'" style="width:30px;height:30px">'+s.n+'</div><div class="grow"><div style="font-weight:600;font-size:14px">'+esc(s.v)+'</div><div class="small muted">'+fmtMi(d)+' · '+mins(d)+' min'+(S.favs.has(s.n)?' · ★':'')+'</div></div><button class="btn sm teal" data-act="addNext" data-n="'+s.n+'" data-close="1">Go next</button></div>'; }); }
+  h+='<div class="btns" style="margin-top:14px"><button class="btn ghost" data-act="closeModal">Close</button><button class="btn ghost" data-act="tab" data-v="meet" data-close="1">Meetups</button></div>';
+  openModal(h);
+}
+function planText(){ const v=visited(); const rem=plan().map(n=>LOC.get(n)).filter(l=>l&&!v.has(l.n)); let t='Studio Tour by bike — '+DAYS.find(d=>d.b===S.day).lbl+'\n'; rem.forEach((l,i)=>t+=(i+1)+'. #'+l.n+' '+l.v+' — '+l.a+'\n'); if(rem.length) t+='\nRoute: '+googleRoute(rem)+'\n'; t+='\nOpen in the app: '+location.origin+location.pathname+'?plan='+rem.map(l=>l.n).join(','); return t; }
+document.addEventListener('click',e=>{
+  const t=e.target.closest('[data-act],[data-f]'); if(!t) return;
+  if(t.dataset.f){ S.f[t.dataset.f]=!S.f[t.dataset.f]; listLimit=50; save(); renderAll(); return; }
+  const a=t.dataset.act, n=t.dataset.n?+t.dataset.n:null;
+  if(t.dataset.close) closeModal();
+  switch(a){
+    case 'tab': setTab(t.dataset.v); break;
+    case 'back': setTab(S.prevTab||'route'); break;
+    case 'expand': setDrawer(S.drawer==='full'?'half':'full'); break;
+    case 'open': openStop(n); break;
+    case 'fav': S.favs.has(n)?S.favs.delete(n):S.favs.add(n); save(); pushStatus(); renderAll(); break;
+    case 'togglePlan': togglePlan(n); break;
+    case 'planMode': S.planMode=!S.planMode; save(); if(S.planMode){ setDrawer('peek'); toast('Plan mode: tap stops on the map to add or remove'); } renderAll(); break;
+    case 'addNext': { const p=plan().filter(x=>x!==n), v=visited(); const i=p.findIndex(x=>!v.has(x)); if(i<0) p.push(n); else p.splice(i,0,n); setPlan({stops:p}); toast('#'+n+' is next'); break; }
+    case 'mv': { const p=plan().slice(); const i=p.indexOf(n), j=i+(+t.dataset.d); if(j<0||j>=p.length) return; [p[i],p[j]]=[p[j],p[i]]; setPlan({stops:p}); break; }
+    case 'skip': { const before=plan().slice(); setPlan({stops:plan().filter(x=>x!==n)}); toast('Skipped #'+n,{label:'Undo',fn:()=>setPlan({stops:before})}); break; }
+    case 'here': setHere(n); break;
+    case 'unvisit': setPlan({visited:[...visited()].filter(x=>x!==n)}); break;
+    case 'optimize': optimize(); break;
+    case 'speed': S.speed=Math.max(5,Math.min(16,S.speed+(+t.dataset.d))); save(); renderAll(); break;
+    case 'dwell': S.dwell=Math.max(5,Math.min(90,S.dwell+(+t.dataset.d))); save(); renderAll(); break;
+    case 'clearPlan': openModal('<h2 style="font-size:20px">Clear the route?</h2><p class="small muted">'+(shared()?'This clears it for the whole crew.':'This clears your saved route.')+'</p><div class="btns"><button class="btn ghost" data-act="closeModal">Cancel</button><button class="btn coral" data-act="clearYes">Clear</button></div>'); break;
+    case 'clearYes': closeModal(); setPlan({stops:[]}); break;
+    case 'clearVisited': setPlan({visited:[]}); break;
+    case 'day': S.day=+t.dataset.b; save(); renderAll(); break;
+    case 'more': listLimit+=50; renderDrawer(); break;
+    case 'fit': fitRoute(); break;
+    case 'filters': setTab('stops'); setDrawer('full'); break;
+    case 'gps': if(S.gpsOn){ map.setView([S.gps?S.gps.lat:30.262,S.gps?S.gps.lng:-97.712],Math.max(map.getZoom(),15)); if(S.gps) break; } gpsPrompt(); break;
+    case 'gpsOn': closeModal(); startGps(); break;
+    case 'shareFor': closeModal(); startShare(+t.dataset.h); break;
+    case 'pickStart': setDrawer('peek'); toast('Tap the map where you are'); S.pick=pt=>{ S.cur={lat:pt.lat,lng:pt.lng,n:null}; save(); pushStatus(); setDrawer('half'); renderAll(); }; break;
+    case 'newMeet': meetEditor({}); break;
+    case 'altMeet': meetEditor({mid:t.dataset.m}); break;
+    case 'proposeAt': { const l=LOC.get(n); const ms=upcomingMeets().filter(m=>!m.meta.locked); if(ms.length){ openModal('<h2 style="font-size:20px">Meet at #'+n+'?</h2><p class="small muted">'+esc(l.v)+'</p>'+ms.map(m=>'<button class="btn ghost block" style="margin-top:8px" data-act="altAt" data-m="'+m.id+'" data-n="'+n+'">Propose as alternative for “'+esc(m.meta.title)+'”</button>').join('')+'<button class="btn coral block" style="margin-top:8px" data-act="newAt" data-n="'+n+'">New meetup here</button>'); } else meetEditor({place:{n,lat:l.lat,lng:l.lng,label:l.v}}); break; }
+    case 'altAt': { const l=LOC.get(n); meetEditor({mid:t.dataset.m,place:{n,lat:l.lat,lng:l.lng,label:l.v}}); break; }
+    case 'newAt': { const l=LOC.get(n); meetEditor({place:{n,lat:l.lat,lng:l.lng,label:l.v}}); break; }
+    case 'mPickMap': readDraft(); closeModal(); setDrawer('peek'); toast('Tap the map to choose the spot'); S.pick=pt=>{ S._draft.place={n:null,lat:pt.lat,lng:pt.lng,label:S._draft.place&&!S._draft.place.n?S._draft.place.label:'Dropped pin'}; setDrawer('half'); meetEditor(S._draft); }; break;
+    case 'mPickHere': { readDraft(); const h=here(); let nb=null,bd=1e9; ALL.forEach(l=>{ const d=hav(h,l)*1609; if(d<bd){bd=d;nb=l;} }); const atStop=h.n?LOC.get(h.n):(bd<80?nb:null); S._draft.place=atStop?{n:atStop.n,lat:atStop.lat,lng:atStop.lng,label:atStop.v}:{n:null,lat:h.lat,lng:h.lng,label:'Where I am now'}; meetEditor(S._draft); break; }
+    case 'mPickStop': { readDraft(); const p=plan().map(x=>LOC.get(x)).filter(Boolean); const h=here(); const near=h?ALL.filter(openToday).sort((a,b)=>hav(h,a)-hav(h,b)).slice(0,6):[]; const opts=[...new Map(p.concat(near).map(l=>[l.n,l])).values()];
+      openModal('<h2 style="font-size:20px">Pick a stop</h2><p class="small muted">Route stops and nearby. Or open any stop and tap “Meet here…”.</p>'+opts.map(l=>'<div class="sugg"><div class="num '+numCls(l)+'" style="width:30px;height:30px">'+l.n+'</div><div class="grow" style="font-weight:600;font-size:14px">'+esc(l.v)+'</div><button class="btn sm ghost" data-act="mStop" data-n="'+l.n+'">Choose</button></div>').join('')+'<div class="btns" style="margin-top:10px"><button class="btn ghost" data-act="mBack">Back</button></div>'); break; }
+    case 'mStop': { const l=LOC.get(n); S._draft.place={n,lat:l.lat,lng:l.lng,label:l.v}; meetEditor(S._draft); break; }
+    case 'mBack': meetEditor(S._draft); break;
+    case 'saveProp': saveProp(); break;
+    case 'vote': { const me=C.uid||'me'; const mt=(meetups()||{})[t.dataset.m]; const cur=mt&&mt.votes&&mt.votes[me]; writeMeet(t.dataset.m,'votes/'+me,cur===t.dataset.p?null:t.dataset.p); break; }
+    case 'lock': { const mt=upcomingMeets().find(m=>m.id===t.dataset.m); if(!mt) break; const lead=sortedProps(mt)[0]; writeMeet(mt.id,'meta',Object.assign({},mt.meta,{locked:lead.id,lockedBy:C.uid||'me'})); toast('Locked in: '+lead.label+' at '+clock(new Date(lead.when))); break; }
+    case 'unlock': { const mt=upcomingMeets().find(m=>m.id===t.dataset.m); if(mt) writeMeet(mt.id,'meta',Object.assign({},mt.meta,{locked:null})); break; }
+    case 'delMeet': writeMeet(t.dataset.m,'meta',null); break;
+    case 'shareMeet': { const mt=upcomingMeets().find(m=>m.id===t.dataset.m); if(!mt) break; const ps=sortedProps(mt); let txt=(mt.meta.title||'Meetup')+(mt.meta.locked?' (locked in)':' — vote in the app')+'\n'; ps.forEach(p=>{ if(mt.meta.locked&&mt.meta.locked!==p.id) return; txt+='• '+p.label+' — '+clock(new Date(p.when))+' '+(DAYS.find(x=>x.d===p.day)||{}).lbl+(p.votes&&!mt.meta.locked?' ('+p.votes+' votes)':'')+'\n  '+google(p)+'\n'; }); if(S.crew) txt+='\n'+crewLink(); copy(txt,'Meetup copied'); break; }
+    case 'showOnMap': setDrawer('peek'); map.setView([+t.dataset.lat,+t.dataset.lng],17); break;
+    case 'sharePlan': copy(planText(),'Route copied'); break;
+    case 'importPlan': openModal('<h2 style="font-size:20px">Import a route</h2><p class="small muted">Paste a shared link or message, or just stop numbers.</p><textarea id="impTxt" rows="5" placeholder="18, 101, 33"></textarea><div class="btns" style="margin-top:10px"><button class="btn ghost" data-act="closeModal">Cancel</button><button class="btn teal" data-act="doImport">Replace route</button></div>'); break;
+    case 'doImport': { const s=$('#impTxt').value; const m=s.match(/plan=([\d,]+)/); const nums=(m?m[1]:s).match(/\d{1,3}/g)||[]; const p=[...new Set(nums.map(Number))].filter(x=>LOC.has(x)); closeModal(); if(!p.length){ toast('No stop numbers found'); break; } setPlan({stops:p}); toast('Imported '+p.length+' stops'); setTab('route'); break; }
+    case 'src': S.src=t.dataset.v; save(); renderAll(); break;
+    case 'newCrew': S.crew=newCode(); save(); location.href=location.pathname+'?crew='+S.crew+'&new=1'; break;
+    case 'joinCrew': { const v=($('#joinCode').value||'').trim(); const m=v.match(/crew=([a-z0-9]{8,24})/)||v.match(/^([a-z0-9]{8,24})$/); if(!m){ toast('That doesn’t look like a crew code'); break; } S.crew=m[1]; save(); location.href=location.pathname+'?crew='+S.crew; break; }
+    case 'shareCrew': copy('Join my Studio Tour bike crew: '+crewLink(),'Invite link copied'); break;
+    case 'leaveCrew': stopShare(); S.crew=null; save(); location.href=location.pathname; break;
+    case 'askName': askName(); break;
+    case 'pushMine': setPlan({stops:S.plan.slice(),visited:S.visited.slice()}); toast('Crew route updated'); break;
+    case 'saveName': { const v=($('#nameIn').value||'').trim().slice(0,30); if(!v){ toast('Type a name'); break; } S.name=v; save(); closeModal(); if(C.uid) fbSet('members/'+C.uid,{name:v,ts:Date.now()}); renderAll(); if(S._created) S._created(); break; }
+    case 'closeModal': closeModal(); break;
+  }
+});
+document.addEventListener('change',e=>{
+  if(e.target.id==='gpsSw'){ if(e.target.checked) startGps(); else stopGps(); }
+  if(e.target.id==='shareSw'){ if(e.target.checked){ e.target.checked=false; openModal('<h2 style="font-size:20px">Share your live location?</h2><p class="small muted">Your crew sees your dot on the map while this page is open. It stops automatically.</p><div class="btns" style="margin-top:10px"><button class="btn sm violet" data-act="shareFor" data-h="1">1 hour</button><button class="btn sm violet" data-act="shareFor" data-h="3">3 hours</button><button class="btn sm violet" data-act="shareFor" data-h="6">6 hours</button></div><div class="btns" style="margin-top:8px"><button class="btn ghost" data-act="closeModal">Cancel</button></div>'); } else stopShare(); }
+});
+$('#modal').addEventListener('click',e=>{ if(e.target.id==='modal') closeModal(); });
+setInterval(()=>{ if(S.shareOn) maybeShare(); renderMapPeople(); },30e3);
+document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible'&&S.shareOn) maybeShare(true); });
+
+// ================= BOOT =================
+const urlPlan=new URLSearchParams(location.search).get('plan');
+initMap();
+if(urlPlan){ const p=urlPlan.split(',').map(Number).filter(x=>LOC.has(x)); if(p.length){ S.plan=p; S.visited=[]; save(); setTimeout(()=>toast('Loaded shared route ('+p.length+' stops)'),400); } }
+setDrawer(S.drawer); renderAll(); initCrew();
+window.addEventListener('resize',posBtns);
+})();
+</script>
+</body>
+</html>

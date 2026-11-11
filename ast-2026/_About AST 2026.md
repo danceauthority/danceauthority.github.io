@@ -22,6 +22,7 @@ Live address once published: https://danceauthority.github.io/ast-2026/
 - **GPS (opt-in, two levels).**
   1. *Use my location on this phone.* This gives the blue dot, distances and the "you're at a stop" check-in prompt. Nothing leaves the phone.
   2. *Share live location with the crew* for 1, 3 or 6 hours. It turns itself off when the time is up, and it's removed when the person switches it off or closes the page. Updates go out about every 90 seconds or every 60 m moved. Phones only send updates while the page is open on screen, which is a browser limit.
+- **Demo crew** (add `?demo=1` to the address): loads sample data for 7 riders. You, Maya, Jordan and Priya are together at Canopy partway through the shared route. Sam, Alex and Tess are on their own around town, with live dots that drift. Sam and Alex have proposed conflicting lunch plans that are tied 3–3. Nothing in demo mode is saved or sent anywhere.
 - **Solo mode** (no Firebase): everything is saved on each phone, and routes and meetups can be shared as text or as a `?plan=18,101,33` link.
 
 ## Turning on crew sync (one-time, about 15 minutes)
@@ -55,4 +56,5 @@ The Firebase web config is not a secret. Google designs it to sit in public web 
 
 ## Log
 - 2026-11-10: Created folder; first version published.
+- 2026-11-11: Added demo crew (`?demo=1`), a close (X) button on every pop-up, and renamed the meetup form to "Propose a meetup" with the field "Proposed time to meet".
 - 2026-11-11: Meetup 👍/👎 responses replace single-choice votes (Firebase path `meetups/<id>/rsvp/<option>/<person>`). Re-paste `database.rules.json` if Firebase was already set up.

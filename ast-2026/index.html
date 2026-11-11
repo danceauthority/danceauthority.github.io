@@ -103,7 +103,11 @@ select.chip{appearance:none;-webkit-appearance:none;padding-right:22px;backgroun
 .toast button{pointer-events:auto;background:none;border:0;color:#9fe0d8;font-weight:700;margin-left:8px}
 .modal{position:fixed;inset:0;background:rgba(30,25,21,.45);z-index:1100;display:none;align-items:flex-end}
 .modal.on{display:flex}
-.modal .box{background:var(--paper);width:100%;border-radius:18px 18px 0 0;padding:16px 14px calc(16px + var(--sb));max-height:88%;overflow-y:auto}
+.mclose{position:absolute;top:10px;right:10px;width:36px;height:36px;border-radius:50%;border:1px solid var(--line);background:var(--paper);display:flex;align-items:center;justify-content:center;z-index:2}
+.mclose svg{width:18px;height:18px}
+.modal .box h2{padding-right:44px}
+.demo-pill{background:var(--gold-2);border-color:#f1d38f;color:#8a5a00}
+.modal .box{position:relative;background:var(--paper);width:100%;border-radius:18px 18px 0 0;padding:16px 14px calc(16px + var(--sb));max-height:88%;overflow-y:auto}
 label.f{display:block;font-size:12px;font-weight:600;color:var(--mute);margin:12px 0 4px}
 .sugg,.friend{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line)}
 .av{width:30px;height:30px;border-radius:50%;background:var(--violet);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex:none}
@@ -195,9 +199,11 @@ const S={
   gpsOn:false, shareOn:false, shareUntil:0, gps:null,
   tab:'route', stop:null, planMode:!!ld.planMode, drawer:'half', q:''
 };
-function save(){ try{ localStorage.setItem(KEY,JSON.stringify({favs:[...S.favs],plan:S.plan,visited:S.visited,cur:S.cur,day:S.day,f:S.f,speed:S.speed,dwell:S.dwell,name:S.name,crew:S.crew,src:S.src,localMeets:S.localMeets,planMode:S.planMode})); }catch(e){} }
+const DEMO=new URLSearchParams(location.search).has('demo');
+function save(){ if(DEMO) return; try{ localStorage.setItem(KEY,JSON.stringify({favs:[...S.favs],plan:S.plan,visited:S.visited,cur:S.cur,day:S.day,f:S.f,speed:S.speed,dwell:S.dwell,name:S.name,crew:S.crew,src:S.src,localMeets:S.localMeets,planMode:S.planMode})); }catch(e){} }
 const urlCrew=new URLSearchParams(location.search).get('crew');
 if(urlCrew && /^[a-z0-9]{8,24}$/.test(urlCrew)) S.crew=urlCrew;
+if(DEMO){ S.crew='demo'; S.src='crew'; S.day=1; S.name='Ryan'; }
 
 // ================= CREW (Firebase) =================
 const C={fb:null,uid:null,ready:false,err:null,plan:null,members:{},status:{},pos:{},meets:{}};
@@ -217,6 +223,7 @@ function nameOf(uid){ if(uid===(C.uid||'me')) return 'You'; return (C.members[ui
 function initial(uid){ const n=nameOf(uid); return n==='You'?(S.name||'Y')[0].toUpperCase():(n[0]||'?').toUpperCase(); }
 const FBV='10.12.2';
 async function initCrew(){
+  if(DEMO){ seedDemo(); return; }
   const cfg=window.AST_FIREBASE;
   if(!cfg||!cfg.apiKey||!cfg.databaseURL){ C.err='nocfg'; renderAll(); return; }
   if(!S.crew){ renderAll(); return; }
@@ -240,8 +247,8 @@ async function initCrew(){
     db.onDisconnect(r('pos/'+C.uid)).remove();
   }catch(e){ C.err=String(e.code||e.message||e); renderAll(); }
 }
-function fbSet(p,v){ if(!C.fb) return Promise.resolve(); return C.fb.db.set(C.fb.db.ref(C.fb.d,C.fb.root+'/'+p),v).catch(e=>toast('Sync failed: '+(e.code||e.message))); }
-function fbRemove(p){ if(!C.fb) return; C.fb.db.remove(C.fb.db.ref(C.fb.d,C.fb.root+'/'+p)).catch(()=>{}); }
+function fbSet(p,v){ if(C.fb&&C.fb.demo){ demoWrite(p,v); return Promise.resolve(); } if(!C.fb) return Promise.resolve(); return C.fb.db.set(C.fb.db.ref(C.fb.d,C.fb.root+'/'+p),v).catch(e=>toast('Sync failed: '+(e.code||e.message))); }
+function fbRemove(p){ if(C.fb&&C.fb.demo){ demoWrite(p,null); return; } if(!C.fb) return; C.fb.db.remove(C.fb.db.ref(C.fb.d,C.fb.root+'/'+p)).catch(()=>{}); }
 let stT=null;
 function pushStatus(){ if(!C.fb||!C.uid) return; clearTimeout(stT); stT=setTimeout(()=>{ const p=plan(),v=visited(); fbSet('status/'+C.uid,{at:(S.cur&&S.cur.n)||null,next:p.find(n=>!v.has(n))||null,favs:[...S.favs].slice(0,80),ts:Date.now()}); },700); }
 function newCode(){ const a='abcdefghjkmnpqrstuvwxyz23456789'; let s=''; const r=crypto.getRandomValues(new Uint8Array(12)); r.forEach(x=>s+=a[x%a.length]); return s; }
@@ -314,7 +321,7 @@ const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;'
 let tT=null, toastFn=null;
 function toast(m,action,ms){ const t=$('#toast'); t.innerHTML=esc(m)+(action?'<button id="toastBtn">'+esc(action.label)+'</button>':''); toastFn=action?action.fn:null; t.classList.toggle('low',S.drawer==='full'); t.classList.add('on'); t.style.pointerEvents=action?'auto':'none'; if(action) $('#toastBtn').onclick=()=>{ t.classList.remove('on'); toastFn&&toastFn(); }; clearTimeout(tT); tT=setTimeout(()=>{ t.classList.remove('on'); t.style.pointerEvents='none'; },ms||2400); }
 async function copy(txt,msg){ try{ if(navigator.share && /iPhone|Android/.test(navigator.userAgent)){ await navigator.share({text:txt}); return; } }catch(e){ if(e&&e.name==='AbortError') return; } try{ await navigator.clipboard.writeText(txt); toast(msg||'Copied'); }catch(e){ openModal('<h2 style="font-size:19px">Copy this</h2><textarea rows="8" readonly>'+esc(txt)+'</textarea><div class="btns" style="margin-top:10px"><button class="btn ghost" data-act="closeModal">Close</button></div>'); } }
-function openModal(h){ $('#modalBox').innerHTML=h; $('#modal').classList.add('on'); }
+function openModal(h){ $('#modalBox').innerHTML='<button class="mclose" data-act="closeModal" aria-label="Close">'+I.x+'</button>'+h; $('#modal').classList.add('on'); }
 function closeModal(){ $('#modal').classList.remove('on'); }
 function numCls(l){ if(visited().has(l.n)) return 'done'; if(plan().includes(l.n)) return 'plan'; if(S.favs.has(l.n)) return 'fav'; return ''; }
 function stopTags(l){ let t=''; if(l.nArt) t+='<span class="tag hot">'+l.nArt+' artist'+(l.nArt>1?'s':'')+'</span>'; if(l.f) t+='<span class="tag fam">Family</span>'; if(l.drinks) t+='<span class="tag">Drinks/food</span>'; if(l.music) t+='<span class="tag">Music</span>'; if(l.demo) t+='<span class="tag">Demos/talks</span>'; const cs=crewStars(l.n); if(cs) t+='<span class="tag crew">★ '+cs+' crew</span>'; return t; }
@@ -542,12 +549,12 @@ function meetView(){
   if(!ms.length) s+='<div class="empty">No upcoming meetups.</div>';
   ms.forEach(mt=>{ const ps=sortedProps(mt); const everyone=crewIds();
     s+='<div class="card" style="margin-top:12px"><div class="row"><h3 class="grow" style="font-size:17px">'+esc(mt.meta.title||'Meetup')+'</h3>'+(mt.meta.locked?'<span class="tag fam">Locked in ✓</span>':'<span class="tag">'+ps.length+' option'+(ps.length!==1?'s':'')+'</span>')+'</div><div class="small muted">Started by '+esc(nameOf(mt.meta.by))+'</div>';
-    ps.forEach((p,i)=>{ const l=p.n?LOC.get(p.n):null; const h=here(); const d=h?bikeMi(h,p):null; const when=new Date(p.when); const past=p.when<Date.now(); const locked=mt.meta.locked===p.id; const lead=!mt.meta.locked&&i===0&&p.up.length>0;
+    ps.forEach((p,i)=>{ const l=p.n?LOC.get(p.n):null; const h=here(); const d=h?bikeMi(h,p):null; const when=new Date(p.when); const past=p.when<Date.now(); const locked=mt.meta.locked===p.id; const top=ps[0]?ps[0].up.length:0, second=ps[1]?ps[1].up.length:0; const tied=!mt.meta.locked&&ps.length>1&&p.up.length===top&&top===second&&top>0; const lead=!mt.meta.locked&&i===0&&top>second;
       if(mt.meta.locked&&!locked) return;
       const mine=p.up.includes(me)?1:(p.down.includes(me)?-1:0);
       const noAns=everyone.filter(u=>!p.up.includes(u)&&!p.down.includes(u));
       const dayLbl=(DAYS.find(x=>x.d===p.day)||{}).lbl||when.toLocaleDateString([],{weekday:'short',month:'numeric',day:'numeric'});
-      s+='<div class="prop '+(locked?'locked':lead?'lead':'')+'">'+(lead?'<div class="small" style="color:var(--coral);font-weight:700;margin-bottom:2px">Most people can make this one</div>':'')+
+      s+='<div class="prop '+(locked?'locked':lead?'lead':'')+'">'+(lead?'<div class="small" style="color:var(--coral);font-weight:700;margin-bottom:2px">Most people can make this one</div>':(tied?'<div class="small" style="color:#8a5a00;font-weight:700;margin-bottom:2px">Tied — the crew is split</div>':''))+
         '<div style="font-weight:700;font-size:16px">'+clock(when)+' · '+esc(dayLbl)+(past?' <span class="late">(past)</span>':'')+'</div>'+
         '<div style="font-weight:600">'+esc(p.label)+(l?' <span class="small muted">#'+l.n+'</span>':'')+'</div>'+
         '<div class="small muted">'+(d!=null?fmtMi(d)+' away · ':'')+'proposed by '+esc(nameOf(p.by))+'</div>'+(p.note?'<div class="small" style="margin-top:2px">'+esc(p.note)+'</div>':'')+
@@ -568,13 +575,13 @@ function meetEditor(opts){
   S._draft=Object.assign({day:dayDate(S.day),time:'',note:''},opts||{});
   const dr=S._draft; const pl=dr.place;
   const now=new Date(); const def=(()=>{ const d=new Date(now.getTime()+60*60e3); return String(d.getHours()).padStart(2,'0')+':'+String(Math.round(d.getMinutes()/15)*15%60).padStart(2,'0'); })();
-  const hTitle=dr.mid?'Propose another time & place':(dr.fromPin?'Meet at this pin — when?':'Suggest a meetup');
+  const hTitle=dr.mid?'Propose another time & place':'Propose a meetup';
   const titleF=!dr.mid?'<label class="f">What’s it for? (optional)</label><input type="text" id="mTitle" maxlength="60" placeholder="e.g. Lunch break, regroup, final drinks" value="'+esc(dr.title||'')+'">':'';
   const whereF='<label class="f">Where</label><div class="card" style="margin:0;background:var(--cream)" id="mPlace">'+(pl?'<b>'+esc(pl.label)+'</b>'+(pl.n?' <span class="small muted">#'+pl.n+'</span>':''):'<span class="muted small">Not chosen yet</span>')+'</div>'+
     '<div class="btns" style="margin-top:8px"><button class="btn sm ghost" data-act="mPickMap">'+I.pin+' '+(pl&&!pl.n?'Move pin':'Tap on map')+'</button><button class="btn sm ghost" data-act="mPickStop">Pick a stop</button>'+(here()?'<button class="btn sm ghost" data-act="mPickHere">Where I am</button>':'')+'</div>'+
     '<label class="f">Place name</label><input type="text" id="mLabel" maxlength="60" value="'+esc(pl&&pl.label&&pl.label!=='Dropped pin'?pl.label:'')+'" placeholder="'+(pl&&!pl.n?'e.g. taco truck on Springdale':'e.g. Canopy courtyard')+'">';
   const whenF='<div class="row" style="gap:8px"><div class="grow"><label class="f">Day</label><select class="inp" id="mDay">'+DAYS.map(d=>'<option value="'+d.d+'"'+(d.d===dr.day?' selected':'')+'>'+d.lbl+'</option>').join('')+'</select></div>'+
-    '<div class="grow"><label class="f">Time</label><input type="time" id="mTime" step="300" value="'+esc(dr.time||def)+'"></div></div>';
+    '<div class="grow"><label class="f">Proposed time to meet</label><input type="time" id="mTime" step="300" value="'+esc(dr.time||def)+'"></div></div>';
   const noteF='<label class="f">Note (optional)</label><input type="text" id="mNote" maxlength="120" value="'+esc(dr.note||'')+'" placeholder="e.g. by the bike racks">';
   const body = dr.fromPin ? whenF+titleF+whereF+noteF : titleF+whereF+whenF+noteF;
   openModal('<h2 style="font-size:20px">'+hTitle+'</h2>'+body+
@@ -607,8 +614,9 @@ function writeMeet(mid,sub,val){
 
 // ---- crew ----
 function crewView(){
-  const cfg=window.AST_FIREBASE&&window.AST_FIREBASE.apiKey;
-  let s='';
+  const cfg=DEMO||(window.AST_FIREBASE&&window.AST_FIREBASE.apiKey);
+  let pre=DEMO?'<div class="card" style="background:var(--gold-2);border-color:#f1d38f"><b>Demo crew</b><div class="small" style="margin-top:4px">Sample data: you, Maya, Jordan and Priya are riding together; Sam, Alex and Tess are on their own. Nothing here is saved or sent anywhere.</div><a class="btn sm ghost" style="margin-top:8px" href="'+location.pathname+'">Exit demo</a></div>':'';
+  let s=pre;
   if(!cfg){ s+='<div class="card"><h3 style="font-size:17px">Crew sync isn’t set up yet</h3><div class="small muted" style="margin-top:6px">The site owner needs to add a free Firebase project (see “_About AST 2026.md” in the repo). Until then, everything works on this phone and you can share plans as text.</div></div>'; }
   else if(!S.crew){ s+='<div class="card"><h3 style="font-size:17px">Ride together</h3><div class="small muted" style="margin:6px 0 10px">Start a crew and send the link to your friends. Everyone with the link shares the route, meetups and check-ins.</div><button class="btn violet block" data-act="newCrew">Start a crew</button><label class="f">Have a crew code or link?</label><div class="row"><input type="text" id="joinCode" placeholder="paste link or code"><button class="btn sm ghost" data-act="joinCrew">Join</button></div></div>'; }
   else {
@@ -626,7 +634,7 @@ function crewView(){
     if(!mem.length) s+='<div class="small muted" style="margin-top:6px">Nobody else yet — tap Invite.</div>';
     mem.sort((a,b)=>((C.status[b]||{}).ts||0)-((C.status[a]||{}).ts||0)).forEach(uid=>{ const st=C.status[uid]||{}; const pos=C.pos[uid]; const at=st.at?LOC.get(st.at):null, nx=st.next?LOC.get(st.next):null; const live=pos&&Date.now()-pos.ts<30*60e3;
       const h=here(); const dist=live&&h?bikeMi(h,pos):null;
-      s+='<div class="friend"><div class="av" style="'+(uid===C.uid?'background:var(--sky)':'')+'">'+esc(initial(uid))+'</div><div class="grow"><div style="font-weight:600">'+esc(nameOf(uid))+(live?' <span class="tag" style="background:#efe7fb;color:#5b33b4;border-color:#d9c9f5">live</span>':'')+'</div><div class="small muted">'+(at?'At #'+at.n+' '+esc(at.v):'No check-in')+(nx?' → next #'+nx.n:'')+(st.ts?' · '+ago(st.ts):'')+(dist!=null&&uid!==C.uid?' · '+fmtMi(dist)+' away':'')+'</div></div>'+(live&&uid!==C.uid?'<button class="btn sm ghost" data-act="showOnMap" data-lat="'+pos.lat+'" data-lng="'+pos.lng+'">Map</button>':'')+'</div>'; });
+      s+='<div class="friend"><div class="av" style="'+(uid===C.uid?'background:var(--sky)':'')+'">'+esc(initial(uid))+'</div><div class="grow"><div style="font-weight:600">'+esc(nameOf(uid))+(live?' <span class="tag" style="background:#efe7fb;color:#5b33b4;border-color:#d9c9f5">live</span>':'')+(dist!=null&&uid!==C.uid&&dist<0.12?' <span class="tag fam">with you</span>':'')+'</div><div class="small muted">'+(at?'At #'+at.n+' '+esc(at.v):'No check-in')+(nx?' → next #'+nx.n:'')+(st.ts?' · '+ago(st.ts):'')+(dist!=null&&uid!==C.uid?' · '+fmtMi(dist)+' away':'')+'</div></div>'+(live&&uid!==C.uid?'<button class="btn sm ghost" data-act="showOnMap" data-lat="'+pos.lat+'" data-lng="'+pos.lng+'">Map</button>':'')+'</div>'; });
     s+='</div>';
     s+='<button class="btn sm ghost" data-act="leaveCrew">Leave crew on this phone</button>';
   }
@@ -647,7 +655,7 @@ function renderTop(){
   $('#days').innerHTML=DAYS.map(d=>'<button class="chip '+(S.day===d.b?'on':'')+'" data-act="day" data-b="'+d.b+'">'+d.lbl+'</button>').join('');
   const live=Object.entries(C.pos).filter(([u,p])=>u!==C.uid&&p&&Date.now()-p.ts<30*60e3).length;
   $('#syncDot').className='dot'+(C.ready?' on':'');
-  $('#syncTxt').textContent=C.ready?(Object.keys(C.members).length+' in crew'+(live?' · '+live+' live':'')):(S.crew&&!C.err?'Connecting…':'Solo');
+  $('#syncPill').classList.toggle('demo-pill',DEMO); $('#syncTxt').textContent=DEMO?('Demo · '+Object.keys(C.members).length+' riders'):C.ready?(Object.keys(C.members).length+' in crew'+(live?' · '+live+' live':'')):(S.crew&&!C.err?'Connecting…':'Solo');
 }
 function renderAll(){ renderTop(); renderMarkers(); renderMe(); renderMapPeople(); renderMeetMarkers(); scheduleRoute(); drawRoute(); renderDrawer(); }
 
@@ -735,8 +743,41 @@ document.addEventListener('change',e=>{
   if(e.target.id==='shareSw'){ if(e.target.checked){ e.target.checked=false; openModal('<h2 style="font-size:20px">Share your live location?</h2><p class="small muted">Your crew sees your dot on the map while this page is open. It stops automatically.</p><div class="btns" style="margin-top:10px"><button class="btn sm violet" data-act="shareFor" data-h="1">1 hour</button><button class="btn sm violet" data-act="shareFor" data-h="3">3 hours</button><button class="btn sm violet" data-act="shareFor" data-h="6">6 hours</button></div><div class="btns" style="margin-top:8px"><button class="btn ghost" data-act="closeModal">Cancel</button></div>'); } else stopShare(); }
 });
 $('#modal').addEventListener('click',e=>{ if(e.target.id==='modal') closeModal(); });
+document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeModal(); });
 setInterval(()=>{ if(S.shareOn) maybeShare(); renderMapPeople(); },30e3);
 document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible'&&S.shareOn) maybeShare(true); });
+
+
+// ================= DEMO CREW (?demo=1) =================
+const DB={};
+function demoWrite(p,v){ const ks=p.split('/'); let o=DB; for(let i=0;i<ks.length-1;i++){ o[ks[i]]=o[ks[i]]||{}; o=o[ks[i]]; } if(v==null) delete o[ks[ks.length-1]]; else o[ks[ks.length-1]]=JSON.parse(JSON.stringify(v)); demoSync(); }
+function demoSync(){ const c=x=>JSON.parse(JSON.stringify(x||{})); const pl=DB.plan||{}; C.plan={stops:(pl.stops||[]).slice(),visited:(pl.visited||[]).slice(),ts:pl.ts,by:pl.by}; C.members=c(DB.members); C.status=c(DB.status); C.pos=c(DB.pos); C.meets=c(DB.meetups); renderAll(); }
+function seedDemo(){
+  C.fb={demo:true}; C.uid='me'; C.ready=true;
+  const now=Date.now(), min=60e3, L18=LOC.get(18);
+  const jit=(l,a,b)=>({lat:+(l.lat+a).toFixed(5),lng:+(l.lng+b).toFixed(5)});
+  // the group of four is at Canopy (#18) and has already done #46 and #272
+  S.cur={lat:L18.lat,lng:L18.lng,n:18};
+  DB.plan={stops:[46,272,18,33,40,117,101,5],visited:[46,272,18],ts:now-6*min,by:'maya'};
+  DB.members={me:{name:'Ryan',ts:now},maya:{name:'Maya',ts:now},jordan:{name:'Jordan',ts:now},priya:{name:'Priya',ts:now},sam:{name:'Sam',ts:now},alex:{name:'Alex',ts:now},tess:{name:'Tess',ts:now}};
+  const loose={sam:{n:101,next:20},alex:{n:12,next:33},tess:{n:111,next:20}};
+  DB.status={me:{at:18,next:33,favs:[33,101,40],ts:now-2*min}};
+  DB.pos={};
+  [['maya',0.00018,0.00012],['jordan',-0.00012,0.0002],['priya',0.00008,-0.00022]].forEach(([u,a,b],i)=>{ DB.status[u]={at:18,next:33,favs:[33,40,117].slice(0,i+1),ts:now-(3+i)*min}; DB.pos[u]=Object.assign(jit(L18,a,b),{acc:12,ts:now-(1+i)*min,until:now+3*3600e3}); });
+  Object.entries(loose).forEach(([u,x],i)=>{ const l=LOC.get(x.n); DB.status[u]={at:x.n,next:x.next,favs:[x.next,101],ts:now-(8+i*5)*min}; DB.pos[u]=Object.assign(jit(l,0.0009*(i-1),-0.0007),{acc:20,ts:now-(2+i*3)*min,until:now+4*3600e3}); });
+  // two contradicting lunch proposals in one meetup
+  const sat=(h,m)=>new Date(2026,10,14,h,m).getTime();
+  const B20=LOC.get(20), S33=LOC.get(33);
+  DB.meetups={mlunch:{meta:{by:'sam',ts:now-40*min,title:'Lunch — everyone together',locked:null},
+    props:{pA:{by:'sam',ts:now-40*min,n:20,lat:B20.lat,lng:B20.lng,label:B20.v,when:sat(12,30),day:'2026-11-14',note:'Food trucks + beer, bikes racks out front'},
+           pB:{by:'alex',ts:now-25*min,n:33,lat:S33.lat,lng:S33.lng,label:S33.v,when:sat(13,15),day:'2026-11-14',note:'Later so we can see Springdale first — tacos next door'}},
+    rsvp:{pA:{sam:1,maya:1,tess:1,jordan:-1},pB:{alex:1,jordan:1,priya:1,tess:-1}}}};
+  demoSync();
+  // the three loose riders drift a little so the map feels live
+  setInterval(()=>{ ['sam','alex','tess'].forEach(u=>{ const p=DB.pos[u]; if(!p) return; p.lat=+(p.lat+(Math.random()-.5)*0.0006).toFixed(5); p.lng=+(p.lng+(Math.random()-.5)*0.0006).toFixed(5); p.ts=Date.now(); }); demoSync(); },20e3);
+  setTimeout(()=>{ toast('Demo crew loaded — 7 riders, sample data'); fitDemo(); },500);
+}
+function fitDemo(){ const pts=Object.values(C.pos).map(p=>[p.lat,p.lng]); plan().forEach(n=>{ const l=LOC.get(n); if(l) pts.push([l.lat,l.lng]); }); if(S.cur) pts.push([S.cur.lat,S.cur.lng]); if(pts.length>1) map.fitBounds(pts,{paddingTopLeft:[30,110],paddingBottomRight:[60,drawerPx()+20]}); }
 
 // ================= BOOT =================
 const urlPlan=new URLSearchParams(location.search).get('plan');

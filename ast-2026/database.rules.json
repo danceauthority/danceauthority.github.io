@@ -16,7 +16,9 @@
           }
         },
         "status": {
-          "$uid": { ".write": "auth != null && auth.uid === $uid" }
+          "$uid": {
+            ".write": "auth != null && auth.uid === $uid"
+          }
         },
         "pos": {
           "$uid": {
@@ -35,8 +37,13 @@
                 ".validate": "!newData.exists() || (newData.child('by').val() === auth.uid && newData.child('when').isNumber() && newData.child('lat').isNumber() && newData.child('lng').isNumber())"
               }
             },
-            "votes": {
-              "$uid": { ".write": "auth != null && auth.uid === $uid" }
+            "rsvp": {
+              "$pid": {
+                "$uid": {
+                  ".write": "auth != null && auth.uid === $uid",
+                  ".validate": "!newData.exists() || newData.val() === 1 || newData.val() === -1"
+                }
+              }
             }
           }
         }

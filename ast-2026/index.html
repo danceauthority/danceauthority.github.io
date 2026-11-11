@@ -147,6 +147,7 @@ label.f{display:block;font-size:12px;font-weight:600;color:var(--mute);margin:12
 
 <div class="mapbtns" id="mapbtns">
   <button class="fab" id="gpsBtn" data-act="gps" title="My location"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3.5"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="8"/></svg></button>
+  <button class="fab" data-act="pinMeet" title="Drop a meetup pin" style="color:var(--coral)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><path d="M12 6.5v6M9 9.5h6"/></svg></button>
   <button class="fab" data-act="fit" title="Show whole route"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
   <button class="fab" data-act="filters" title="Filters"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M7 12h10M10 18h4"/></svg></button>
 </div>
@@ -401,7 +402,7 @@ function renderMeetMarkers(){
   if(!map) return;
   meetMks.forEach(m=>map.removeLayer(m)); meetMks=[];
   upcomingMeets().forEach(mt=>{ const props=sortedProps(mt); props.forEach((p,i)=>{ const lead=i===0; if(!lead&&mt.meta.locked) return;
-    meetMks.push(L.marker([p.lat,p.lng],{icon:L.divIcon({className:'',html:'<div class="mk meet'+(lead?'':' alt')+'" style="width:'+(lead?28:22)+'px;height:'+(lead?28:22)+'px">'+(lead?'M':'?')+'</div>',iconSize:[28,28],iconAnchor:[2,28]}),zIndexOffset:lead?970:930}).on('click',ev=>{ L.DomEvent.stopPropagation(ev); setTab('meet'); }).bindTooltip(esc(p.label)+' · '+clock(new Date(p.when)),{direction:'top'}).addTo(map)); }); });
+    meetMks.push(L.marker([p.lat,p.lng],{icon:L.divIcon({className:'',html:'<div class="mk meet'+(lead?'':' alt')+'" style="width:'+(lead?28:22)+'px;height:'+(lead?28:22)+'px">'+(lead?'M':'?')+'</div>',iconSize:[28,28],iconAnchor:[2,28]}),zIndexOffset:lead?970:930}).on('click',ev=>{ L.DomEvent.stopPropagation(ev); setTab('meet'); }).bindTooltip(esc(p.label)+' · '+clock(new Date(p.when))+' · 👍 '+p.up.length,{direction:'top'}).addTo(map)); }); });
 }
 function fitRoute(){ const {pts}=routePts(); const all=pts.map(p=>[p.lat,p.lng]); plan().forEach(n=>{ const l=LOC.get(n); if(l) all.push([l.lat,l.lng]); }); if(all.length>1) map.fitBounds(all,{paddingTopLeft:[30,110],paddingBottomRight:[30,drawerPx()+20]}); else if(all.length) map.setView(all[0],16); else toast('Tap stops on the map to build your route'); }
 function onMarker(n){
@@ -422,7 +423,7 @@ function setTab(t){ if(t!=='stop'){ S.prevTab=t; S.stop=null; } S.tab=t; if(S.dr
 let rdT=null; function renderDrawerSoon(){ clearTimeout(rdT); rdT=setTimeout(renderDrawer,120); }
 function head(){
   const v=visited(); const remN=plan().filter(n=>!v.has(n)).length;
-  const nMeet=upcomingMeets().length;
+  const meK=C.uid||'me'; const nMeet=upcomingMeets().filter(mt=>!mt.meta.locked).reduce((a,mt)=>a+sortedProps(mt).filter(p=>!p.up.includes(meK)&&!p.down.includes(meK)).length,0);
   const tabs=[['route','Route',remN],['stops','Stops',0],['meet','Meet',nMeet],['crew','Crew',0]];
   if(S.tab==='stop') return '<div class="row"><button class="btn sm ghost" data-act="back">'+I.back+' Back</button><div class="grow"></div><button class="btn sm ghost" data-act="expand">'+(S.drawer==='full'?'Less':'More')+'</button></div>';
   return '<div class="seg">'+tabs.map(([k,l,b])=>'<button class="'+(S.tab===k?'on':'')+'" data-act="tab" data-v="'+k+'">'+l+(b?'<span class="badge">'+b+'</span>':'')+'</button>').join('')+'</div>'+(S.tab==='route'?routeSummary():'');
@@ -527,45 +528,61 @@ function stopsView(){
 }
 
 // ---- meetups: propose / vote / alternatives ----
-function sortedProps(mt){ const votes=mt.votes||{}; const count={}; Object.values(votes).forEach(pid=>count[pid]=(count[pid]||0)+1);
-  const arr=Object.entries(mt.props||{}).map(([id,p])=>Object.assign({id,votes:count[id]||0,voters:Object.entries(votes).filter(([u,v])=>v===id).map(([u])=>u)},p));
-  arr.sort((a,b)=>(mt.meta.locked===b.id)-(mt.meta.locked===a.id)||b.votes-a.votes||a.ts-b.ts); return arr; }
+function sortedProps(mt){
+  const rs=mt.rsvp||{};
+  const arr=Object.entries(mt.props||{}).map(([id,p])=>{ const r=rs[id]||{}; const up=Object.keys(r).filter(u=>r[u]===1), down=Object.keys(r).filter(u=>r[u]===-1); return Object.assign({id,up,down,votes:up.length},p); });
+  arr.sort((a,b)=>(mt.meta.locked===b.id)-(mt.meta.locked===a.id)||b.up.length-a.up.length||a.down.length-b.down.length||a.ts-b.ts); return arr; }
+function crewIds(){ const ids=Object.keys(C.members||{}); const me=C.uid||'me'; if(!ids.includes(me)) ids.push(me); return ids; }
+function nameList(ids){ return ids.map(u=>esc(nameOf(u))).join(', '); }
 function upcomingMeets(){ const m=meetups()||{}; return Object.entries(m).filter(([id,x])=>x&&x.meta&&x.props).map(([id,x])=>Object.assign({id},x)).filter(mt=>{ const ps=sortedProps(mt); return ps.length && Math.max(...ps.map(p=>p.when||0)) > Date.now()-2*3600e3; }).sort((a,b)=>sortedProps(a)[0].when-sortedProps(b)[0].when); }
 function meetView(){
-  const ms=upcomingMeets(); const myVote=mt=>(mt.votes||{})[C.uid||'me'];
-  let s='<div class="row" style="margin:2px 0 8px"><div class="grow small muted">'+(crewOn()?'Anyone can suggest a time and place. Everyone votes or proposes an alternative.':'Join a crew (Crew tab) so friends can see and vote.')+'</div></div>';
-  s+='<button class="btn coral block" data-act="newMeet">'+I.plus+' Suggest a meetup</button>';
+  const ms=upcomingMeets(); const me=C.uid||'me';
+  let s='<div class="small muted" style="margin:2px 0 8px">'+(crewOn()?'Drop a pin and propose a time. Everyone gives it a 👍 or 👎, or proposes another time and place.':'Join a crew (Crew tab) so friends can see and respond.')+'</div>';
+  s+='<div class="btns"><button class="btn coral" data-act="pinMeet">'+I.pin+' Drop a pin</button><button class="btn ghost" data-act="newMeet">Pick a stop or place</button></div>';
   if(!ms.length) s+='<div class="empty">No upcoming meetups.</div>';
-  ms.forEach(mt=>{ const ps=sortedProps(mt); const total=Object.keys(mt.votes||{}).length; const mine=myVote(mt);
-    s+='<div class="card" style="margin-top:12px"><div class="row"><h3 class="grow" style="font-size:17px">'+esc(mt.meta.title||'Meetup')+'</h3>'+(mt.meta.locked?'<span class="tag fam">Locked in ✓</span>':'<span class="tag">'+total+' vote'+(total!==1?'s':'')+'</span>')+'</div><div class="small muted">Suggested by '+esc(nameOf(mt.meta.by))+'</div>';
-    ps.forEach((p,i)=>{ const l=p.n?LOC.get(p.n):null; const h=here(); const d=h?bikeMi(h,p):null; const when=new Date(p.when); const past=p.when<Date.now(); const locked=mt.meta.locked===p.id; const lead=!mt.meta.locked&&i===0&&p.votes>0;
+  ms.forEach(mt=>{ const ps=sortedProps(mt); const everyone=crewIds();
+    s+='<div class="card" style="margin-top:12px"><div class="row"><h3 class="grow" style="font-size:17px">'+esc(mt.meta.title||'Meetup')+'</h3>'+(mt.meta.locked?'<span class="tag fam">Locked in ✓</span>':'<span class="tag">'+ps.length+' option'+(ps.length!==1?'s':'')+'</span>')+'</div><div class="small muted">Started by '+esc(nameOf(mt.meta.by))+'</div>';
+    ps.forEach((p,i)=>{ const l=p.n?LOC.get(p.n):null; const h=here(); const d=h?bikeMi(h,p):null; const when=new Date(p.when); const past=p.when<Date.now(); const locked=mt.meta.locked===p.id; const lead=!mt.meta.locked&&i===0&&p.up.length>0;
       if(mt.meta.locked&&!locked) return;
-      s+='<div class="prop '+(locked?'locked':lead?'lead':'')+'"><div class="row"><div class="grow"><div style="font-weight:700">'+esc(p.label)+(l?' <span class="small muted">#'+l.n+'</span>':'')+'</div><div class="small"><b>'+esc(DAYS.find(x=>x.d===p.day)?DAYS.find(x=>x.d===p.day).lbl:when.toLocaleDateString([], {weekday:'short',month:'numeric',day:'numeric'}))+' · '+clock(when)+'</b>'+(past?' <span class="late">(past)</span>':'')+(d!=null?' · <span class="muted">'+fmtMi(d)+' away</span>':'')+'</div>'+(p.note?'<div class="small muted">'+esc(p.note)+'</div>':'')+'<div class="small muted">by '+esc(nameOf(p.by))+'</div></div>'+
-        (!mt.meta.locked?'<button class="btn sm '+(mine===p.id?'coral':'ghost')+'" data-act="vote" data-m="'+mt.id+'" data-p="'+p.id+'">'+(mine===p.id?'Voted ✓':'Vote')+'</button>':'')+'</div>'+
-        (!mt.meta.locked?'<div class="bar"><i style="width:'+(total?Math.round(p.votes/total*100):0)+'%"></i></div><div class="small muted" style="margin-top:3px">'+p.votes+' · '+p.voters.map(u=>esc(nameOf(u))).join(', ')+'</div>':'')+
-        '<div class="btns" style="margin-top:8px"><a class="btn sm teal" target="_blank" rel="noopener" href="'+apple(l||p)+'">'+I.nav+' Apple</a><a class="btn sm ghost" target="_blank" rel="noopener" href="'+google(p)+'">'+I.g+' Google</a><button class="btn sm ghost" data-act="showOnMap" data-lat="'+p.lat+'" data-lng="'+p.lng+'">Map</button></div></div>'; });
-    s+='<div class="btns" style="margin-top:10px">'+(mt.meta.locked?'<button class="btn sm ghost" data-act="unlock" data-m="'+mt.id+'">Reopen voting</button>':'<button class="btn sm ghost" data-act="altMeet" data-m="'+mt.id+'">Propose alternative</button><button class="btn sm teal" data-act="lock" data-m="'+mt.id+'"'+(ps.length?'':' disabled')+'>Lock in leader</button>')+'<button class="btn sm ghost" data-act="shareMeet" data-m="'+mt.id+'">Share</button></div>';
-    if(mt.meta.by===(C.uid||'me')) s+='<button class="btn sm ghost" style="margin-top:8px" data-act="delMeet" data-m="'+mt.id+'">Delete meetup</button>';
+      const mine=p.up.includes(me)?1:(p.down.includes(me)?-1:0);
+      const noAns=everyone.filter(u=>!p.up.includes(u)&&!p.down.includes(u));
+      const dayLbl=(DAYS.find(x=>x.d===p.day)||{}).lbl||when.toLocaleDateString([],{weekday:'short',month:'numeric',day:'numeric'});
+      s+='<div class="prop '+(locked?'locked':lead?'lead':'')+'">'+(lead?'<div class="small" style="color:var(--coral);font-weight:700;margin-bottom:2px">Most people can make this one</div>':'')+
+        '<div style="font-weight:700;font-size:16px">'+clock(when)+' · '+esc(dayLbl)+(past?' <span class="late">(past)</span>':'')+'</div>'+
+        '<div style="font-weight:600">'+esc(p.label)+(l?' <span class="small muted">#'+l.n+'</span>':'')+'</div>'+
+        '<div class="small muted">'+(d!=null?fmtMi(d)+' away · ':'')+'proposed by '+esc(nameOf(p.by))+'</div>'+(p.note?'<div class="small" style="margin-top:2px">'+esc(p.note)+'</div>':'')+
+        '<div class="btns" style="margin-top:10px"><button class="btn '+(mine===1?'teal':'ghost')+'" data-act="rsvp" data-m="'+mt.id+'" data-p="'+p.id+'" data-v="1">👍 '+(mine===1?'I’m in':'Works for me')+'</button><button class="btn '+(mine===-1?'coral':'ghost')+'" data-act="rsvp" data-m="'+mt.id+'" data-p="'+p.id+'" data-v="-1">👎 '+(mine===-1?'Can’t':'Can’t make it')+'</button></div>'+
+        '<div class="small" style="margin-top:10px"><div style="margin-bottom:3px"><b>👍 '+p.up.length+'</b> '+(p.up.length?nameList(p.up):'<span class="muted">nobody yet</span>')+'</div>'+
+        '<div style="margin-bottom:3px"><b>👎 '+p.down.length+'</b> '+(p.down.length?nameList(p.down):'<span class="muted">—</span>')+'</div>'+
+        (crewOn()&&noAns.length?'<div class="muted">No answer: '+nameList(noAns)+'</div>':'')+'</div>'+
+        '<div class="btns" style="margin-top:8px"><a class="btn sm teal" target="_blank" rel="noopener" href="'+apple(l||p)+'">'+I.nav+' Apple</a><a class="btn sm ghost" target="_blank" rel="noopener" href="'+google(p)+'">'+I.g+' Google</a><button class="btn sm ghost" data-act="showOnMap" data-lat="'+p.lat+'" data-lng="'+p.lng+'">Map</button></div>'+
+        (p.by===me&&!locked?'<button class="btn sm ghost" style="margin-top:6px" data-act="delProp" data-m="'+mt.id+'" data-p="'+p.id+'">Withdraw this option</button>':'')+'</div>'; });
+    s+='<div class="btns" style="margin-top:10px">'+(mt.meta.locked?'<button class="btn sm ghost" data-act="unlock" data-m="'+mt.id+'">Reopen</button>':'<button class="btn sm ghost" data-act="altMeet" data-m="'+mt.id+'">Propose another time/place</button><button class="btn sm teal" data-act="lock" data-m="'+mt.id+'"'+(ps.length&&ps[0].up.length?'':' disabled')+'>Lock in top option</button>')+'<button class="btn sm ghost" data-act="shareMeet" data-m="'+mt.id+'">Share</button></div>';
+    if(mt.meta.by===me) s+='<button class="btn sm ghost" style="margin-top:8px" data-act="delMeet" data-m="'+mt.id+'">Delete meetup</button>';
     s+='</div>'; });
   return s;
 }
 // proposal editor
 function meetEditor(opts){
-  // opts: {mid?, title?, place?:{n,lat,lng,label}}
+  // opts: {mid?, title?, place?:{n,lat,lng,label}, fromPin?}
   S._draft=Object.assign({day:dayDate(S.day),time:'',note:''},opts||{});
   const dr=S._draft; const pl=dr.place;
   const now=new Date(); const def=(()=>{ const d=new Date(now.getTime()+60*60e3); return String(d.getHours()).padStart(2,'0')+':'+String(Math.round(d.getMinutes()/15)*15%60).padStart(2,'0'); })();
-  openModal('<h2 style="font-size:20px">'+(dr.mid?'Propose an alternative':'Suggest a meetup')+'</h2>'+
-    (!dr.mid?'<label class="f">What’s it for?</label><input type="text" id="mTitle" maxlength="60" placeholder="e.g. Lunch break, regroup, final drinks" value="'+esc(dr.title||'')+'">':'')+
-    '<label class="f">Where</label><div class="card" style="margin:0;background:var(--cream)" id="mPlace">'+(pl?'<b>'+esc(pl.label)+'</b>'+(pl.n?' <span class="small muted">#'+pl.n+'</span>':''):'<span class="muted small">Not chosen yet</span>')+'</div>'+
-    '<div class="btns" style="margin-top:8px"><button class="btn sm ghost" data-act="mPickMap">'+I.pin+' Tap on map</button><button class="btn sm ghost" data-act="mPickStop">Pick a stop</button>'+(here()?'<button class="btn sm ghost" data-act="mPickHere">Where I am</button>':'')+'</div>'+
-    '<label class="f">Place name</label><input type="text" id="mLabel" maxlength="60" value="'+esc(pl&&pl.label||'')+'" placeholder="e.g. Canopy courtyard">'+
-    '<label class="f">Day</label><select class="inp" id="mDay">'+DAYS.map(d=>'<option value="'+d.d+'"'+(d.d===dr.day?' selected':'')+'>'+d.lbl+'</option>').join('')+'</select>'+
-    '<label class="f">Time</label><input type="time" id="mTime" step="300" value="'+esc(dr.time||def)+'">'+
-    '<label class="f">Note (optional)</label><input type="text" id="mNote" maxlength="120" value="'+esc(dr.note||'')+'" placeholder="e.g. by the bike racks">'+
-    '<div class="btns" style="margin-top:14px"><button class="btn ghost" data-act="closeModal">Cancel</button><button class="btn coral" data-act="saveProp">'+(dr.mid?'Propose':'Suggest')+'</button></div>');
+  const hTitle=dr.mid?'Propose another time & place':(dr.fromPin?'Meet at this pin — when?':'Suggest a meetup');
+  const titleF=!dr.mid?'<label class="f">What’s it for? (optional)</label><input type="text" id="mTitle" maxlength="60" placeholder="e.g. Lunch break, regroup, final drinks" value="'+esc(dr.title||'')+'">':'';
+  const whereF='<label class="f">Where</label><div class="card" style="margin:0;background:var(--cream)" id="mPlace">'+(pl?'<b>'+esc(pl.label)+'</b>'+(pl.n?' <span class="small muted">#'+pl.n+'</span>':''):'<span class="muted small">Not chosen yet</span>')+'</div>'+
+    '<div class="btns" style="margin-top:8px"><button class="btn sm ghost" data-act="mPickMap">'+I.pin+' '+(pl&&!pl.n?'Move pin':'Tap on map')+'</button><button class="btn sm ghost" data-act="mPickStop">Pick a stop</button>'+(here()?'<button class="btn sm ghost" data-act="mPickHere">Where I am</button>':'')+'</div>'+
+    '<label class="f">Place name</label><input type="text" id="mLabel" maxlength="60" value="'+esc(pl&&pl.label&&pl.label!=='Dropped pin'?pl.label:'')+'" placeholder="'+(pl&&!pl.n?'e.g. taco truck on Springdale':'e.g. Canopy courtyard')+'">';
+  const whenF='<div class="row" style="gap:8px"><div class="grow"><label class="f">Day</label><select class="inp" id="mDay">'+DAYS.map(d=>'<option value="'+d.d+'"'+(d.d===dr.day?' selected':'')+'>'+d.lbl+'</option>').join('')+'</select></div>'+
+    '<div class="grow"><label class="f">Time</label><input type="time" id="mTime" step="300" value="'+esc(dr.time||def)+'"></div></div>';
+  const noteF='<label class="f">Note (optional)</label><input type="text" id="mNote" maxlength="120" value="'+esc(dr.note||'')+'" placeholder="e.g. by the bike racks">';
+  const body = dr.fromPin ? whenF+titleF+whereF+noteF : titleF+whereF+whenF+noteF;
+  openModal('<h2 style="font-size:20px">'+hTitle+'</h2>'+body+
+    '<div class="small muted" style="margin-top:10px">You’ll be marked 👍 on this. Everyone else answers 👍 or 👎.</div>'+
+    '<div class="btns" style="margin-top:12px"><button class="btn ghost" data-act="closeModal">Cancel</button><button class="btn coral" data-act="saveProp">'+(dr.mid?'Propose':'Propose meetup')+'</button></div>');
 }
-function readDraft(){ const d=S._draft; if($('#mTitle')) d.title=$('#mTitle').value; d.day=$('#mDay').value; d.time=$('#mTime').value; d.note=$('#mNote').value; if(d.place) d.place.label=$('#mLabel').value||d.place.label; }
+function focusTime(){ setTimeout(()=>{ const t=$('#mTime'); if(t&&S._draft&&S._draft.fromPin){ t.focus(); try{ t.showPicker&&t.showPicker(); }catch(e){} } },150); }
+function readDraft(){ const d=S._draft; if($('#mTitle')) d.title=$('#mTitle').value; d.day=$('#mDay').value; d.time=$('#mTime').value; d.note=$('#mNote').value; if(d.place) d.place.label=$('#mLabel').value.trim()||d.place.label; }
 function saveProp(){
   readDraft(); const d=S._draft;
   if(!d.place){ toast('Choose a place first'); return; }
@@ -576,13 +593,16 @@ function saveProp(){
   const me=C.uid||'me'; const pid='p'+Date.now().toString(36)+Math.random().toString(36).slice(2,5);
   const prop={by:me,ts:Date.now(),n:d.place.n||null,lat:d.place.lat,lng:d.place.lng,label:(d.place.label||'Meetup spot').slice(0,60),when,day:d.day,note:(d.note||'').slice(0,120)};
   closeModal();
-  if(d.mid){ writeMeet(d.mid,'props/'+pid,prop); writeMeet(d.mid,'votes/'+me,pid); toast('Alternative proposed — your vote moved to it'); }
-  else { const mid='m'+Date.now().toString(36)+Math.random().toString(36).slice(2,5); writeMeet(mid,'meta',{by:me,ts:Date.now(),title:(d.title||'Meetup').slice(0,60),locked:null}); writeMeet(mid,'props/'+pid,prop); writeMeet(mid,'votes/'+me,pid); toast('Meetup suggested — crew can vote'); }
+  if(d.mid){ writeMeet(d.mid,'props/'+pid,prop); writeMeet(d.mid,'rsvp/'+pid+'/'+me,1); toast('New option proposed — you’re 👍 on it'); }
+  else { const mid='m'+Date.now().toString(36)+Math.random().toString(36).slice(2,5); writeMeet(mid,'meta',{by:me,ts:Date.now(),title:(d.title||'Meetup').slice(0,60),locked:null}); writeMeet(mid,'props/'+pid,prop); writeMeet(mid,'rsvp/'+pid+'/'+me,1); toast('Meetup proposed — the crew can 👍 or 👎'); }
   setTab('meet');
 }
 function writeMeet(mid,sub,val){
-  if(crewOn()){ if(val==null) fbRemove('meetups/'+mid+'/'+sub); else fbSet('meetups/'+mid+'/'+sub,val); }
-  else { const m=S.localMeets; m[mid]=m[mid]||{}; const parts=sub.split('/'); if(parts.length===1){ if(val==null) delete m[mid][parts[0]]; else m[mid][parts[0]]=val; } else { m[mid][parts[0]]=m[mid][parts[0]]||{}; if(val==null) delete m[mid][parts[0]][parts[1]]; else m[mid][parts[0]][parts[1]]=val; } save(); renderAll(); }
+  if(crewOn()){ if(val==null) fbRemove('meetups/'+mid+'/'+sub); else fbSet('meetups/'+mid+'/'+sub,val); return; }
+  const m=S.localMeets; const parts=(mid+'/'+sub).split('/'); let o=m;
+  for(let i=0;i<parts.length-1;i++){ o[parts[i]]=o[parts[i]]||{}; o=o[parts[i]]; }
+  if(val==null) delete o[parts[parts.length-1]]; else o[parts[parts.length-1]]=val;
+  save(); renderAll();
 }
 
 // ---- crew ----
@@ -681,18 +701,20 @@ document.addEventListener('click',e=>{
     case 'proposeAt': { const l=LOC.get(n); const ms=upcomingMeets().filter(m=>!m.meta.locked); if(ms.length){ openModal('<h2 style="font-size:20px">Meet at #'+n+'?</h2><p class="small muted">'+esc(l.v)+'</p>'+ms.map(m=>'<button class="btn ghost block" style="margin-top:8px" data-act="altAt" data-m="'+m.id+'" data-n="'+n+'">Propose as alternative for “'+esc(m.meta.title)+'”</button>').join('')+'<button class="btn coral block" style="margin-top:8px" data-act="newAt" data-n="'+n+'">New meetup here</button>'); } else meetEditor({place:{n,lat:l.lat,lng:l.lng,label:l.v}}); break; }
     case 'altAt': { const l=LOC.get(n); meetEditor({mid:t.dataset.m,place:{n,lat:l.lat,lng:l.lng,label:l.v}}); break; }
     case 'newAt': { const l=LOC.get(n); meetEditor({place:{n,lat:l.lat,lng:l.lng,label:l.v}}); break; }
-    case 'mPickMap': readDraft(); closeModal(); setDrawer('peek'); toast('Tap the map to choose the spot'); S.pick=pt=>{ S._draft.place={n:null,lat:pt.lat,lng:pt.lng,label:S._draft.place&&!S._draft.place.n?S._draft.place.label:'Dropped pin'}; setDrawer('half'); meetEditor(S._draft); }; break;
+    case 'mPickMap': readDraft(); closeModal(); setDrawer('peek'); toast('Tap the map to choose the spot'); S.pick=pt=>{ S._draft.place={n:null,lat:pt.lat,lng:pt.lng,label:S._draft.place&&!S._draft.place.n?S._draft.place.label:'Dropped pin'}; S._draft.fromPin=true; setDrawer('half'); meetEditor(S._draft); focusTime(); }; break;
     case 'mPickHere': { readDraft(); const h=here(); let nb=null,bd=1e9; ALL.forEach(l=>{ const d=hav(h,l)*1609; if(d<bd){bd=d;nb=l;} }); const atStop=h.n?LOC.get(h.n):(bd<80?nb:null); S._draft.place=atStop?{n:atStop.n,lat:atStop.lat,lng:atStop.lng,label:atStop.v}:{n:null,lat:h.lat,lng:h.lng,label:'Where I am now'}; meetEditor(S._draft); break; }
     case 'mPickStop': { readDraft(); const p=plan().map(x=>LOC.get(x)).filter(Boolean); const h=here(); const near=h?ALL.filter(openToday).sort((a,b)=>hav(h,a)-hav(h,b)).slice(0,6):[]; const opts=[...new Map(p.concat(near).map(l=>[l.n,l])).values()];
       openModal('<h2 style="font-size:20px">Pick a stop</h2><p class="small muted">Route stops and nearby. Or open any stop and tap “Meet here…”.</p>'+opts.map(l=>'<div class="sugg"><div class="num '+numCls(l)+'" style="width:30px;height:30px">'+l.n+'</div><div class="grow" style="font-weight:600;font-size:14px">'+esc(l.v)+'</div><button class="btn sm ghost" data-act="mStop" data-n="'+l.n+'">Choose</button></div>').join('')+'<div class="btns" style="margin-top:10px"><button class="btn ghost" data-act="mBack">Back</button></div>'); break; }
     case 'mStop': { const l=LOC.get(n); S._draft.place={n,lat:l.lat,lng:l.lng,label:l.v}; meetEditor(S._draft); break; }
     case 'mBack': meetEditor(S._draft); break;
     case 'saveProp': saveProp(); break;
-    case 'vote': { const me=C.uid||'me'; const mt=(meetups()||{})[t.dataset.m]; const cur=mt&&mt.votes&&mt.votes[me]; writeMeet(t.dataset.m,'votes/'+me,cur===t.dataset.p?null:t.dataset.p); break; }
+    case 'rsvp': { const me=C.uid||'me'; const mt=(meetups()||{})[t.dataset.m]; const cur=mt&&mt.rsvp&&mt.rsvp[t.dataset.p]&&mt.rsvp[t.dataset.p][me]; const v=+t.dataset.v; writeMeet(t.dataset.m,'rsvp/'+t.dataset.p+'/'+me,cur===v?null:v); break; }
+    case 'delProp': writeMeet(t.dataset.m,'props/'+t.dataset.p,null); break;
+    case 'pinMeet': closeModal(); setDrawer('peek'); toast('Tap the map where you want to meet'); S.pick=pt=>{ setDrawer('half'); meetEditor({fromPin:true,place:{n:null,lat:pt.lat,lng:pt.lng,label:'Dropped pin'}}); focusTime(); }; break;
     case 'lock': { const mt=upcomingMeets().find(m=>m.id===t.dataset.m); if(!mt) break; const lead=sortedProps(mt)[0]; writeMeet(mt.id,'meta',Object.assign({},mt.meta,{locked:lead.id,lockedBy:C.uid||'me'})); toast('Locked in: '+lead.label+' at '+clock(new Date(lead.when))); break; }
     case 'unlock': { const mt=upcomingMeets().find(m=>m.id===t.dataset.m); if(mt) writeMeet(mt.id,'meta',Object.assign({},mt.meta,{locked:null})); break; }
     case 'delMeet': writeMeet(t.dataset.m,'meta',null); break;
-    case 'shareMeet': { const mt=upcomingMeets().find(m=>m.id===t.dataset.m); if(!mt) break; const ps=sortedProps(mt); let txt=(mt.meta.title||'Meetup')+(mt.meta.locked?' (locked in)':' — vote in the app')+'\n'; ps.forEach(p=>{ if(mt.meta.locked&&mt.meta.locked!==p.id) return; txt+='• '+p.label+' — '+clock(new Date(p.when))+' '+(DAYS.find(x=>x.d===p.day)||{}).lbl+(p.votes&&!mt.meta.locked?' ('+p.votes+' votes)':'')+'\n  '+google(p)+'\n'; }); if(S.crew) txt+='\n'+crewLink(); copy(txt,'Meetup copied'); break; }
+    case 'shareMeet': { const mt=upcomingMeets().find(m=>m.id===t.dataset.m); if(!mt) break; const ps=sortedProps(mt); let txt=(mt.meta.title||'Meetup')+(mt.meta.locked?' — locked in':' — 👍 or 👎 in the app')+'\n'; ps.forEach(p=>{ if(mt.meta.locked&&mt.meta.locked!==p.id) return; txt+='• '+clock(new Date(p.when))+' '+((DAYS.find(x=>x.d===p.day)||{}).lbl||'')+' at '+p.label+' — 👍 '+p.up.length+(p.up.length?' ('+p.up.map(u=>nameOf(u)).join(', ')+')':'')+', 👎 '+p.down.length+'\n  '+google(p)+'\n'; }); if(S.crew) txt+='\n'+crewLink(); copy(txt,'Meetup copied'); break; }
     case 'showOnMap': setDrawer('peek'); map.setView([+t.dataset.lat,+t.dataset.lng],17); break;
     case 'sharePlan': copy(planText(),'Route copied'); break;
     case 'importPlan': openModal('<h2 style="font-size:20px">Import a route</h2><p class="small muted">Paste a shared link or message, or just stop numbers.</p><textarea id="impTxt" rows="5" placeholder="18, 101, 33"></textarea><div class="btns" style="margin-top:10px"><button class="btn ghost" data-act="closeModal">Cancel</button><button class="btn teal" data-act="doImport">Replace route</button></div>'); break;

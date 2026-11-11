@@ -18,7 +18,7 @@ Live address once published: https://danceauthority.github.io/ast-2026/
 - **Map first.** The map is the main screen. Tapping a stop opens its full listing in the bottom drawer: hours, parking notes, each artist's photo, "what to expect" and bio. **Plan mode** makes each tap add or remove a stop, which is the fast way to build a route.
 - **Route.** Drawn along bike-friendly streets using the free OSRM bike router (routing.openstreetmap.de). If that service is down, it falls back to straight dashed lines. "Optimize order" re-sorts the remaining stops into the shortest ride starting from where you are. ETAs use your pace (default 9 mph) plus time at each stop (default 20 min) and flag anything after 5pm.
 - **After each stop.** Tap "I'm here" (or accept the automatic "You're at #18" prompt when GPS is on). The app marks the stop visited, shows the planned next stop and suggests 3 nearby ones.
-- **Meetups.** Anyone in the crew can suggest a meetup with a place (a stop, a pin on the map, or where they are now) and a future time. Others vote or propose an alternative. Each person has one vote per meetup and can change it. Anyone can "Lock in" the leading option or reopen voting. Only the person who created a meetup can delete it.
+- **Meetups.** Drop a pin (the coral pin button on the map, or Meet › Drop a pin) and the app asks for a time right away. You can also start from a stop or from where you are now. Every proposed time and place shows a 👍 / 👎 list of who can and can't make it, plus who hasn't answered yet. Anyone can propose another time and place. The option with the most 👍 rises to the top, and anyone can lock it in. Only the person who proposed an option can withdraw it, and only the person who started a meetup can delete it.
 - **GPS (opt-in, two levels).**
   1. *Use my location on this phone.* This gives the blue dot, distances and the "you're at a stop" check-in prompt. Nothing leaves the phone.
   2. *Share live location with the crew* for 1, 3 or 6 hours. It turns itself off when the time is up, and it's removed when the person switches it off or closes the page. Updates go out about every 90 seconds or every 60 m moved. Phones only send updates while the page is open on screen, which is a browser limit.
@@ -38,12 +38,13 @@ This needs your personal Google account (ryangossen@gmail.com). Nothing in here 
 The Firebase web config is not a secret. Google designs it to sit in public web pages. The security rules are what protect the data.
 
 ## Where it stands
+- Nov 11, 2026: Meetups changed to 👍/👎 per proposed time and place, with name lists; dropping a pin goes straight to choosing a time.
 - Nov 10, 2026: v2 built (map-first planning, full descriptions, real bike route lines, meetup voting, opt-in GPS, Firebase sync).
 - Tested in a phone-size browser in solo mode and with two simulated crew members (shared route, proposals, votes, live location). It hasn't been tested against a real Firebase project yet, so do a two-phone test before Saturday.
 
 ## Rules and security
 - **Who can see a crew:** anyone with the crew link, signed in anonymously. Crew codes are 12 random characters, long enough to be unguessable. The rules refuse crew codes shorter than 10 characters.
-- **What people can change:** each person can only write their own name, check-in, live position and votes. Anyone in the crew can edit the shared route and lock or unlock meetups. Only the author can edit their own meetup proposal or delete their own meetup.
+- **What people can change:** each person can only write their own name, check-in, live position and votes. Anyone in the crew can edit the shared route and lock or unlock meetups. Each person can only set their own 👍/👎. Only the author can edit or withdraw their own meetup proposal or delete their own meetup.
 - **Live location** is only written after the person opts in. It's deleted when they stop sharing or disconnect, and other phones hide it if it's more than 30 minutes old.
 - **Third-party services the app calls:** OpenStreetMap map images (tile.openstreetmap.org), the OSRM bike router (routing.openstreetmap.de, which receives the route's coordinates), artist photos linked from atxstudiotour.com, Leaflet from unpkg.com, and Firebase (Google) only if configured.
 
@@ -54,3 +55,4 @@ The Firebase web config is not a secret. Google designs it to sit in public web 
 
 ## Log
 - 2026-11-10: Created folder; first version published.
+- 2026-11-11: Meetup 👍/👎 responses replace single-choice votes (Firebase path `meetups/<id>/rsvp/<option>/<person>`). Re-paste `database.rules.json` if Firebase was already set up.

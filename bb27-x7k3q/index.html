@@ -32,6 +32,12 @@ button.link{background:none;padding:4px 0;min-height:0;color:var(--muted);font-s
 .who{margin:0!important}
 .day.edit{cursor:pointer}
 .day.edit:active{background:var(--soft)}
+.tabs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+.tab{min-height:32px;padding:4px 10px;font-size:.8rem;border-radius:999px;background:var(--card)}
+.tab.on{background:var(--accent);color:#fff}
+.dpanel select,.dpanel input,.dpanel textarea{background:var(--card)}
+.idea{font-size:.85rem;border:1.5px dashed var(--line);border-radius:10px;padding:6px 10px;margin-top:6px}
+.idea .vote{margin-top:4px}
 .dpanel{cursor:default;margin-top:10px;background:var(--soft);border-radius:12px;padding:10px}
 .who select{width:auto;min-height:36px;padding:6px 10px}
 .status{font-size:.75rem;color:var(--muted);margin-left:auto;text-align:right}
@@ -104,7 +110,7 @@ label.l{font-size:.75rem;color:var(--muted);display:block;margin-bottom:2px}
   </section>
 
   <section>
-    <h2>Make changes</h2>
+    <h2>Whole plan</h2>
     <details id="planDetails">
       <summary id="planTitle">Edit our plan</summary>
       <div class="dbody">
@@ -119,62 +125,6 @@ label.l{font-size:.75rem;color:var(--muted);display:block;margin-bottom:2px}
         </div>
       </div>
     </details>
-    <details id="resDetails">
-      <summary>Add your reservation</summary>
-      <div class="dbody">
-        <p class="muted" style="margin-top:0">Type it in, or send the confirmation for Ryan to merge.</p>
-        <div class="stop">
-          <div><label class="l" for="rsKind">Type</label><select id="rsKind"><option>Campsite</option><option>Hotel</option><option>Rental house</option><option>Other</option></select></div>
-          <div><label class="l" for="rsPlace">Place</label><select id="rsPlace"></select></div>
-          <div><label class="l" for="rsStart">Check in</label><input type="date" id="rsStart"></div>
-          <div><label class="l" for="rsEnd">Check out</label><input type="date" id="rsEnd"></div>
-          <div class="full"><label class="l" for="rsDetail">Site, room or name of the place</label><input id="rsDetail" placeholder="e.g. Site 42, sleeps 8"></div>
-          <div class="full"><label class="l" for="rsConf">Confirmation #</label><input id="rsConf" placeholder="optional"></div>
-          <div class="full"><label class="l" for="rsNote">Note</label><input id="rsNote" placeholder="e.g. room for one more van"></div>
-          <label class="full row" style="font-size:.9rem"><input type="checkbox" id="rsPlan" checked style="width:auto;min-height:0"> Also add it to our plan</label>
-        </div>
-        <div class="row" style="margin-bottom:18px"><button class="primary" id="rsAdd">Save reservation</button><span id="rsMsg" class="muted"></span></div>
-        <div style="border-top:1px solid var(--line);padding-top:14px">
-          <label class="l" for="ibText">Or paste the confirmation email, a link, or attach the document</label>
-          <textarea id="ibText" placeholder="Paste text or a link"></textarea>
-          <input type="file" id="ibFile" accept=".pdf,image/*,.txt,.eml,.html" style="margin-top:8px;background:none;padding:6px 0">
-          <p class="muted">This goes to Ryan's sheet and he'll merge it in.</p>
-          <div class="row"><button id="ibSend">Send to Ryan</button><span id="ibMsg" class="muted"></span></div>
-        </div>
-      </div>
-    </details>
-    <details>
-      <summary>Post an activity idea</summary>
-      <div class="dbody">
-        <div class="stop">
-          <div class="full"><label class="l" for="idTitle">Idea</label><input id="idTitle" placeholder="e.g. Hot springs at sunset"></div>
-          <div class="full"><label class="l" for="idNote">Details</label><textarea id="idNote" placeholder="optional"></textarea></div>
-          <div><label class="l" for="idDate">Date</label><input type="date" id="idDate"></div>
-          <div><label class="l" for="idPlace">Place</label><select id="idPlace"></select></div>
-        </div>
-        <div class="row"><button class="primary" id="idAdd">Post idea</button><span id="idMsg" class="muted"></span></div>
-      </div>
-    </details>
-    <details>
-      <summary>Add a hard date</summary>
-      <div class="dbody">
-        <div class="stop">
-          <div><label class="l" for="hdDate">Date</label><input type="date" id="hdDate"></div>
-          <div><label class="l" for="hdLabel">What</label><input id="hdLabel" placeholder="e.g. back at work"></div>
-        </div>
-        <button class="primary" id="hdAdd">Add hard date</button>
-      </div>
-    </details>
-  </section>
-
-  <section>
-    <h2>Reservations</h2>
-    <div class="card" id="resList"></div>
-  </section>
-
-  <section>
-    <h2>Activity ideas</h2>
-    <div class="card" id="ideaList"></div>
   </section>
 
   <section>
@@ -372,7 +322,7 @@ function renderMap(useDraft){
     if (pts.length > 1) L.polyline(pts, {color:f.color, weight:3, opacity:.8}).addTo(layer);
   });
   (doc.ideas || []).forEach(function(i){
-    if (i.status !== "proposal" || i.lat == null) return;
+    if (i.lat == null) return;
     var icon = L.divIcon({className:"", html:'<div style="width:16px;height:16px;border:2px dashed #2c2c2a;border-radius:50%;background:#FAC775"></div>', iconSize:[16,16], iconAnchor:[8,8]});
     L.marker([i.lat, i.lng], {icon:icon}).bindPopup("<b>Proposed:</b> " + esc(i.title) + (i.date ? "<br>" + esc(fmt(i.date)) : "") + "<br>from " + esc(fam(i.by).name)).addTo(layer);
     bounds.push([i.lat, i.lng]);
@@ -387,7 +337,7 @@ function renderMap(useDraft){
     if (!has) s.style.color = "var(--muted)";
     lg.appendChild(s);
   });
-  if ((doc.ideas || []).some(function(i){ return i.status === "proposal" && i.lat != null; })){
+  if ((doc.ideas || []).some(function(i){ return i.lat != null; })){
     var pp = document.createElement("span");
     pp.innerHTML = '<span class="sw" style="background:#FAC775;border:2px dashed #2c2c2a;box-sizing:border-box"></span>';
     pp.appendChild(document.createTextNode("Proposed activity")); lg.appendChild(pp);
@@ -427,7 +377,8 @@ function whereOn(plan, d){
 }
 
 function isoOf(d){ return new Date(d * 86400000).toISOString().slice(0,10); }
-function setDay(family, d, placeName){
+function setDay(family, d, placeName, dEnd){
+  dEnd = dEnd || d + 1;
   var plan = JSON.parse(JSON.stringify(((doc.families[family] || {}).plan) || []));
   var origin = null, final = null, days = {};
   plan.forEach(function(s){
@@ -435,11 +386,11 @@ function setDay(family, d, placeName){
     if (s.start && !s.end){ final = s; return; }
     if (s.start && s.end){ for (var x = dayNum(s.start); x < dayNum(s.end); x++) days[x] = {place:s.place, lat:s.lat, lng:s.lng, note:(x === dayNum(s.start) ? s.note : "")}; }
   });
-  if (placeName){
-    var prev = days[d] && days[d].place === placeName ? days[d] : null;
-    var ll = PLACES[placeName] || (function(){ var f = plan.filter(function(s){ return s.place === placeName; })[0]; return f ? [f.lat, f.lng] : [null, null]; })();
-    days[d] = {place:placeName, lat:ll[0], lng:ll[1], note:prev ? prev.note : ""};
-  } else { delete days[d]; }
+  var ll = placeName ? (PLACES[placeName] || (function(){ var f = plan.filter(function(s){ return s.place === placeName; })[0]; return f ? [f.lat, f.lng] : [null, null]; })()) : null;
+  for (var x = d; x < dEnd; x++){
+    if (placeName){ var prev = days[x] && days[x].place === placeName ? days[x] : null; days[x] = {place:placeName, lat:ll[0], lng:ll[1], note:prev ? prev.note : ""}; }
+    else delete days[x];
+  }
   var keys = Object.keys(days).map(Number).sort(function(a,b){ return a - b; });
   var stops = [], cur = null;
   keys.forEach(function(k){
@@ -457,11 +408,11 @@ function setDay(family, d, placeName){
 function renderDays(){
   var nums = [];
   FAMILIES.forEach(function(f){ ((doc.families[f.id] || {}).plan || []).forEach(function(s){ if (s.start) nums.push(dayNum(s.start)); if (s.end) nums.push(dayNum(s.end)); }); });
-  (doc.ideas || []).forEach(function(i){ if (i.status === "proposal" && i.date) nums.push(dayNum(i.date)); });
+  (doc.ideas || []).forEach(function(i){ if (i.date) nums.push(dayNum(i.date)); });
   (doc.hardDates || []).forEach(function(h){ nums.push(dayNum(h.date)); });
   var box = document.getElementById("days"); box.innerHTML = "";
   if (!nums.length){ box.innerHTML = '<p class="muted">No plans yet.</p>'; return; }
-  var d0 = Math.min.apply(null, nums), d1 = Math.max.apply(null, nums);
+  var d0 = Math.min.apply(null, nums) - (who ? 1 : 0), d1 = Math.max.apply(null, nums) + (who ? 1 : 0);
   for (var d = d0; d <= d1; d++){
     var iso = new Date(d * 86400000).toISOString().slice(0,10);
     var groups = {}, order = [];
@@ -474,9 +425,9 @@ function renderDays(){
       if (w.note) groups[key].notes.push(f.name + ": " + w.note);
     });
     var hards = (doc.hardDates || []).filter(function(h){ return h.date === iso; });
-    var props = (doc.ideas || []).filter(function(i){ return i.status === "proposal" && i.date === iso; });
+    var props = (doc.ideas || []).filter(function(i){ return i.date === iso; });
     var ress = (doc.reservations || []).filter(function(r){ return r.start === iso; });
-    if (!order.length && !hards.length && !props.length && !ress.length) continue;
+    if (!order.length && !hards.length && !props.length && !ress.length && !who) continue;
     var row = document.createElement("div"); row.className = "day";
     var dt = new Date(d * 86400000);
     var dc = document.createElement("div"); dc.className = "date";
@@ -497,35 +448,148 @@ function renderDays(){
       body.appendChild(e);
     });
     ress.forEach(function(r){ var e = document.createElement("div"); e.className = "note"; e.style.marginTop = "4px"; e.textContent = "Booked: " + r.kind + " at " + r.place + (r.detail ? ", " + r.detail : "") + " (" + fam(r.family).name + ", until " + fmt(r.end) + ")"; body.appendChild(e); });
-    props.forEach(function(i){ var e = document.createElement("div"); e.className = "propline"; e.textContent = "Proposed: " + i.title + (i.place ? " · " + i.place : "") + " (" + fam(i.by).name + ")"; body.appendChild(e); });
+    props.forEach(function(i){
+      var e = el("div", "idea"); e.appendChild(el("div", "ttl", "Idea: " + i.title + (i.place ? " · " + i.place : "")));
+      if (i.note) e.appendChild(el("div", "note", i.note));
+      var votes = Object.keys(i.votes || {}), mineV = who && (i.votes || {})[who];
+      var r = el("div", "acts"); r.style.marginTop = "4px";
+      var v = el("button", "vote" + (mineV ? " on" : ""), "+1 · " + votes.length);
+      v.addEventListener("click", function(ev){ ev.stopPropagation(); if (!who){ alert("Choose your family next to Day by day first."); return; } send({type:"vote", id:i.id, family:who, on:!mineV}); });
+      r.appendChild(v); r.appendChild(el("span", "muted", fam(i.by).name + (votes.length ? " · " + votes.map(function(x){ return fam(x).name; }).join(", ") : "")));
+      e.appendChild(r); body.appendChild(e);
+    });
     if (who){
       row.classList.add("edit");
       (function(dd){ row.addEventListener("click", function(){ openDay = (openDay === dd) ? null : dd; renderDays(); }); })(d);
-      if (openDay === d) body.appendChild(dayPanel(d));
     }
-    row.appendChild(dc); row.appendChild(body); box.appendChild(row);
+    row.appendChild(dc); row.appendChild(body);
+    if (who && openDay === d){ var pnl = dayPanel(d); pnl.style.gridColumn = "1 / -1"; pnl.style.marginTop = "0"; row.appendChild(pnl); }
+    box.appendChild(row);
   }
 }
 
-function dayPanel(d){
-  var f = fam(who), w = whereOn((doc.families[who] || {}).plan, d);
-  var panel = document.createElement("div"); panel.className = "dpanel";
-  panel.addEventListener("click", function(e){ e.stopPropagation(); });
-  var lab = document.createElement("label"); lab.className = "l"; lab.textContent = "Where the " + f.name + "s sleep this night";
-  var sel = document.createElement("select");
-  var none = document.createElement("option"); none.value = ""; none.textContent = "Not with the group"; sel.appendChild(none);
+var panelTab = "sleep";
+function el(tag, cls, text){ var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+function placeSelect(current, opts){
+  var wrap = el("div"), sel = el("select"), other = el("input"); other.placeholder = "Name of the place"; other.className = "hide"; other.style.marginTop = "6px";
+  if (opts.none){ var n = el("option", null, opts.none); n.value = ""; sel.appendChild(n); }
   var names = Object.keys(PLACES);
-  ((doc.families[who] || {}).plan || []).forEach(function(s){ if (s.place && names.indexOf(s.place) < 0) names.push(s.place); });
-  names.forEach(function(n){ var o = document.createElement("option"); o.value = n; o.textContent = n; sel.appendChild(o); });
-  sel.value = w ? w.place : "";
-  var row = document.createElement("div"); row.className = "row"; row.style.marginTop = "8px";
-  var save = document.createElement("button"); save.className = "primary"; save.textContent = "Save";
-  var cancel = document.createElement("button"); cancel.className = "link"; cancel.textContent = "Cancel";
-  var msg = document.createElement("span"); msg.className = "muted";
-  cancel.addEventListener("click", function(){ openDay = null; renderDays(); });
-  save.addEventListener("click", function(){ msg.textContent = "Saving…"; setDay(who, d, sel.value).then(function(ok){ if (ok){ openDay = null; renderDays(); } else msg.textContent = "Not saved."; }); });
-  row.appendChild(save); row.appendChild(cancel); row.appendChild(msg);
-  panel.appendChild(lab); panel.appendChild(sel); panel.appendChild(row);
+  FAMILIES.forEach(function(f){ ((doc.families[f.id] || {}).plan || []).forEach(function(s){ if (s.place && names.indexOf(s.place) < 0) names.push(s.place); }); });
+  names.forEach(function(nm){ var o = el("option", null, nm); o.value = nm; sel.appendChild(o); });
+  var oo = el("option", null, "Other…"); oo.value = "__other"; sel.appendChild(oo);
+  sel.value = current || "";
+  sel.addEventListener("change", function(){ other.classList.toggle("hide", sel.value !== "__other"); if (sel.value === "__other") other.focus(); });
+  wrap.appendChild(sel); wrap.appendChild(other);
+  wrap.value = function(){ return sel.value === "__other" ? other.value.trim() : sel.value; };
+  return wrap;
+}
+function field(label, input){ var w = el("div"); w.style.marginBottom = "8px"; w.appendChild(el("label", "l", label)); w.appendChild(input); return w; }
+function inp(type, ph, val){ var i = el("input"); i.type = type || "text"; if (ph) i.placeholder = ph; if (val) i.value = val; return i; }
+
+function dayPanel(d){
+  var iso = isoOf(d), f = fam(who), plan = (doc.families[who] || {}).plan, w = whereOn(plan, d);
+  var panel = el("div", "dpanel");
+  panel.addEventListener("click", function(e){ e.stopPropagation(); });
+  var tabs = el("div", "tabs");
+  [["sleep","Where we sleep"],["res","Reservation"],["idea","Activity idea"],["hard","Hard date"]].forEach(function(t){
+    var b = el("button", "tab" + (panelTab === t[0] ? " on" : ""), t[1]);
+    b.addEventListener("click", function(){ panelTab = t[0]; renderDays(); });
+    tabs.appendChild(b);
+  });
+  panel.appendChild(tabs);
+  var body = el("div"); panel.appendChild(body);
+  var msg = el("span", "muted");
+  function actions(label, fn){
+    var r = el("div", "row"); r.style.marginTop = "4px";
+    var sv = el("button", "primary", label), cn = el("button", "link", "Close");
+    sv.addEventListener("click", fn); cn.addEventListener("click", function(){ openDay = null; renderDays(); });
+    r.appendChild(sv); r.appendChild(cn); r.appendChild(msg); return r;
+  }
+  function done(ok){ if (ok){ openDay = null; renderDays(); } else msg.textContent = "Not saved."; }
+
+  if (panelTab === "sleep"){
+    var ps = placeSelect(w ? w.place : "", {none:"Not with the group"});
+    body.appendChild(field("Where the " + f.name + "s sleep this night", ps));
+    body.appendChild(actions("Save", function(){
+      var v = ps.value(); if (ps.querySelector("select").value === "__other" && !v){ msg.textContent = "Type the place name."; return; }
+      msg.textContent = "Saving…"; setDay(who, d, v).then(done);
+    }));
+  }
+  if (panelTab === "res"){
+    var stay = sortedPlan(plan).filter(function(s){ return s.start && s.end && dayNum(s.start) <= d && d < dayNum(s.end); })[0];
+    var kind = el("select"); ["Campsite","Hotel","Rental house","Other"].forEach(function(k){ var o = el("option", null, k); kind.appendChild(o); });
+    var rp = placeSelect(w ? w.place : "Rio Grande Village", {});
+    var out = inp("date", null, stay ? stay.end : isoOf(d + 1));
+    var det = inp("text", "e.g. Site 42, sleeps 8"), conf = inp("text", "optional"), note = inp("text", "optional");
+    var cbl = el("label"); cbl.style.cssText = "display:flex;gap:8px;align-items:center;font-size:.9rem;margin-bottom:8px"; var cb = el("input"); cb.type = "checkbox"; cb.checked = true; cb.style.width = "auto"; cb.style.minHeight = "0";
+    cbl.appendChild(cb); cbl.appendChild(document.createTextNode(" Also put these nights in our plan"));
+    body.appendChild(field("Type", kind)); body.appendChild(field("Place", rp));
+    body.appendChild(field("Check in " + fmt(iso) + " · check out", out));
+    body.appendChild(field("Site, room or name of the place", det)); body.appendChild(field("Confirmation #", conf)); body.appendChild(field("Note", note));
+    body.appendChild(cbl);
+    body.appendChild(actions("Save reservation", function(){
+      var pl = rp.value(); if (!pl){ msg.textContent = "Pick or type the place."; return; }
+      if (!out.value || dayNum(out.value) <= d){ msg.textContent = "Check-out has to be after " + fmt(iso) + "."; return; }
+      var item = {id:uid("r"), family:who, kind:kind.value, place:pl, start:iso, end:out.value, detail:det.value.trim(), conf:conf.value.trim(), note:note.value.trim()};
+      msg.textContent = "Saving…";
+      send({type:"addRes", item:item}).then(function(ok){
+        if (!ok) return done(false);
+        if (cb.checked) setDay(who, d, pl, dayNum(out.value)).then(done); else done(true);
+      });
+    }));
+    var ib = el("div"); ib.style.cssText = "border-top:1px solid var(--line);margin-top:12px;padding-top:10px";
+    var ta = el("textarea"); ta.placeholder = "Or paste the confirmation email or a link";
+    var fi = inp("file"); fi.accept = ".pdf,image/*,.txt,.eml,.html"; fi.style.cssText = "margin-top:6px;background:none;padding:6px 0";
+    var imsg = el("span", "muted"), ibtn = el("button", null, "Send to Ryan to merge"); ibtn.style.background = "var(--card)";
+    ibtn.addEventListener("click", function(){
+      var text = ta.value.trim(), file = fi.files[0];
+      if (!text && !file){ imsg.textContent = "Paste something or attach a file."; return; }
+      if (!API_URL){ imsg.textContent = "This turns on once Ryan connects the shared sheet. For now, text it to him."; return; }
+      if (file && file.size > 8 * 1024 * 1024){ imsg.textContent = "That file is over 8 MB. Text it to Ryan instead."; return; }
+      imsg.textContent = "Sending…";
+      var go = function(fobj){ send({type:"inbox", family:who, text:text + (text ? "\n" : "") + "(for " + fmt(iso) + ")", file:fobj}).then(function(ok){ imsg.textContent = ok ? "Sent. Ryan will merge it in." : ""; if (ok){ ta.value = ""; fi.value = ""; } }); };
+      if (!file) return go(null);
+      var rd = new FileReader();
+      rd.onload = function(){ go({name:file.name, mime:file.type || "application/octet-stream", data:String(rd.result).split(",")[1]}); };
+      rd.onerror = function(){ imsg.textContent = "Couldn't read that file."; };
+      rd.readAsDataURL(file);
+    });
+    ib.appendChild(ta); ib.appendChild(fi); var ir = el("div", "row"); ir.appendChild(ibtn); ir.appendChild(imsg); ib.appendChild(ir);
+    body.appendChild(ib);
+  }
+  if (panelTab === "idea"){
+    var tt = inp("text", "e.g. Hot springs at sunset"), nt = el("textarea"); nt.placeholder = "optional";
+    var ip = placeSelect(w ? w.place : "", {none:"No particular place"});
+    body.appendChild(field("Idea for " + fmt(iso), tt)); body.appendChild(field("Details", nt)); body.appendChild(field("Place", ip));
+    body.appendChild(actions("Post idea", function(){
+      var t = tt.value.trim(); if (!t){ msg.textContent = "Give the idea a name."; return; }
+      var pl = ip.value(), ll = pl && PLACES[pl] ? PLACES[pl] : [null, null];
+      var item = {id:uid("i"), title:t, note:nt.value.trim(), date:iso, place:pl, lat:ll[0], lng:ll[1], by:who, status:"proposal", votes:{}};
+      item.votes[who] = true;
+      msg.textContent = "Posting…"; send({type:"addIdea", item:item}).then(done);
+    }));
+  }
+  if (panelTab === "hard"){
+    var hl = inp("text", "e.g. back at work");
+    body.appendChild(field("Hard date on " + fmt(iso), hl));
+    body.appendChild(actions("Add hard date", function(){
+      var t = hl.value.trim(); if (!t){ msg.textContent = "Say what has to happen."; return; }
+      msg.textContent = "Saving…"; send({type:"addHard", item:{id:uid("h"), date:iso, label:t, by:who}}).then(done);
+    }));
+  }
+  var mine = [];
+  (doc.reservations || []).forEach(function(r){ if (r.family === who && r.start === iso) mine.push(["Reservation: " + r.kind + " at " + r.place, {type:"removeRes", id:r.id}]); });
+  (doc.ideas || []).forEach(function(i){ if (i.by === who && i.date === iso) mine.push(["Idea: " + i.title, {type:"removeIdea", id:i.id}]); });
+  (doc.hardDates || []).forEach(function(h){ if (h.date === iso) mine.push(["Hard date: " + h.label, {type:"removeHard", id:h.id}]); });
+  if (mine.length){
+    var ex = el("div"); ex.style.cssText = "border-top:1px solid var(--line);margin-top:12px;padding-top:8px";
+    mine.forEach(function(m){
+      var r = el("div", "hd"); r.appendChild(el("div", "note", m[0]));
+      var x = el("button", "link", "Remove"); x.addEventListener("click", function(){ if (confirm("Remove “" + m[0] + "”?")) send(m[1]).then(function(){ renderDays(); }); });
+      r.appendChild(x); ex.appendChild(r);
+    });
+    panel.appendChild(ex);
+  }
   return panel;
 }
 var openDay = null;
@@ -590,66 +654,8 @@ function renderHard(){
   });
 }
 
-function renderIdeas(){
-  var box = document.getElementById("ideaList"); box.innerHTML = "";
-  var list = (doc.ideas || []).slice().sort(function(a,b){ return Object.keys(b.votes||{}).length - Object.keys(a.votes||{}).length; });
-  if (!list.length){ box.innerHTML = '<p class="muted" style="margin:0">No ideas yet. Hot springs? Boquillas? A NYE dinner spot? Post one under Make changes.</p>'; }
-  list.forEach(function(i){
-    var d = document.createElement("div"); d.className = "item";
-    var h = document.createElement("div"); h.className = "ttl"; h.textContent = i.title;
-    if (i.status === "proposal"){ var p = document.createElement("span"); p.className = "tag"; p.textContent = "proposed"; h.appendChild(p); }
-    d.appendChild(h);
-    if (i.note){ var n = document.createElement("div"); n.textContent = i.note; d.appendChild(n); }
-    var meta = document.createElement("div"); meta.className = "muted";
-    meta.textContent = [fam(i.by).name, i.date ? fmt(i.date) : "", i.place || ""].filter(Boolean).join(" · ");
-    d.appendChild(meta);
-    var votes = Object.keys(i.votes || {}), mine = who && (i.votes || {})[who];
-    var r = document.createElement("div"); r.className = "acts";
-    var v = document.createElement("button"); v.className = "vote" + (mine ? " on" : "");
-    v.textContent = "+1 · " + votes.length;
-    v.title = votes.map(function(x){ return fam(x).name; }).join(", ");
-    v.addEventListener("click", function(){ if (!who){ alert("Choose your family next to Day by day first."); return; } send({type:"vote", id:i.id, family:who, on:!mine}); });
-    r.appendChild(v);
-    if (votes.length){ var vw = document.createElement("span"); vw.className = "muted"; vw.textContent = votes.map(function(x){ return fam(x).name; }).join(", "); r.appendChild(vw); }
-    d.appendChild(r);
-    if (who && who === i.by){
-      var r2 = document.createElement("div"); r2.className = "acts";
-      var pr = document.createElement("button"); pr.className = "link";
-      pr.textContent = i.status === "proposal" ? "Take off map & days" : "Propose on map & days";
-      pr.addEventListener("click", function(){
-        if (i.status !== "proposal" && !i.date && i.lat == null){ alert("This idea needs a date or a place to go on the map or days list. Delete it and re-post with one."); return; }
-        send({type:"updateIdea", id:i.id, fields:{status: i.status === "proposal" ? "idea" : "proposal"}});
-      });
-      var del = document.createElement("button"); del.className = "link"; del.textContent = "Delete";
-      del.addEventListener("click", function(){ if (confirm("Delete this idea?")) send({type:"removeIdea", id:i.id}); });
-      r2.appendChild(pr); r2.appendChild(del); d.appendChild(r2);
-    }
-    box.appendChild(d);
-  });
-}
-
-function renderRes(){
-  var box = document.getElementById("resList"); box.innerHTML = "";
-  var list = (doc.reservations || []).slice().sort(function(a,b){ return (dayNum(a.start)||0) - (dayNum(b.start)||0); });
-  if (!list.length){ box.innerHTML = '<p class="muted" style="margin:0">None yet. Add yours under Make changes.</p>'; return; }
-  list.forEach(function(r){
-    var d = document.createElement("div"); d.className = "hd";
-    var t = document.createElement("div");
-    var b = document.createElement("div"); b.className = "ttl"; b.textContent = r.kind + " · " + r.place; t.appendChild(b);
-    var m = document.createElement("div"); m.className = "muted";
-    m.textContent = [fam(r.family).name, (fmt(r.start) || "?") + " – " + (fmt(r.end) || "?"), r.detail, r.conf ? "Conf # " + r.conf : "", r.note].filter(Boolean).join(" · ");
-    t.appendChild(m); d.appendChild(t);
-    if (who && who === r.family){
-      var x = document.createElement("button"); x.className = "link"; x.textContent = "Remove";
-      x.addEventListener("click", function(){ if (confirm("Remove this reservation?")) send({type:"removeRes", id:r.id}); });
-      d.appendChild(x);
-    }
-    box.appendChild(d);
-  });
-}
-
 function render(){
-  setStatus(); renderMap(false); renderDays(); renderEditor(); renderHard(); renderIdeas(); renderRes();
+  setStatus(); renderMap(false); renderDays(); renderEditor(); renderHard();
 }
 
 document.addEventListener("DOMContentLoaded", function(){
@@ -657,50 +663,6 @@ document.addEventListener("DOMContentLoaded", function(){
   FAMILIES.forEach(function(f){ var o = document.createElement("option"); o.value = f.id; o.textContent = f.name; sel.appendChild(o); });
   sel.value = who;
   sel.addEventListener("change", function(){ who = sel.value; LS.set("bb27-who", who); draft = null; render(); });
-  placeOptions(document.getElementById("idPlace"), "", true);
-  placeOptions(document.getElementById("rsPlace"), "Rio Grande Village", false);
-  document.getElementById("rsAdd").addEventListener("click", function(){
-    var msg = document.getElementById("rsMsg");
-    if (!who){ msg.textContent = "Choose your family next to Day by day first."; return; }
-    var st = document.getElementById("rsStart").value, en = document.getElementById("rsEnd").value, pl = document.getElementById("rsPlace").value;
-    if (!st || !en){ msg.textContent = "Add check-in and check-out dates."; return; }
-    if (dayNum(en) <= dayNum(st)){ msg.textContent = "Check-out has to be after check-in."; return; }
-    var item = {id:uid("r"), family:who, kind:document.getElementById("rsKind").value, place:pl, start:st, end:en, detail:document.getElementById("rsDetail").value.trim(), conf:document.getElementById("rsConf").value.trim(), note:document.getElementById("rsNote").value.trim()};
-    msg.textContent = "Saving…";
-    send({type:"addRes", item:item}).then(function(ok){
-      if (!ok){ msg.textContent = ""; return; }
-      msg.textContent = "Saved.";
-      ["rsStart","rsEnd","rsDetail","rsConf","rsNote"].forEach(function(k){ document.getElementById(k).value = ""; });
-      if (document.getElementById("rsPlan").checked){
-        var plan = JSON.parse(JSON.stringify(((doc.families[who] || {}).plan) || []));
-        var exists = plan.some(function(s){ return s.place === pl && s.start === st && s.end === en; });
-        if (!exists){
-          plan.push({id:uid("s"), place:pl, lat:PLACES[pl][0], lng:PLACES[pl][1], start:st, end:en, note:item.kind + (item.detail ? ", " + item.detail : "")});
-          draft = null; send({type:"setPlan", family:who, plan:plan}).then(function(){ msg.textContent = "Saved and added to your plan. Check the dates of your other stops."; });
-        }
-      }
-    });
-  });
-  document.getElementById("ibSend").addEventListener("click", function(){
-    var msg = document.getElementById("ibMsg"), text = document.getElementById("ibText").value.trim(), fi = document.getElementById("ibFile");
-    if (!who){ msg.textContent = "Choose your family next to Day by day first."; return; }
-    if (!text && !fi.files.length){ msg.textContent = "Paste something or attach a file."; return; }
-    if (!API_URL){ msg.textContent = "This turns on once Ryan finishes setting up the shared sheet. For now, text it to him."; return; }
-    var f = fi.files[0];
-    if (f && f.size > 8 * 1024 * 1024){ msg.textContent = "That file is over 8 MB. Text it to Ryan instead."; return; }
-    msg.textContent = "Sending…";
-    var go = function(file){
-      send({type:"inbox", family:who, text:text, file:file}).then(function(ok){
-        msg.textContent = ok ? "Sent. Ryan will merge it in." : "";
-        if (ok){ document.getElementById("ibText").value = ""; fi.value = ""; }
-      });
-    };
-    if (!f) return go(null);
-    var rd = new FileReader();
-    rd.onload = function(){ go({name:f.name, mime:f.type || "application/octet-stream", data:String(rd.result).split(",")[1]}); };
-    rd.onerror = function(){ msg.textContent = "Couldn't read that file."; };
-    rd.readAsDataURL(f);
-  });
   initMap();
 
   document.getElementById("pickcancel").addEventListener("click", function(){ picking = null; document.getElementById("pickhint").classList.add("hide"); });
@@ -725,23 +687,6 @@ document.addEventListener("DOMContentLoaded", function(){
     msg.textContent = "Saving…";
     send({type:"setPlan", family:who, plan:draft}).then(function(ok){ msg.textContent = ok ? "Saved." : ""; if (ok) draft = null; render(); });
   });
-  document.getElementById("hdAdd").addEventListener("click", function(){
-    var dt = document.getElementById("hdDate").value, lb = document.getElementById("hdLabel").value.trim();
-    if (!dt || !lb){ alert("Enter a date and what has to happen."); return; }
-    if (!who){ alert("Choose your family next to Day by day first."); return; }
-    send({type:"addHard", item:{id:uid("h"), date:dt, label:lb, by:who}}).then(function(ok){ if (ok){ document.getElementById("hdDate").value = ""; document.getElementById("hdLabel").value = ""; } });
-  });
-  document.getElementById("idAdd").addEventListener("click", function(){
-    var t = document.getElementById("idTitle").value.trim(), msg = document.getElementById("idMsg");
-    if (!t){ msg.textContent = "Give the idea a name first."; return; }
-    if (!who){ msg.textContent = "Choose your family next to Day by day first."; return; }
-    var pl = document.getElementById("idPlace").value;
-    var item = {id:uid("i"), title:t, note:document.getElementById("idNote").value.trim(), date:document.getElementById("idDate").value, place:pl, lat:pl ? PLACES[pl][0] : null, lng:pl ? PLACES[pl][1] : null, by:who, status:"idea", votes:{}};
-    item.votes[who] = true;
-    msg.textContent = "Posting…";
-    send({type:"addIdea", item:item}).then(function(ok){ msg.textContent = ok ? "Posted." : ""; if (ok){ ["idTitle","idNote","idDate"].forEach(function(k){ document.getElementById(k).value = ""; }); document.getElementById("idPlace").value = ""; } });
-  });
-
   loadDoc();
   if (API_URL) setInterval(function(){ if (!picking) loadDoc(); }, 60000);
 });

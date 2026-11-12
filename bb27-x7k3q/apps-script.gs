@@ -1,7 +1,12 @@
+/**
+ * @OnlyCurrentDoc
+ */
 // Shared storage for the Big Bend + Santa Fe trip page.
 // Paste into the trip Google Sheet: Extensions > Apps Script, replace everything, save,
 // then Deploy > New deployment > Web app, Execute as: Me, Who has access: Anyone.
 // The trip code lives in the sheet's Settings tab (cell B1), not here.
+// @OnlyCurrentDoc above limits this script to this one spreadsheet: it cannot see
+// any of your other Sheets or anything else in your Drive.
 // The full plan is kept as JSON in Data!A1; the Plans, Hard dates and Ideas tabs are
 // readable copies rewritten on every save.
 
@@ -73,19 +78,12 @@ function mirror_(doc) {
   write_('Reservations', res);
 }
 
-// Pasted confirmations and attached documents. Kept private: written only to the
-// 'Reservation inbox' tab and a Drive folder, never into the public plan data.
+// Pasted confirmations and links. Kept private: written only to the
+// 'Reservation inbox' tab, never into the public plan data.
 function inbox_(op) {
-  var fileUrl = '';
-  if (op.file && op.file.data) {
-    var folders = DriveApp.getFoldersByName('Trip reservation uploads');
-    var folder = folders.hasNext() ? folders.next() : DriveApp.createFolder('Trip reservation uploads');
-    var blob = Utilities.newBlob(Utilities.base64Decode(op.file.data), op.file.mime, op.file.name);
-    fileUrl = folder.createFile(blob).getUrl();
-  }
   var sh = sheet_('Reservation inbox');
-  if (sh.getLastRow() === 0) sh.appendRow(['Received', 'Family', 'Pasted text or link', 'File', 'Merged?']);
-  sh.appendRow([new Date(), op.family, op.text || '', fileUrl, '']);
+  if (sh.getLastRow() === 0) sh.appendRow(['Received', 'Family', 'Pasted text or link', 'Merged?']);
+  sh.appendRow([new Date(), op.family, op.text || '', '']);
 }
 
 function write_(name, rows) {

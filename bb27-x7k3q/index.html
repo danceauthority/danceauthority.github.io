@@ -600,22 +600,16 @@ function dayPanel(d){
     }));
     var ib = el("div"); ib.style.cssText = "border-top:1px solid var(--line);margin-top:12px;padding-top:10px";
     var ta = el("textarea"); ta.placeholder = "Or paste the confirmation email or a link";
-    var fi = inp("file"); fi.accept = ".pdf,image/*,.txt,.eml,.html"; fi.style.cssText = "margin-top:6px;background:none;padding:6px 0";
     var imsg = el("span", "muted"), ibtn = el("button", null, "Send to Ryan to merge"); ibtn.style.background = "var(--card)";
     ibtn.addEventListener("click", function(){
-      var text = ta.value.trim(), file = fi.files[0];
-      if (!text && !file){ imsg.textContent = "Paste something or attach a file."; return; }
+      var text = ta.value.trim();
+      if (!text){ imsg.textContent = "Paste something first."; return; }
       if (!API_URL){ imsg.textContent = "This turns on once Ryan connects the shared sheet. For now, text it to him."; return; }
-      if (file && file.size > 8 * 1024 * 1024){ imsg.textContent = "That file is over 8 MB. Text it to Ryan instead."; return; }
       imsg.textContent = "Sending…";
-      var go = function(fobj){ send({type:"inbox", family:who, text:text + (text ? "\n" : "") + "(for " + fmt(iso) + ")", file:fobj}).then(function(ok){ imsg.textContent = ok ? "Sent. Ryan will merge it in." : ""; if (ok){ ta.value = ""; fi.value = ""; } }); };
-      if (!file) return go(null);
-      var rd = new FileReader();
-      rd.onload = function(){ go({name:file.name, mime:file.type || "application/octet-stream", data:String(rd.result).split(",")[1]}); };
-      rd.onerror = function(){ imsg.textContent = "Couldn't read that file."; };
-      rd.readAsDataURL(file);
+      send({type:"inbox", family:who, text:text + "\n(for " + fmt(iso) + ")"}).then(function(ok){ imsg.textContent = ok ? "Sent. Ryan will merge it in." : ""; if (ok) ta.value = ""; });
     });
-    ib.appendChild(ta); ib.appendChild(fi); var ir = el("div", "row"); ir.appendChild(ibtn); ir.appendChild(imsg); ib.appendChild(ir);
+    var fh = el("div", "note", "For a PDF or screenshot, text it to Ryan."); fh.style.marginTop = "4px";
+    ib.appendChild(ta); ib.appendChild(fh); var ir = el("div", "row"); ir.style.marginTop = "6px"; ir.appendChild(ibtn); ir.appendChild(imsg); ib.appendChild(ir);
     body.appendChild(ib);
   }
   if (panelTab === "idea"){

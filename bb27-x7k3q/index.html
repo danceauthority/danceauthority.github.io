@@ -422,6 +422,34 @@ function whereOn(plan, d){
   return out;
 }
 
+function isoOf(d){ return new Date(d * 86400000).toISOString().slice(0,10); }
+function setDay(family, d, placeName){
+  var plan = JSON.parse(JSON.stringify(((doc.families[family] || {}).plan) || []));
+  var origin = null, final = null, days = {};
+  plan.forEach(function(s){
+    if (!s.start && s.end){ origin = s; return; }
+    if (s.start && !s.end){ final = s; return; }
+    if (s.start && s.end){ for (var x = dayNum(s.start); x < dayNum(s.end); x++) days[x] = {place:s.place, lat:s.lat, lng:s.lng, note:(x === dayNum(s.start) ? s.note : "")}; }
+  });
+  if (placeName){
+    var prev = days[d] && days[d].place === placeName ? days[d] : null;
+    var ll = PLACES[placeName] || (function(){ var f = plan.filter(function(s){ return s.place === placeName; })[0]; return f ? [f.lat, f.lng] : [null, null]; })();
+    days[d] = {place:placeName, lat:ll[0], lng:ll[1], note:prev ? prev.note : ""};
+  } else { delete days[d]; }
+  var keys = Object.keys(days).map(Number).sort(function(a,b){ return a - b; });
+  var stops = [], cur = null;
+  keys.forEach(function(k){
+    var v = days[k];
+    if (cur && cur.place === v.place && dayNum(cur.end) === k){ cur.end = isoOf(k + 1); }
+    else { cur = {id:uid("s"), place:v.place, lat:v.lat, lng:v.lng, start:isoOf(k), end:isoOf(k + 1), note:v.note || ""}; stops.push(cur); }
+  });
+  if (origin && stops.length) origin.end = stops[0].start;
+  if (final && stops.length) final.start = stops[stops.length - 1].end;
+  var out = (origin ? [origin] : []).concat(stops).concat(final ? [final] : []);
+  draft = null;
+  return send({type:"setPlan", family:family, plan:out});
+}
+
 function renderDays(){
   var nums = [];
   FAMILIES.forEach(function(f){ ((doc.families[f.id] || {}).plan || []).forEach(function(s){ if (s.start) nums.push(dayNum(s.start)); if (s.end) nums.push(dayNum(s.end)); }); });
@@ -466,8 +494,36 @@ function renderDays(){
     });
     ress.forEach(function(r){ var e = document.createElement("div"); e.className = "note"; e.style.marginTop = "4px"; e.textContent = "Booked: " + r.kind + " at " + r.place + (r.detail ? ", " + r.detail : "") + " (" + fam(r.family).name + ", until " + fmt(r.end) + ")"; body.appendChild(e); });
     props.forEach(function(i){ var e = document.createElement("div"); e.className = "propline"; e.textContent = "Proposed: " + i.title + (i.place ? " · " + i.place : "") + " (" + fam(i.by).name + ")"; body.appendChild(e); });
+    if (who) body.appendChild(dayEditor(d));
     row.appendChild(dc); row.appendChild(body); box.appendChild(row);
   }
+}
+
+function dayEditor(d){
+  var wrap = document.createElement("div"); wrap.style.marginTop = "6px";
+  var f = fam(who), w = whereOn((doc.families[who] || {}).plan, d);
+  var btn = document.createElement("button"); btn.className = "link";
+  btn.textContent = w ? "Change " + f.name + " this day" : "Add " + f.name + " this day";
+  var panel = document.createElement("div"); panel.className = "hide"; panel.style.marginTop = "6px";
+  var sel = document.createElement("select");
+  var none = document.createElement("option"); none.value = ""; none.textContent = "Not with the group / no plan"; sel.appendChild(none);
+  var names = Object.keys(PLACES);
+  ((doc.families[who] || {}).plan || []).forEach(function(s){ if (s.place && names.indexOf(s.place) < 0) names.push(s.place); });
+  names.forEach(function(n){ var o = document.createElement("option"); o.value = n; o.textContent = n; sel.appendChild(o); });
+  sel.value = w ? w.place : "";
+  var row = document.createElement("div"); row.className = "row"; row.style.marginTop = "8px";
+  var save = document.createElement("button"); save.className = "primary"; save.textContent = "Save";
+  var cancel = document.createElement("button"); cancel.className = "link"; cancel.textContent = "Cancel";
+  var msg = document.createElement("span"); msg.className = "muted";
+  var hint = document.createElement("div"); hint.className = "note"; hint.style.marginTop = "4px";
+  hint.textContent = "Where the " + f.name + "s sleep that night. Drive days are worked out for you.";
+  btn.addEventListener("click", function(){ panel.classList.toggle("hide"); });
+  cancel.addEventListener("click", function(){ panel.classList.add("hide"); });
+  save.addEventListener("click", function(){ msg.textContent = "Saving…"; setDay(who, d, sel.value).then(function(ok){ msg.textContent = ok ? "" : "Not saved."; }); });
+  row.appendChild(save); row.appendChild(cancel); row.appendChild(msg);
+  panel.appendChild(sel); panel.appendChild(hint); panel.appendChild(row);
+  wrap.appendChild(btn); wrap.appendChild(panel);
+  return wrap;
 }
 
 function placeOptions(sel, current, withNone){

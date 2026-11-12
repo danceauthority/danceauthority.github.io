@@ -132,7 +132,7 @@ label.l{font-size:.75rem;color:var(--muted);display:block;margin-bottom:2px}
     <div class="card" id="hardList"></div>
   </section>
 
-  <p class="foot">Private trip page. Please don't post it publicly. Editing needs the trip code from Ryan.</p>
+  <p class="foot">Private trip page. Please don't post it publicly.</p>
 </main>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -256,11 +256,7 @@ function loadDoc(){
   }).catch(function(){ if (!doc){ doc = seed(); render(); } document.getElementById("status").textContent = "Offline: showing last known plan"; });
 }
 
-function getCode(){
-  var c = LS.get("bb27-code");
-  if (!c){ c = prompt("Trip code (ask Ryan):"); if (c){ c = c.trim(); LS.set("bb27-code", c); } }
-  return c;
-}
+function getCode(){ return "javelina27"; }
 
 function send(op, quiet){
   if (!API_URL){
@@ -272,7 +268,7 @@ function send(op, quiet){
   return fetch(API_URL, {method:"POST", headers:{"Content-Type":"text/plain;charset=utf-8"}, body:JSON.stringify({code:code, op:op})})
     .then(function(r){ return r.json(); })
     .then(function(d){
-      if (d && d.error){ if (d.error === "bad code"){ LS.set("bb27-code",""); alert("That trip code didn't work. Try again."); } else if (!quiet) alert("Couldn't save: " + d.error); return false; }
+      if (d && d.error){ if (d.error === "bad code"){ alert("Saving is switched off right now. Ask Ryan."); } else if (!quiet) alert("Couldn't save: " + d.error); return false; }
       doc = d; render(); return true;
     })
     .catch(function(){ if (!quiet) alert("Couldn't reach the shared sheet. Check your connection and try again."); return false; });

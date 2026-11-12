@@ -179,7 +179,7 @@ function seed(){
       gossen:{plan:[
         {id:"g0",place:"Austin",lat:30.2672,lng:-97.7431,start:"",end:"2026-12-28",note:""},
         {id:"g1",place:"Rio Grande Village",lat:29.1830,lng:-102.9581,start:"2026-12-28",end:"2026-12-31",note:"Perez site"},
-        {id:"g2",place:"Santa Fe",lat:35.6870,lng:-105.9378,start:"2026-12-31",end:"2027-01-04",note:"Tentative"},
+        {id:"g2",place:"Santa Fe",lat:35.6870,lng:-105.9378,start:"2026-12-31",end:"2027-01-04",note:"",tentative:true},
         {id:"g3",place:"Golden, CO",lat:39.7555,lng:-105.2211,start:"2027-01-04",end:"",note:"Option: continue to Colorado"}
       ]},
       sheffield:{plan:[
@@ -370,33 +370,34 @@ function whereOn(plan, d){
   sp.forEach(function(s, i){
     var a = s.start ? dayNum(s.start) : null, b = s.end ? dayNum(s.end) : null;
     var prev = i > 0 ? sp[i-1] : null;
-    if (a != null && b != null && d >= a && d < b) out = {place:s.place, drive:(d === a && i > 0), hours:(d === a && prev ? driveHours(prev, s) : null), note:(d === a ? s.note : "")};
+    var moved = !!(prev && prev.place !== s.place);
+    if (a != null && b != null && d >= a && d < b) out = {place:s.place, tentative:!!s.tentative, drive:(d === a && moved), hours:(d === a && moved ? driveHours(prev, s) : null), note:(d === a ? s.note : "")};
     if (a != null && b == null && d === a) out = {place:s.place, drive:i > 0, hours:prev ? driveHours(prev, s) : null, note:s.note, last:true};
   });
   return out;
 }
 
 function isoOf(d){ return new Date(d * 86400000).toISOString().slice(0,10); }
-function setDay(family, d, placeName, dEnd){
+function setDay(family, d, placeName, dEnd, tentative){
   dEnd = dEnd || d + 1;
   var plan = JSON.parse(JSON.stringify(((doc.families[family] || {}).plan) || []));
   var origin = null, final = null, days = {};
   plan.forEach(function(s){
     if (!s.start && s.end){ origin = s; return; }
     if (s.start && !s.end){ final = s; return; }
-    if (s.start && s.end){ for (var x = dayNum(s.start); x < dayNum(s.end); x++) days[x] = {place:s.place, lat:s.lat, lng:s.lng, note:(x === dayNum(s.start) ? s.note : "")}; }
+    if (s.start && s.end){ for (var x = dayNum(s.start); x < dayNum(s.end); x++) days[x] = {place:s.place, lat:s.lat, lng:s.lng, tentative:!!s.tentative, note:(x === dayNum(s.start) ? s.note : "")}; }
   });
   var ll = placeName ? (PLACES[placeName] || (function(){ var f = plan.filter(function(s){ return s.place === placeName; })[0]; return f ? [f.lat, f.lng] : [null, null]; })()) : null;
   for (var x = d; x < dEnd; x++){
-    if (placeName){ var prev = days[x] && days[x].place === placeName ? days[x] : null; days[x] = {place:placeName, lat:ll[0], lng:ll[1], note:prev ? prev.note : ""}; }
+    if (placeName){ var prev = days[x] && days[x].place === placeName ? days[x] : null; days[x] = {place:placeName, lat:ll[0], lng:ll[1], tentative:!!tentative, note:prev ? prev.note : ""}; }
     else delete days[x];
   }
   var keys = Object.keys(days).map(Number).sort(function(a,b){ return a - b; });
   var stops = [], cur = null;
   keys.forEach(function(k){
     var v = days[k];
-    if (cur && cur.place === v.place && dayNum(cur.end) === k){ cur.end = isoOf(k + 1); }
-    else { cur = {id:uid("s"), place:v.place, lat:v.lat, lng:v.lng, start:isoOf(k), end:isoOf(k + 1), note:v.note || ""}; stops.push(cur); }
+    if (cur && cur.place === v.place && !!cur.tentative === !!v.tentative && dayNum(cur.end) === k){ cur.end = isoOf(k + 1); }
+    else { cur = {id:uid("s"), place:v.place, lat:v.lat, lng:v.lng, start:isoOf(k), end:isoOf(k + 1), note:v.note || ""}; if (v.tentative) cur.tentative = true; stops.push(cur); }
   });
   if (origin && stops.length) origin.end = stops[0].start;
   if (final && stops.length) final.start = stops[stops.length - 1].end;
@@ -420,8 +421,8 @@ function renderDays(){
       var w = whereOn((doc.families[f.id] || {}).plan, d);
       if (!w) return;
       var key = (w.drive ? "→" + w.hours : "") + w.place;
-      if (!groups[key]){ groups[key] = {w:w, fams:[], notes:[]}; order.push(key); }
-      groups[key].fams.push(f);
+      if (!groups[key]){ groups[key] = {w:w, fams:[], notes:[], tent:{}}; order.push(key); }
+      groups[key].fams.push(f); if (w.tentative) groups[key].tent[f.id] = true;
       if (w.note) groups[key].notes.push(f.name + ": " + w.note);
     });
     var hards = (doc.hardDates || []).filter(function(h){ return h.date === iso; });
@@ -442,7 +443,10 @@ function renderDays(){
       else { t.className = "place"; t.textContent = g.w.place; }
       e.appendChild(t);
       var c = document.createElement("div"); c.className = "chips";
-      g.fams.forEach(function(f){ var ch = document.createElement("span"); ch.className = "chip"; if (f.id === who) ch.style.boxShadow = "0 0 0 2px var(--card), 0 0 0 3.5px " + f.color; ch.style.background = f.color; ch.textContent = f.name; c.appendChild(ch); });
+      g.fams.forEach(function(f){ var ch = document.createElement("span"); ch.className = "chip"; if (f.id === who) ch.style.boxShadow = "0 0 0 2px var(--card), 0 0 0 3.5px " + f.color;
+        ch.style.background = f.color; ch.textContent = f.name;
+        if (g.tent[f.id]){ ch.style.background = "transparent"; ch.style.color = f.color; ch.style.border = "1.5px dashed " + f.color; ch.style.padding = "0 8px"; ch.textContent = f.name + " · tentative"; }
+        c.appendChild(ch); });
       e.appendChild(c);
       g.notes.forEach(function(n){ var nt = document.createElement("div"); nt.className = "note"; nt.textContent = n; e.appendChild(nt); });
       body.appendChild(e);
@@ -510,9 +514,13 @@ function dayPanel(d){
   if (panelTab === "sleep"){
     var ps = placeSelect(w ? w.place : "", {none:"Not with the group"});
     body.appendChild(field("Where the " + f.name + "s sleep this night", ps));
+    var tl = el("label"); tl.style.cssText = "display:flex;gap:8px;align-items:center;font-size:.9rem;margin-bottom:8px";
+    var tc = el("input"); tc.type = "checkbox"; tc.style.width = "auto"; tc.style.minHeight = "0"; tc.checked = !!(w && w.tentative);
+    tl.appendChild(tc); tl.appendChild(document.createTextNode(" Tentative"));
+    body.appendChild(tl);
     body.appendChild(actions("Save", function(){
       var v = ps.value(); if (ps.querySelector("select").value === "__other" && !v){ msg.textContent = "Type the place name."; return; }
-      msg.textContent = "Saving…"; setDay(who, d, v).then(done);
+      msg.textContent = "Saving…"; setDay(who, d, v, null, v ? tc.checked : false).then(done);
     }));
   }
   if (panelTab === "res"){
@@ -616,14 +624,16 @@ function renderEditor(){
       '<div><label class="l">Arrive</label><input type="date" data-k="start"></div>' +
       '<div><label class="l">Leave</label><input type="date" data-k="end"></div>' +
       '<div class="full"><label class="l">Note</label><input data-k="note" placeholder="optional"></div>' +
+      '<label class="full" style="display:flex;gap:8px;align-items:center;font-size:.9rem"><input type="checkbox" data-k="tentative" style="width:auto;min-height:0"> Tentative</label>' +
       '<div class="full acts"><button class="link" data-a="pick">Pick spot on map</button><button class="link" data-a="del">Remove stop</button></div>';
     placeOptions(d.querySelector('[data-k="place"]'), s.place, false);
     d.querySelector('[data-k="start"]').value = s.start || "";
     d.querySelector('[data-k="end"]').value = s.end || "";
     d.querySelector('[data-k="note"]').value = s.note || "";
+    d.querySelector('[data-k="tentative"]').checked = !!s.tentative;
     d.querySelectorAll("[data-k]").forEach(function(inp){
       inp.addEventListener("change", function(){
-        var k = inp.getAttribute("data-k"); s[k] = inp.value;
+        var k = inp.getAttribute("data-k"); s[k] = (inp.type === "checkbox") ? inp.checked : inp.value;
         if (k === "place" && PLACES[inp.value]){ s.lat = PLACES[inp.value][0]; s.lng = PLACES[inp.value][1]; }
         renderMap(true);
       });

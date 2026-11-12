@@ -88,7 +88,6 @@ label.l{font-size:.75rem;color:var(--muted);display:block;margin-bottom:2px}
     </div>
     <div id="pickhint" class="pickhint hide">Tap the map to place this stop. <button class="link" id="pickcancel">Cancel</button></div>
     <div class="legend" id="legend"></div>
-    <p class="muted" style="margin:6px 0 0">Straight lines between stops, not road routes. Drive times are rough estimates. Dashed pins are proposed activities.</p>
   </section>
 
   <section>
@@ -384,6 +383,11 @@ function renderMap(useDraft){
     if (!has) s.style.color = "var(--muted)";
     lg.appendChild(s);
   });
+  if ((doc.ideas || []).some(function(i){ return i.status === "proposal" && i.lat != null; })){
+    var pp = document.createElement("span");
+    pp.innerHTML = '<span class="sw" style="background:#FAC775;border:2px dashed #2c2c2a;box-sizing:border-box"></span>';
+    pp.appendChild(document.createTextNode("Proposed activity")); lg.appendChild(pp);
+  }
 }
 
 var DRIVE_H = {

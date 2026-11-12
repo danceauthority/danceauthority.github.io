@@ -7,121 +7,149 @@
 <title>Big Bend + Santa Fe, NYE 2026–27</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>
-:root{--bg:#faf8f3;--card:#fff;--ink:#2c2c2a;--muted:#6b6a64;--line:#e2dfd5;--accent:#185FA5;--radius:10px}
-@media (prefers-color-scheme:dark){:root{--bg:#1c1c1a;--card:#262624;--ink:#ecebe4;--muted:#a3a198;--line:#3a3935;--accent:#85B7EB}}
+:root{--bg:#f7f5ef;--card:#fff;--ink:#262624;--muted:#73726c;--line:#e8e5db;--soft:#f1efe8;--accent:#185FA5;--red:#A32D2D}
+@media (prefers-color-scheme:dark){:root{--bg:#1b1b19;--card:#252523;--ink:#ecebe4;--muted:#a3a198;--line:#34332f;--soft:#2c2c29;--accent:#85B7EB;--red:#F09595}}
 *{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
 body{margin:0;font:16px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--ink)}
-header{position:sticky;top:0;z-index:1000;background:var(--bg);border-bottom:1px solid var(--line);padding:10px 14px}
-h1{font-size:1.15rem;margin:0 0 6px;font-weight:600}
-h2{font-size:1.05rem;margin:0 0 10px;font-weight:600}
-main{max-width:900px;margin:0 auto;padding:12px 12px 80px}
-section{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:14px;margin:0 0 14px}
+header{position:sticky;top:0;z-index:2000;background:var(--bg);padding:12px 16px 10px;border-bottom:1px solid var(--line)}
+h1{font-size:1.05rem;margin:0;font-weight:600;letter-spacing:-.01em}
+h2{font-size:.8rem;margin:0 0 12px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+main{max-width:720px;margin:0 auto;padding:16px 14px 64px}
+section{margin:0 0 28px}
+.card{background:var(--card);border-radius:14px;padding:14px 16px}
 .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .muted{color:var(--muted);font-size:.85rem}
 select,input,textarea,button{font:inherit;color:inherit}
-select,input,textarea{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px;min-height:40px;max-width:100%}
-textarea{width:100%;min-height:60px}
-button{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:8px 12px;min-height:40px;cursor:pointer}
-button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
-button.small{min-height:32px;padding:4px 10px;font-size:.85rem}
-.status{font-size:.8rem;color:var(--muted)}
-.status.live::before{content:"";display:inline-block;width:8px;height:8px;border-radius:50%;background:#1D9E75;margin-right:6px}
-.status.local::before{content:"";display:inline-block;width:8px;height:8px;border-radius:50%;background:#BA7517;margin-right:6px}
-#map{height:360px;border-radius:8px}
-.legend{display:flex;flex-wrap:wrap;gap:10px;margin-top:8px;font-size:.85rem}
-.sw{display:inline-block;width:14px;height:4px;border-radius:2px;margin-right:5px;vertical-align:middle}
-.tl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;border:1px solid var(--line);border-radius:8px}
-.tl{position:relative}
-.tl-lab{position:sticky;left:0;z-index:3;background:var(--card);width:84px;font-size:.8rem;font-weight:600;padding:0 6px;display:flex;align-items:center;border-right:1px solid var(--line)}
-.tl-row{display:flex;height:44px;border-bottom:1px solid var(--line)}
-.tl-row:last-child{border-bottom:0}
-.tl-track{position:relative;flex:none}
-.tl-day{position:absolute;top:0;bottom:0;border-left:1px solid var(--line);font-size:.7rem;color:var(--muted);padding:2px 0 0 3px}
-.bar{position:absolute;top:8px;height:28px;border-radius:6px;font-size:.72rem;line-height:28px;padding:0 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#fff}
-.drive{position:absolute;top:8px;height:28px;width:12px;border-radius:4px;background:repeating-linear-gradient(135deg,#999 0 3px,transparent 3px 6px)}
-.prop{position:absolute;top:8px;height:28px;border:1.5px dashed var(--muted);border-radius:6px;font-size:.72rem;line-height:25px;padding:0 6px;white-space:nowrap;overflow:hidden;background:var(--card)}
-.hard{position:absolute;top:0;bottom:0;width:0;border-left:2px solid #A32D2D;z-index:2}
-.stop{border:1px solid var(--line);border-radius:8px;padding:10px;margin:0 0 8px;display:grid;gap:6px;grid-template-columns:1fr 1fr}
+select,input,textarea{background:var(--soft);border:1px solid transparent;border-radius:10px;padding:9px 10px;min-height:42px;width:100%}
+textarea{min-height:64px}
+button{background:var(--soft);border:0;border-radius:10px;padding:9px 14px;min-height:42px;cursor:pointer}
+button.primary{background:var(--accent);color:#fff}
+button.link{background:none;padding:4px 0;min-height:0;color:var(--muted);font-size:.85rem;text-decoration:underline}
+.who{display:flex;align-items:center;gap:8px;margin-top:8px}
+.who label{white-space:nowrap}
+.who select{width:auto;min-height:36px;padding:6px 10px}
+.status{font-size:.75rem;color:var(--muted);margin-left:auto;text-align:right}
+.dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:5px;vertical-align:middle}
+.mapbox{position:relative;isolation:isolate;border-radius:14px;overflow:hidden}
+#map{height:340px}
+.mapbtn{position:absolute;right:10px;bottom:10px;z-index:1000;background:var(--card);box-shadow:0 1px 3px rgba(0,0,0,.2);font-size:.85rem;min-height:36px;padding:6px 12px}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:10px;font-size:.85rem}
+.sw{display:inline-block;width:12px;height:12px;border-radius:50%;margin-right:6px;vertical-align:-1px}
+.day{display:grid;grid-template-columns:62px 1fr;gap:12px;padding:12px 0;border-top:1px solid var(--line)}
+.day:first-child{border-top:0}
+.date{font-weight:600;font-size:.95rem;line-height:1.25}
+.date small{display:block;font-weight:400;color:var(--muted);font-size:.75rem}
+.grp{margin:0 0 8px}
+.grp:last-child{margin:0}
+.place{font-weight:500}
+.drive{color:var(--muted);font-size:.85rem}
+.chips{display:flex;flex-wrap:wrap;gap:4px;margin-top:3px}
+.chip{font-size:.75rem;border-radius:999px;padding:1px 9px;color:#fff}
+.hard{color:var(--red);font-size:.85rem;font-weight:500;margin-bottom:6px}
+.propline{font-size:.85rem;border:1.5px dashed var(--line);border-radius:10px;padding:4px 10px;margin-top:6px}
+.note{font-size:.8rem;color:var(--muted)}
+details{background:var(--card);border-radius:14px;margin:0 0 10px}
+summary{padding:14px 16px;cursor:pointer;font-weight:500;list-style:none}
+summary::-webkit-details-marker{display:none}
+summary::after{content:"+";float:right;color:var(--muted)}
+details[open] summary::after{content:"–"}
+.dbody{padding:0 16px 16px}
+.stop{background:var(--soft);border-radius:12px;padding:12px;margin:0 0 10px;display:grid;gap:8px;grid-template-columns:1fr 1fr}
 .stop .full{grid-column:1 / -1}
-.stop label{font-size:.75rem;color:var(--muted);display:block}
-.stop input,.stop select{width:100%}
-.item{border-top:1px solid var(--line);padding:10px 0}
-.item:first-child{border-top:0}
-.pill{display:inline-block;font-size:.72rem;border-radius:999px;padding:1px 8px;border:1px solid var(--line);margin-right:4px}
-.pill.prop{position:static;border-style:dashed}
-.lock{background:#FAEEDA;color:#633806;border-radius:8px;padding:10px;margin-bottom:10px;font-size:.9rem}
-@media (prefers-color-scheme:dark){.lock{background:#412402;color:#FAC775}}
-.hide{display:none!important}
-.pickhint{background:#E6F1FB;color:#0C447C;border-radius:8px;padding:8px;margin:8px 0;font-size:.9rem}
+.stop select,.stop input{background:var(--card)}
+label.l{font-size:.75rem;color:var(--muted);display:block;margin-bottom:2px}
+.item{padding:12px 0;border-top:1px solid var(--line)}
+.item:first-child{border-top:0;padding-top:0}
+.ttl{font-weight:500}
+.tag{font-size:.7rem;border:1.5px dashed var(--muted);border-radius:999px;padding:0 8px;margin-left:6px;color:var(--muted);vertical-align:1px}
+.acts{display:flex;gap:14px;align-items:center;margin-top:6px}
+.vote{background:var(--soft);min-height:32px;padding:3px 12px;font-size:.85rem;border-radius:999px}
+.vote.on{background:var(--accent);color:#fff}
+.hd{display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:8px 0;border-top:1px solid var(--line)}
+.hd:first-child{border-top:0}
+.pickhint{background:#E6F1FB;color:#0C447C;border-radius:10px;padding:8px 12px;margin:8px 0;font-size:.9rem}
 @media (prefers-color-scheme:dark){.pickhint{background:#042C53;color:#B5D4F4}}
+.hide{display:none!important}
+.foot{font-size:.8rem;color:var(--muted);text-align:center}
 </style>
 </head>
 <body>
 <header>
-  <h1>Big Bend + Santa Fe, NYE 2026–27</h1>
-  <div class="row">
+  <h1>Big Bend + Santa Fe · NYE 2026–27</h1>
+  <div class="who">
     <label for="who" class="muted">I am a</label>
-    <select id="who" aria-label="Which family are you">
-      <option value="">choose…</option>
-    </select>
+    <select id="who"><option value="">choose…</option></select>
     <span id="status" class="status"></span>
   </div>
 </header>
 <main>
   <section>
-    <h2>Map</h2>
-    <div id="map" role="region" aria-label="Map of everyone's routes"></div>
-    <div id="pickhint" class="pickhint hide">Tap the map to place this stop. <button class="small" id="pickcancel">Cancel</button></div>
+    <div class="mapbox">
+      <div id="map" role="region" aria-label="Map of everyone's routes"></div>
+      <button class="mapbtn hide" id="mapMove">Move map</button>
+    </div>
+    <div id="pickhint" class="pickhint hide">Tap the map to place this stop. <button class="link" id="pickcancel">Cancel</button></div>
     <div class="legend" id="legend"></div>
-    <p class="muted">Lines are straight between stops, not road routes. Dashed pins are proposed activities.</p>
+    <p class="muted" style="margin:6px 0 0">Straight lines between stops, not road routes. Dashed pins are proposed activities.</p>
   </section>
 
   <section>
-    <h2>Timeline</h2>
-    <div class="tl-wrap"><div class="tl" id="tl"></div></div>
-    <p class="muted">Each family has its own row, so you can see where plans split off. Striped = drive day. Red line = hard date. Dashed = proposed activity.</p>
+    <h2>Day by day</h2>
+    <div class="card" id="days"></div>
   </section>
 
-  <section id="plansec">
-    <h2 id="planTitle">Our plan</h2>
-    <div id="planNeedWho" class="muted">Choose your family at the top to edit your plan.</div>
-    <div id="planEditor" class="hide">
-      <div id="stops"></div>
-      <div class="row">
-        <button id="addStop">+ Add a stop</button>
-        <select id="copyFrom" aria-label="Copy another family's plan"><option value="">Start from another family's plan…</option></select>
+  <section>
+    <h2>Make changes</h2>
+    <details id="planDetails">
+      <summary id="planTitle">Edit our plan</summary>
+      <div class="dbody">
+        <p id="planNeedWho" class="muted">Choose your family at the top first.</p>
+        <div id="planEditor" class="hide">
+          <div id="stops"></div>
+          <div class="row" style="margin-bottom:10px">
+            <button id="addStop">+ Add a stop</button>
+          </div>
+          <select id="copyFrom" aria-label="Copy another family's plan" style="margin-bottom:12px"><option value="">Start from another family's plan…</option></select>
+          <div class="row"><button class="primary" id="savePlan">Save our plan</button><span id="planMsg" class="muted"></span></div>
+        </div>
       </div>
-      <div class="row" style="margin-top:10px">
-        <button class="primary" id="savePlan">Save our plan</button>
-        <span id="planMsg" class="muted"></span>
+    </details>
+    <details>
+      <summary>Post an activity idea</summary>
+      <div class="dbody">
+        <div class="stop">
+          <div class="full"><label class="l" for="idTitle">Idea</label><input id="idTitle" placeholder="e.g. Hot springs at sunset"></div>
+          <div class="full"><label class="l" for="idNote">Details</label><textarea id="idNote" placeholder="optional"></textarea></div>
+          <div><label class="l" for="idDate">Date</label><input type="date" id="idDate"></div>
+          <div><label class="l" for="idPlace">Place</label><select id="idPlace"></select></div>
+        </div>
+        <div class="row"><button class="primary" id="idAdd">Post idea</button><span id="idMsg" class="muted"></span></div>
       </div>
-    </div>
+    </details>
+    <details>
+      <summary>Add a hard date</summary>
+      <div class="dbody">
+        <div class="stop">
+          <div><label class="l" for="hdDate">Date</label><input type="date" id="hdDate"></div>
+          <div><label class="l" for="hdLabel">What</label><input id="hdLabel" placeholder="e.g. back at work"></div>
+        </div>
+        <button class="primary" id="hdAdd">Add hard date</button>
+      </div>
+    </details>
+  </section>
+
+  <section>
+    <h2>Activity ideas</h2>
+    <div class="card" id="ideaList"></div>
   </section>
 
   <section>
     <h2>Hard dates</h2>
-    <div id="hardList"></div>
-    <div class="row" style="margin-top:8px">
-      <input type="date" id="hdDate" aria-label="Date">
-      <input id="hdLabel" placeholder="What has to happen" aria-label="Label" style="flex:1;min-width:160px">
-      <button id="hdAdd">Add</button>
-    </div>
+    <div class="card" id="hardList"></div>
   </section>
 
-  <section>
-    <h2>Special activities</h2>
-    <p class="muted">Post an idea. Anyone can +1 it, and the poster can put it on the map and timeline as a proposal.</p>
-    <div class="stop">
-      <div class="full"><label for="idTitle">Idea</label><input id="idTitle" placeholder="e.g. NYE dinner at…"></div>
-      <div class="full"><label for="idNote">Details (optional)</label><textarea id="idNote"></textarea></div>
-      <div><label for="idDate">Date (optional)</label><input type="date" id="idDate"></div>
-      <div><label for="idPlace">Place (optional)</label><select id="idPlace"></select></div>
-      <div class="full row"><button class="primary" id="idAdd">Post idea</button><span id="idMsg" class="muted"></span></div>
-    </div>
-    <div id="ideaList"></div>
-  </section>
-
-  <p class="muted">Not a public page. Please don't post it on social media. Edits need the trip code (ask Ryan).</p>
+  <p class="foot">Private trip page. Please don't post it publicly. Editing needs the trip code from Ryan.</p>
 </main>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -223,8 +251,8 @@ function fmt(s){ if (!s) return ""; var d = new Date(dayNum(s)*86400000); return
 
 function setStatus(){
   var el = document.getElementById("status");
-  if (API_URL){ el.className = "status live"; el.textContent = doc && doc.updated ? "Shared · updated " + new Date(doc.updated).toLocaleString("en-US",{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"}) : "Shared"; }
-  else { el.className = "status local"; el.textContent = "Not shared yet: edits stay on this phone"; }
+  if (API_URL){ el.innerHTML = '<span class="dot" style="background:#1D9E75"></span>'; el.appendChild(document.createTextNode(doc && doc.updated ? "Updated " + new Date(doc.updated).toLocaleString("en-US",{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"}) : "Shared")); }
+  else { el.innerHTML = '<span class="dot" style="background:#BA7517"></span>Edits stay on this phone for now'; }
 }
 
 function loadDoc(){
@@ -261,11 +289,18 @@ function send(op, quiet){
     .catch(function(){ if (!quiet) alert("Couldn't reach the shared sheet. Check your connection and try again."); return false; });
 }
 
-var map, layer;
+var map, layer, touch = ("ontouchstart" in window) || navigator.maxTouchPoints > 0;
 function initMap(){
-  map = L.map("map", {scrollWheelZoom:false}).setView([32.6,-102.5], 5);
-  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {maxZoom:18, attribution:"&copy; OpenStreetMap contributors"}).addTo(map);
+  map = L.map("map", {scrollWheelZoom:false, dragging:!touch, tap:false}).setView([32.6,-102.5], 5);
+  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {maxZoom:18, attribution:"&copy; OpenStreetMap"}).addTo(map);
   layer = L.layerGroup().addTo(map);
+  if (touch){
+    var b = document.getElementById("mapMove"); b.classList.remove("hide");
+    b.addEventListener("click", function(){
+      if (map.dragging.enabled()){ map.dragging.disable(); b.textContent = "Move map"; }
+      else { map.dragging.enable(); b.textContent = "Done moving"; }
+    });
+  }
   map.on("click", function(e){
     if (!picking) return;
     var s = draft[picking.index];
@@ -273,6 +308,7 @@ function initMap(){
     if (!s.place || PLACES[s.place]) s.place = "Custom spot";
     picking = null; document.getElementById("pickhint").classList.add("hide");
     renderEditor(); renderMap(true);
+    document.getElementById("planDetails").scrollIntoView({behavior:"smooth", block:"start"});
   });
 }
 
@@ -285,17 +321,16 @@ function renderMap(useDraft){
   var bounds = [];
   FAMILIES.forEach(function(f, idx){
     var plan = (useDraft && f.id === who && draft) ? draft : ((doc.families[f.id] || {}).plan || []);
-    var pts = [];
-    var off = (idx - 2) * 0.025;
+    var pts = [], off = (idx - 2) * 0.025;
     sortedPlan(plan).forEach(function(s){
       if (s.lat == null || s.lng == null) return;
       var ll = [s.lat + off, s.lng + off];
       pts.push(ll); bounds.push(ll);
-      L.circleMarker(ll, {radius:6, color:f.color, weight:2, fillColor:f.color, fillOpacity:.85})
+      L.circleMarker(ll, {radius:6, color:"#fff", weight:2, fillColor:f.color, fillOpacity:1})
         .bindPopup("<b>" + esc(f.name) + "</b><br>" + esc(s.place) + "<br>" + esc([fmt(s.start), fmt(s.end)].filter(Boolean).join(" – ")) + (s.note ? "<br><i>" + esc(s.note) + "</i>" : ""))
         .addTo(layer);
     });
-    if (pts.length > 1) L.polyline(pts, {color:f.color, weight:3, opacity:.85}).addTo(layer);
+    if (pts.length > 1) L.polyline(pts, {color:f.color, weight:3, opacity:.8}).addTo(layer);
   });
   (doc.ideas || []).forEach(function(i){
     if (i.status !== "proposal" || i.lat == null) return;
@@ -303,73 +338,72 @@ function renderMap(useDraft){
     L.marker([i.lat, i.lng], {icon:icon}).bindPopup("<b>Proposed:</b> " + esc(i.title) + (i.date ? "<br>" + esc(fmt(i.date)) : "") + "<br>from " + esc(fam(i.by).name)).addTo(layer);
     bounds.push([i.lat, i.lng]);
   });
-  if (bounds.length && !useDraft) map.fitBounds(bounds, {padding:[20,20]});
+  if (bounds.length && !useDraft) map.fitBounds(bounds, {padding:[24,24]});
   var lg = document.getElementById("legend"); lg.innerHTML = "";
   FAMILIES.forEach(function(f){
     var has = ((doc.families[f.id] || {}).plan || []).length;
     var s = document.createElement("span");
     s.innerHTML = '<span class="sw" style="background:' + f.color + '"></span>';
-    s.appendChild(document.createTextNode(f.name + (has ? "" : " (no plan yet)")));
+    s.appendChild(document.createTextNode(f.name + (has ? "" : " · no plan yet")));
+    if (!has) s.style.color = "var(--muted)";
     lg.appendChild(s);
   });
 }
 
-function renderTimeline(){
-  var dates = [];
-  FAMILIES.forEach(function(f){ ((doc.families[f.id] || {}).plan || []).forEach(function(s){ if (s.start) dates.push(dayNum(s.start)); if (s.end) dates.push(dayNum(s.end)); }); });
-  (doc.hardDates || []).forEach(function(h){ dates.push(dayNum(h.date)); });
-  (doc.ideas || []).forEach(function(i){ if (i.date && i.status === "proposal") dates.push(dayNum(i.date)); });
-  var d0 = Math.min.apply(null, dates.concat([dayNum("2026-12-27")])) - 1;
-  var d1 = Math.max.apply(null, dates.concat([dayNum("2027-01-06")])) + 1;
-  var W = 46, days = d1 - d0 + 1, trackW = days * W;
-  var x = function(s){ return (dayNum(s) - d0) * W; };
-  var tl = document.getElementById("tl"); tl.innerHTML = "";
-  tl.style.width = (84 + trackW) + "px";
+function whereOn(plan, d){
+  var out = null, sp = sortedPlan(plan);
+  sp.forEach(function(s, i){
+    var a = s.start ? dayNum(s.start) : null, b = s.end ? dayNum(s.end) : null;
+    if (a != null && b != null && d >= a && d < b) out = {place:s.place, drive:(d === a && i > 0), note:(d === a ? s.note : "")};
+    if (a != null && b == null && d === a) out = {place:s.place, drive:i > 0, note:s.note, last:true};
+  });
+  return out;
+}
 
-  function row(label, fill){
-    var r = document.createElement("div"); r.className = "tl-row";
-    var lab = document.createElement("div"); lab.className = "tl-lab"; lab.textContent = label; r.appendChild(lab);
-    var tr = document.createElement("div"); tr.className = "tl-track"; tr.style.width = trackW + "px"; r.appendChild(tr);
-    (doc.hardDates || []).forEach(function(h){ var l = document.createElement("div"); l.className = "hard"; l.style.left = (x(h.date) + W/2) + "px"; l.title = h.label; tr.appendChild(l); });
-    fill(tr); tl.appendChild(r);
+function renderDays(){
+  var nums = [];
+  FAMILIES.forEach(function(f){ ((doc.families[f.id] || {}).plan || []).forEach(function(s){ if (s.start) nums.push(dayNum(s.start)); if (s.end) nums.push(dayNum(s.end)); }); });
+  (doc.ideas || []).forEach(function(i){ if (i.status === "proposal" && i.date) nums.push(dayNum(i.date)); });
+  (doc.hardDates || []).forEach(function(h){ nums.push(dayNum(h.date)); });
+  var box = document.getElementById("days"); box.innerHTML = "";
+  if (!nums.length){ box.innerHTML = '<p class="muted">No plans yet.</p>'; return; }
+  var d0 = Math.min.apply(null, nums), d1 = Math.max.apply(null, nums);
+  for (var d = d0; d <= d1; d++){
+    var iso = new Date(d * 86400000).toISOString().slice(0,10);
+    var groups = {}, order = [];
+    FAMILIES.forEach(function(f){
+      var w = whereOn((doc.families[f.id] || {}).plan, d);
+      if (!w) return;
+      var key = (w.drive ? "→" : "") + w.place;
+      if (!groups[key]){ groups[key] = {w:w, fams:[], notes:[]}; order.push(key); }
+      groups[key].fams.push(f);
+      if (w.note) groups[key].notes.push(f.name + ": " + w.note);
+    });
+    var hards = (doc.hardDates || []).filter(function(h){ return h.date === iso; });
+    var props = (doc.ideas || []).filter(function(i){ return i.status === "proposal" && i.date === iso; });
+    if (!order.length && !hards.length && !props.length) continue;
+    var row = document.createElement("div"); row.className = "day";
+    var dt = new Date(d * 86400000);
+    var dc = document.createElement("div"); dc.className = "date";
+    dc.textContent = dt.toLocaleDateString("en-US",{month:"short",day:"numeric",timeZone:"UTC"});
+    var wk = document.createElement("small"); wk.textContent = dt.toLocaleDateString("en-US",{weekday:"short",timeZone:"UTC"}); dc.appendChild(wk);
+    var body = document.createElement("div");
+    hards.forEach(function(h){ var e = document.createElement("div"); e.className = "hard"; e.textContent = "● " + h.label; body.appendChild(e); });
+    order.forEach(function(k){
+      var g = groups[k], e = document.createElement("div"); e.className = "grp";
+      var t = document.createElement("div");
+      if (g.w.drive){ t.className = "drive"; t.textContent = "Drive to " + g.w.place; }
+      else { t.className = "place"; t.textContent = g.w.place; }
+      e.appendChild(t);
+      var c = document.createElement("div"); c.className = "chips";
+      g.fams.forEach(function(f){ var ch = document.createElement("span"); ch.className = "chip"; ch.style.background = f.color; ch.textContent = f.name; c.appendChild(ch); });
+      e.appendChild(c);
+      g.notes.forEach(function(n){ var nt = document.createElement("div"); nt.className = "note"; nt.textContent = n; e.appendChild(nt); });
+      body.appendChild(e);
+    });
+    props.forEach(function(i){ var e = document.createElement("div"); e.className = "propline"; e.textContent = "Proposed: " + i.title + (i.place ? " · " + i.place : "") + " (" + fam(i.by).name + ")"; body.appendChild(e); });
+    row.appendChild(dc); row.appendChild(body); box.appendChild(row);
   }
-  row("", function(tr){
-    for (var d = d0; d <= d1; d++){
-      var dt = new Date(d * 86400000);
-      var c = document.createElement("div"); c.className = "tl-day"; c.style.left = ((d - d0) * W) + "px";
-      c.textContent = dt.toLocaleDateString("en-US",{month:"short",day:"numeric",timeZone:"UTC"});
-      tr.appendChild(c);
-    }
-  });
-  FAMILIES.forEach(function(f){
-    row(f.name, function(tr){
-      var plan = sortedPlan((doc.families[f.id] || {}).plan);
-      plan.forEach(function(s, i){
-        if (s.start && s.end){
-          var b = document.createElement("div"); b.className = "bar";
-          b.style.left = (x(s.start) + W/2) + "px"; b.style.width = Math.max(W, x(s.end) - x(s.start)) + "px"; b.style.background = f.color;
-          b.textContent = s.place; b.title = s.place + " " + fmt(s.start) + "–" + fmt(s.end) + (s.note ? " · " + s.note : "");
-          tr.appendChild(b);
-        } else if (s.start || s.end){
-          var c = document.createElement("div"); c.className = "bar";
-          c.style.left = (x(s.start || s.end) + (s.start ? W/2 + 12 : -W/2)) + "px"; c.style.width = (W - 4) + "px";
-          c.style.background = "transparent"; c.style.color = "var(--muted)"; c.style.border = "1px solid " + f.color;
-          c.textContent = s.place; c.title = s.place; tr.appendChild(c);
-        }
-        if (i > 0 && s.start){
-          var dv = document.createElement("div"); dv.className = "drive"; dv.style.left = (x(s.start) + W/2) + "px"; dv.title = "Drive day " + fmt(s.start); tr.appendChild(dv);
-        }
-      });
-    });
-  });
-  row("Proposed", function(tr){
-    (doc.ideas || []).forEach(function(i){
-      if (i.status !== "proposal" || !i.date) return;
-      var p = document.createElement("div"); p.className = "prop";
-      p.style.left = (x(i.date) + 2) + "px"; p.style.width = (W * 2 - 4) + "px";
-      p.textContent = i.title; p.title = i.title + " (" + fam(i.by).name + ")"; tr.appendChild(p);
-    });
-  });
 }
 
 function placeOptions(sel, current, withNone){
@@ -382,19 +416,19 @@ function placeOptions(sel, current, withNone){
 
 function renderEditor(){
   var need = document.getElementById("planNeedWho"), ed = document.getElementById("planEditor");
-  if (!who){ need.classList.remove("hide"); ed.classList.add("hide"); document.getElementById("planTitle").textContent = "Our plan"; return; }
+  document.getElementById("planTitle").textContent = who ? "Edit the " + fam(who).name + " plan" : "Edit our plan";
+  if (!who){ need.classList.remove("hide"); ed.classList.add("hide"); return; }
   need.classList.add("hide"); ed.classList.remove("hide");
-  document.getElementById("planTitle").textContent = fam(who).name + " plan";
   if (!draft) draft = JSON.parse(JSON.stringify(((doc.families[who] || {}).plan) || []));
   var box = document.getElementById("stops"); box.innerHTML = "";
   if (!draft.length){ var e = document.createElement("p"); e.className = "muted"; e.textContent = "No stops yet. Add one, or start from another family's plan."; box.appendChild(e); }
   draft.forEach(function(s, i){
     var d = document.createElement("div"); d.className = "stop";
-    d.innerHTML = '<div class="full"><label>Place</label><select data-k="place"></select></div>' +
-      '<div><label>Arrive</label><input type="date" data-k="start"></div>' +
-      '<div><label>Leave</label><input type="date" data-k="end"></div>' +
-      '<div class="full"><label>Note</label><input data-k="note" placeholder="optional"></div>' +
-      '<div class="full row"><button class="small" data-a="pick">Pick spot on map</button><button class="small" data-a="del">Remove stop</button></div>';
+    d.innerHTML = '<div class="full"><label class="l">Place</label><select data-k="place"></select></div>' +
+      '<div><label class="l">Arrive</label><input type="date" data-k="start"></div>' +
+      '<div><label class="l">Leave</label><input type="date" data-k="end"></div>' +
+      '<div class="full"><label class="l">Note</label><input data-k="note" placeholder="optional"></div>' +
+      '<div class="full acts"><button class="link" data-a="pick">Pick spot on map</button><button class="link" data-a="del">Remove stop</button></div>';
     placeOptions(d.querySelector('[data-k="place"]'), s.place, false);
     d.querySelector('[data-k="start"]').value = s.start || "";
     d.querySelector('[data-k="end"]').value = s.end || "";
@@ -422,13 +456,12 @@ function renderHard(){
   var list = (doc.hardDates || []).slice().sort(function(a,b){ return dayNum(a.date) - dayNum(b.date); });
   if (!list.length){ box.innerHTML = '<p class="muted">None yet.</p>'; }
   list.forEach(function(h){
-    var d = document.createElement("div"); d.className = "item row";
-    var t = document.createElement("div"); t.style.flex = "1";
-    var b = document.createElement("b"); b.textContent = fmt(h.date) + " "; t.appendChild(b);
+    var d = document.createElement("div"); d.className = "hd";
+    var t = document.createElement("div");
+    var b = document.createElement("b"); b.textContent = fmt(h.date) + "  "; t.appendChild(b);
     t.appendChild(document.createTextNode(h.label));
-    var m = document.createElement("div"); m.className = "muted"; m.textContent = "added by " + fam(h.by).name; t.appendChild(m);
-    var x = document.createElement("button"); x.className = "small"; x.textContent = "Remove"; x.setAttribute("aria-label","Remove " + h.label);
-    x.addEventListener("click", function(){ if (confirm("Remove this hard date?")) send({type:"removeHard", id:h.id}); });
+    var x = document.createElement("button"); x.className = "link"; x.textContent = "Remove";
+    x.addEventListener("click", function(){ if (confirm("Remove “" + h.label + "”?")) send({type:"removeHard", id:h.id}); });
     d.appendChild(t); d.appendChild(x); box.appendChild(d);
   });
 }
@@ -436,42 +469,43 @@ function renderHard(){
 function renderIdeas(){
   var box = document.getElementById("ideaList"); box.innerHTML = "";
   var list = (doc.ideas || []).slice().sort(function(a,b){ return Object.keys(b.votes||{}).length - Object.keys(a.votes||{}).length; });
-  if (!list.length){ box.innerHTML = '<p class="muted">No ideas yet. Hot springs? Boquillas? A NYE dinner spot?</p>'; }
+  if (!list.length){ box.innerHTML = '<p class="muted" style="margin:0">No ideas yet. Hot springs? Boquillas? A NYE dinner spot? Post one under Make changes.</p>'; }
   list.forEach(function(i){
     var d = document.createElement("div"); d.className = "item";
-    var h = document.createElement("div");
-    var b = document.createElement("b"); b.textContent = i.title; h.appendChild(b);
-    if (i.status === "proposal"){ var p = document.createElement("span"); p.className = "pill prop"; p.style.marginLeft = "6px"; p.textContent = "on map & timeline"; h.appendChild(p); }
+    var h = document.createElement("div"); h.className = "ttl"; h.textContent = i.title;
+    if (i.status === "proposal"){ var p = document.createElement("span"); p.className = "tag"; p.textContent = "proposed"; h.appendChild(p); }
     d.appendChild(h);
     if (i.note){ var n = document.createElement("div"); n.textContent = i.note; d.appendChild(n); }
     var meta = document.createElement("div"); meta.className = "muted";
     meta.textContent = [fam(i.by).name, i.date ? fmt(i.date) : "", i.place || ""].filter(Boolean).join(" · ");
     d.appendChild(meta);
-    var votes = Object.keys(i.votes || {});
-    var r = document.createElement("div"); r.className = "row"; r.style.marginTop = "6px";
-    var v = document.createElement("button"); v.className = "small";
-    var mine = who && (i.votes || {})[who];
-    v.textContent = (mine ? "✓ " : "+1 ") + (votes.length ? votes.map(function(x){ return fam(x).name; }).join(", ") : "");
+    var votes = Object.keys(i.votes || {}), mine = who && (i.votes || {})[who];
+    var r = document.createElement("div"); r.className = "acts";
+    var v = document.createElement("button"); v.className = "vote" + (mine ? " on" : "");
+    v.textContent = "+1 · " + votes.length;
+    v.title = votes.map(function(x){ return fam(x).name; }).join(", ");
     v.addEventListener("click", function(){ if (!who){ alert("Choose your family at the top first."); return; } send({type:"vote", id:i.id, family:who, on:!mine}); });
     r.appendChild(v);
+    if (votes.length){ var vw = document.createElement("span"); vw.className = "muted"; vw.textContent = votes.map(function(x){ return fam(x).name; }).join(", "); r.appendChild(vw); }
+    d.appendChild(r);
     if (who && who === i.by){
-      var pr = document.createElement("button"); pr.className = "small";
-      pr.textContent = i.status === "proposal" ? "Take off map & timeline" : "Propose on map & timeline";
+      var r2 = document.createElement("div"); r2.className = "acts";
+      var pr = document.createElement("button"); pr.className = "link";
+      pr.textContent = i.status === "proposal" ? "Take off map & days" : "Propose on map & days";
       pr.addEventListener("click", function(){
-        if (i.status !== "proposal" && !i.date && i.lat == null){ alert("Add a date or a place to this idea first (delete and re-post with one)."); return; }
+        if (i.status !== "proposal" && !i.date && i.lat == null){ alert("This idea needs a date or a place to go on the map or days list. Delete it and re-post with one."); return; }
         send({type:"updateIdea", id:i.id, fields:{status: i.status === "proposal" ? "idea" : "proposal"}});
       });
-      r.appendChild(pr);
-      var del = document.createElement("button"); del.className = "small"; del.textContent = "Delete";
+      var del = document.createElement("button"); del.className = "link"; del.textContent = "Delete";
       del.addEventListener("click", function(){ if (confirm("Delete this idea?")) send({type:"removeIdea", id:i.id}); });
-      r.appendChild(del);
+      r2.appendChild(pr); r2.appendChild(del); d.appendChild(r2);
     }
-    d.appendChild(r); box.appendChild(d);
+    box.appendChild(d);
   });
 }
 
 function render(){
-  setStatus(); renderMap(false); renderTimeline(); renderEditor(); renderHard(); renderIdeas();
+  setStatus(); renderMap(false); renderDays(); renderEditor(); renderHard(); renderIdeas();
 }
 
 document.addEventListener("DOMContentLoaded", function(){

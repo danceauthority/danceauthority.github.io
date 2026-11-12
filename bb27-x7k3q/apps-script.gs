@@ -16,6 +16,10 @@ function doPost(e) {
     var req = JSON.parse(e.postData.contents);
     var code = String(sheet_('Settings').getRange('B1').getValue()).trim();
     if (!code || String(req.code || '').trim() !== code) return json_({error: 'bad code'});
+    if (req.op && req.op.type === 'inbox') {
+      inbox_(req.op);
+      return json_(load_());
+    }
     var doc = load_();
     applyOp_(doc, req.op);
     doc.updated = new Date().toISOString();
@@ -35,11 +39,14 @@ function load_() {
 }
 
 function applyOp_(doc, op) {
-  if (op.type === 'init') { if (!doc.families) { doc.families = op.doc.families; doc.hardDates = op.doc.hardDates; doc.ideas = op.doc.ideas; } return doc; }
+  if (op.type === 'init') { if (!doc.families) { doc.families = op.doc.families; doc.hardDates = op.doc.hardDates; doc.ideas = op.doc.ideas; doc.reservations = op.doc.reservations || []; } return doc; }
   if (!doc.families) doc.families = {};
   if (!doc.hardDates) doc.hardDates = [];
   if (!doc.ideas) doc.ideas = [];
   if (op.type === 'setPlan') { doc.families[op.family] = doc.families[op.family] || {}; doc.families[op.family].plan = op.plan; }
+  if (!doc.reservations) doc.reservations = [];
+  if (op.type === 'addRes') doc.reservations.push(op.item);
+  if (op.type === 'removeRes') doc.reservations = doc.reservations.filter(function (r) { return r.id !== op.id; });
   if (op.type === 'addHard') doc.hardDates.push(op.item);
   if (op.type === 'removeHard') doc.hardDates = doc.hardDates.filter(function (h) { return h.id !== op.id; });
   if (op.type === 'addIdea') doc.ideas.push(op.item);
@@ -61,6 +68,24 @@ function mirror_(doc) {
   var ideas = [['Idea', 'Details', 'Date', 'Place', 'Posted by', 'Status', '+1s']];
   (doc.ideas || []).forEach(function (i) { ideas.push([i.title, i.note, i.date, i.place, i.by, i.status, Object.keys(i.votes || {}).join(', ')]); });
   write_('Ideas', ideas);
+  var res = [['Family', 'Type', 'Place', 'Check in', 'Check out', 'Site / room', 'Note']];
+  (doc.reservations || []).forEach(function (r) { res.push([r.family, r.kind, r.place, r.start, r.end, r.detail, r.note]); });
+  write_('Reservations', res);
+}
+
+// Pasted confirmations and attached documents. Kept private: written only to the
+// 'Reservation inbox' tab and a Drive folder, never into the public plan data.
+function inbox_(op) {
+  var fileUrl = '';
+  if (op.file && op.file.data) {
+    var folders = DriveApp.getFoldersByName('Trip reservation uploads');
+    var folder = folders.hasNext() ? folders.next() : DriveApp.createFolder('Trip reservation uploads');
+    var blob = Utilities.newBlob(Utilities.base64Decode(op.file.data), op.file.mime, op.file.name);
+    fileUrl = folder.createFile(blob).getUrl();
+  }
+  var sh = sheet_('Reservation inbox');
+  if (sh.getLastRow() === 0) sh.appendRow(['Received', 'Family', 'Pasted text or link', 'File', 'Merged?']);
+  sh.appendRow([new Date(), op.family, op.text || '', fileUrl, '']);
 }
 
 function write_(name, rows) {

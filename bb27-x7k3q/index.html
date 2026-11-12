@@ -512,15 +512,27 @@ function dayPanel(d){
   function done(ok){ if (ok){ openDay = null; renderDays(); } else msg.textContent = "Not saved."; }
 
   if (panelTab === "sleep"){
-    var ps = placeSelect(w ? w.place : "", {none:"Not with the group"});
-    body.appendChild(field("Where the " + f.name + "s sleep this night", ps));
-    var tl = el("label"); tl.style.cssText = "display:flex;gap:8px;align-items:center;font-size:.9rem;margin-bottom:8px";
-    var tc = el("input"); tc.type = "checkbox"; tc.style.width = "auto"; tc.style.minHeight = "0"; tc.checked = !!(w && w.tentative);
-    tl.appendChild(tc); tl.appendChild(document.createTextNode(" Tentative"));
-    body.appendChild(tl);
-    body.appendChild(actions("Save", function(){
-      var v = ps.value(); if (ps.querySelector("select").value === "__other" && !v){ msg.textContent = "Type the place name."; return; }
-      msg.textContent = "Saving…"; setDay(who, d, v, null, v ? tc.checked : false).then(done);
+    var others = {};
+    FAMILIES.forEach(function(o){ if (o.id === who) return; var ow = whereOn((doc.families[o.id] || {}).plan, d); if (ow && !ow.drive) others[ow.place] = (others[ow.place] || 0) + 1; });
+    var common = Object.keys(others).sort(function(x, y){ return others[y] - others[x]; })[0];
+    var ps = placeSelect(w ? w.place : (common || ""), {});
+    body.appendChild(field(w ? "Where the " + f.name + "s sleep this night" : "Join the group this night", ps));
+    var radios = el("div"); radios.style.cssText = "display:flex;gap:16px;flex-wrap:wrap;margin-bottom:10px;font-size:.95rem";
+    var nm = "st" + d, choices = [["committed","Committed"],["tentative","Tentative"]];
+    if (w) choices.push(["remove","Remove"]);
+    var cur = w ? (w.tentative ? "tentative" : "committed") : "committed";
+    choices.forEach(function(c){
+      var lb = el("label"); lb.style.cssText = "display:flex;gap:6px;align-items:center";
+      var r = el("input"); r.type = "radio"; r.name = nm; r.value = c[0]; r.checked = (c[0] === cur); r.style.cssText = "width:auto;min-height:0";
+      r.addEventListener("change", function(){ ps.style.opacity = (r.value === "remove" && r.checked) ? ".4" : "1"; });
+      lb.appendChild(r); lb.appendChild(document.createTextNode(c[1])); radios.appendChild(lb);
+    });
+    body.appendChild(radios);
+    body.appendChild(actions(w ? "Save" : "Join", function(){
+      var st = (radios.querySelector("input:checked") || {}).value || "committed";
+      if (st === "remove"){ msg.textContent = "Saving…"; setDay(who, d, "").then(done); return; }
+      var v = ps.value(); if (!v){ msg.textContent = ps.querySelector("select").value === "__other" ? "Type the place name." : "Pick a place."; return; }
+      msg.textContent = "Saving…"; setDay(who, d, v, null, st === "tentative").then(done);
     }));
   }
   if (panelTab === "res"){

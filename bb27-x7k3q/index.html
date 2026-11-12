@@ -126,16 +126,16 @@ label.l{font-size:.75rem;color:var(--muted);display:block;margin-bottom:2px}
           <div><label class="l" for="rsStart">Check in</label><input type="date" id="rsStart"></div>
           <div><label class="l" for="rsEnd">Check out</label><input type="date" id="rsEnd"></div>
           <div class="full"><label class="l" for="rsDetail">Site, room or name of the place</label><input id="rsDetail" placeholder="e.g. Site 42, sleeps 8"></div>
+          <div class="full"><label class="l" for="rsConf">Confirmation #</label><input id="rsConf" placeholder="optional"></div>
           <div class="full"><label class="l" for="rsNote">Note</label><input id="rsNote" placeholder="e.g. room for one more van"></div>
           <label class="full row" style="font-size:.9rem"><input type="checkbox" id="rsPlan" checked style="width:auto;min-height:0"> Also add it to our plan</label>
         </div>
-        <p class="muted">Please leave out confirmation numbers and names on the booking: anyone with this page's link can read what's typed here.</p>
         <div class="row" style="margin-bottom:18px"><button class="primary" id="rsAdd">Save reservation</button><span id="rsMsg" class="muted"></span></div>
         <div style="border-top:1px solid var(--line);padding-top:14px">
           <label class="l" for="ibText">Or paste the confirmation email, a link, or attach the document</label>
           <textarea id="ibText" placeholder="Paste text or a link"></textarea>
           <input type="file" id="ibFile" accept=".pdf,image/*,.txt,.eml,.html" style="margin-top:8px;background:none;padding:6px 0">
-          <p class="muted">This goes privately to Ryan's sheet, not onto this page. He'll merge the dates in.</p>
+          <p class="muted">This goes to Ryan's sheet and he'll merge it in.</p>
           <div class="row"><button id="ibSend">Send to Ryan</button><span id="ibMsg" class="muted"></span></div>
         </div>
       </div>
@@ -573,7 +573,7 @@ function renderRes(){
     var t = document.createElement("div");
     var b = document.createElement("div"); b.className = "ttl"; b.textContent = r.kind + " · " + r.place; t.appendChild(b);
     var m = document.createElement("div"); m.className = "muted";
-    m.textContent = [fam(r.family).name, (fmt(r.start) || "?") + " – " + (fmt(r.end) || "?"), r.detail, r.note].filter(Boolean).join(" · ");
+    m.textContent = [fam(r.family).name, (fmt(r.start) || "?") + " – " + (fmt(r.end) || "?"), r.detail, r.conf ? "Conf # " + r.conf : "", r.note].filter(Boolean).join(" · ");
     t.appendChild(m); d.appendChild(t);
     if (who && who === r.family){
       var x = document.createElement("button"); x.className = "link"; x.textContent = "Remove";
@@ -601,12 +601,12 @@ document.addEventListener("DOMContentLoaded", function(){
     var st = document.getElementById("rsStart").value, en = document.getElementById("rsEnd").value, pl = document.getElementById("rsPlace").value;
     if (!st || !en){ msg.textContent = "Add check-in and check-out dates."; return; }
     if (dayNum(en) <= dayNum(st)){ msg.textContent = "Check-out has to be after check-in."; return; }
-    var item = {id:uid("r"), family:who, kind:document.getElementById("rsKind").value, place:pl, start:st, end:en, detail:document.getElementById("rsDetail").value.trim(), note:document.getElementById("rsNote").value.trim()};
+    var item = {id:uid("r"), family:who, kind:document.getElementById("rsKind").value, place:pl, start:st, end:en, detail:document.getElementById("rsDetail").value.trim(), conf:document.getElementById("rsConf").value.trim(), note:document.getElementById("rsNote").value.trim()};
     msg.textContent = "Saving…";
     send({type:"addRes", item:item}).then(function(ok){
       if (!ok){ msg.textContent = ""; return; }
       msg.textContent = "Saved.";
-      ["rsStart","rsEnd","rsDetail","rsNote"].forEach(function(k){ document.getElementById(k).value = ""; });
+      ["rsStart","rsEnd","rsDetail","rsConf","rsNote"].forEach(function(k){ document.getElementById(k).value = ""; });
       if (document.getElementById("rsPlan").checked){
         var plan = JSON.parse(JSON.stringify(((doc.families[who] || {}).plan) || []));
         var exists = plan.some(function(s){ return s.place === pl && s.start === st && s.end === en; });

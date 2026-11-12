@@ -68,8 +68,8 @@ function mirror_(doc) {
   var ideas = [['Idea', 'Details', 'Date', 'Place', 'Posted by', 'Status', '+1s']];
   (doc.ideas || []).forEach(function (i) { ideas.push([i.title, i.note, i.date, i.place, i.by, i.status, Object.keys(i.votes || {}).join(', ')]); });
   write_('Ideas', ideas);
-  var res = [['Family', 'Type', 'Place', 'Check in', 'Check out', 'Site / room', 'Note']];
-  (doc.reservations || []).forEach(function (r) { res.push([r.family, r.kind, r.place, r.start, r.end, r.detail, r.note]); });
+  var res = [['Family', 'Type', 'Place', 'Check in', 'Check out', 'Site / room', 'Confirmation #', 'Note']];
+  (doc.reservations || []).forEach(function (r) { res.push([r.family, r.kind, r.place, r.start, r.end, r.detail, r.conf, r.note]); });
   write_('Reservations', res);
 }
 

@@ -180,7 +180,7 @@ function seed(){
         {id:"g0",place:"Austin",lat:30.2672,lng:-97.7431,start:"",end:"2026-12-28",note:""},
         {id:"g1",place:"Rio Grande Village",lat:29.1830,lng:-102.9581,start:"2026-12-28",end:"2026-12-31",note:"Perez site"},
         {id:"g2",place:"Santa Fe",lat:35.6870,lng:-105.9378,start:"2026-12-31",end:"2027-01-04",note:"",tentative:true},
-        {id:"g3",place:"Golden, CO",lat:39.7555,lng:-105.2211,start:"2027-01-04",end:"",note:"Option: continue to Colorado"}
+        {id:"g3",place:"Golden, CO",lat:39.7555,lng:-105.2211,start:"2027-01-04",end:"",note:"",tentative:true}
       ]},
       sheffield:{plan:[
         {id:"s0",place:"Wimberley",lat:29.9974,lng:-98.0986,start:"",end:"2026-12-28",note:""},
@@ -310,16 +310,18 @@ function renderMap(useDraft){
   var bounds = [];
   FAMILIES.forEach(function(f, idx){
     var plan = (useDraft && f.id === who && draft) ? draft : ((doc.families[f.id] || {}).plan || []);
-    var pts = [], off = (idx - 2) * 0.025;
+    var pts = [], tent = [], off = (idx - 2) * 0.025;
     sortedPlan(plan).forEach(function(s){
       if (s.lat == null || s.lng == null) return;
       var ll = [s.lat + off, s.lng + off];
-      pts.push(ll); bounds.push(ll);
+      pts.push(ll); tent.push(!!s.tentative); bounds.push(ll);
       L.circleMarker(ll, {radius:6, color:"#fff", weight:2, fillColor:f.color, fillOpacity:1})
         .bindPopup("<b>" + esc(f.name) + "</b><br>" + esc(s.place) + "<br>" + esc([fmt(s.start), fmt(s.end)].filter(Boolean).join(" – ")) + (s.note ? "<br><i>" + esc(s.note) + "</i>" : ""))
         .addTo(layer);
     });
-    if (pts.length > 1) L.polyline(pts, {color:f.color, weight:3, opacity:.8}).addTo(layer);
+    for (var k = 1; k < pts.length; k++){
+      L.polyline([pts[k-1], pts[k]], {color:f.color, weight:3, opacity:.85, dashArray: tent[k] ? "2 7" : null, lineCap:"round"}).addTo(layer);
+    }
   });
   (doc.ideas || []).forEach(function(i){
     if (i.lat == null) return;

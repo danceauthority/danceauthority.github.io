@@ -28,6 +28,11 @@ button.primary{background:var(--accent);color:#fff}
 button.link{background:none;padding:4px 0;min-height:0;color:var(--muted);font-size:.85rem;text-decoration:underline}
 .who{display:flex;align-items:center;gap:8px;margin-top:8px}
 .who label{white-space:nowrap}
+.hrow{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 10px}
+.who{margin:0!important}
+.day.edit{cursor:pointer}
+.day.edit:active{background:var(--soft)}
+.dpanel{cursor:default;margin-top:10px;background:var(--soft);border-radius:12px;padding:10px}
 .who select{width:auto;min-height:36px;padding:6px 10px}
 .status{font-size:.75rem;color:var(--muted);margin-left:auto;text-align:right}
 .dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:5px;vertical-align:middle}
@@ -91,20 +96,19 @@ label.l{font-size:.75rem;color:var(--muted);display:block;margin-bottom:2px}
   </section>
 
   <section>
-    <h2>Day by day</h2>
+    <div class="hrow">
+      <h2 style="margin:0">Day by day</h2>
+      <div class="who"><label for="who" class="muted">I am a</label><select id="who"><option value="">choose…</option></select></div>
+    </div>
     <div class="card" id="days"></div>
   </section>
 
   <section>
     <h2>Make changes</h2>
-    <div class="card who" style="margin-bottom:10px">
-      <label for="who">I am a</label>
-      <select id="who" style="flex:1"><option value="">choose…</option></select>
-    </div>
     <details id="planDetails">
       <summary id="planTitle">Edit our plan</summary>
       <div class="dbody">
-        <p id="planNeedWho" class="muted">Choose your family above first.</p>
+        <p id="planNeedWho" class="muted">Choose your family next to Day by day first.</p>
         <div id="planEditor" class="hide">
           <div id="stops"></div>
           <div class="row" style="margin-bottom:10px">
@@ -487,26 +491,29 @@ function renderDays(){
       else { t.className = "place"; t.textContent = g.w.place; }
       e.appendChild(t);
       var c = document.createElement("div"); c.className = "chips";
-      g.fams.forEach(function(f){ var ch = document.createElement("span"); ch.className = "chip"; ch.style.background = f.color; ch.textContent = f.name; c.appendChild(ch); });
+      g.fams.forEach(function(f){ var ch = document.createElement("span"); ch.className = "chip"; if (f.id === who) ch.style.boxShadow = "0 0 0 2px var(--card), 0 0 0 3.5px " + f.color; ch.style.background = f.color; ch.textContent = f.name; c.appendChild(ch); });
       e.appendChild(c);
       g.notes.forEach(function(n){ var nt = document.createElement("div"); nt.className = "note"; nt.textContent = n; e.appendChild(nt); });
       body.appendChild(e);
     });
     ress.forEach(function(r){ var e = document.createElement("div"); e.className = "note"; e.style.marginTop = "4px"; e.textContent = "Booked: " + r.kind + " at " + r.place + (r.detail ? ", " + r.detail : "") + " (" + fam(r.family).name + ", until " + fmt(r.end) + ")"; body.appendChild(e); });
     props.forEach(function(i){ var e = document.createElement("div"); e.className = "propline"; e.textContent = "Proposed: " + i.title + (i.place ? " · " + i.place : "") + " (" + fam(i.by).name + ")"; body.appendChild(e); });
-    if (who) body.appendChild(dayEditor(d));
+    if (who){
+      row.classList.add("edit");
+      (function(dd){ row.addEventListener("click", function(){ openDay = (openDay === dd) ? null : dd; renderDays(); }); })(d);
+      if (openDay === d) body.appendChild(dayPanel(d));
+    }
     row.appendChild(dc); row.appendChild(body); box.appendChild(row);
   }
 }
 
-function dayEditor(d){
-  var wrap = document.createElement("div"); wrap.style.marginTop = "6px";
+function dayPanel(d){
   var f = fam(who), w = whereOn((doc.families[who] || {}).plan, d);
-  var btn = document.createElement("button"); btn.className = "link";
-  btn.textContent = w ? "Change " + f.name + " this day" : "Add " + f.name + " this day";
-  var panel = document.createElement("div"); panel.className = "hide"; panel.style.marginTop = "6px";
+  var panel = document.createElement("div"); panel.className = "dpanel";
+  panel.addEventListener("click", function(e){ e.stopPropagation(); });
+  var lab = document.createElement("label"); lab.className = "l"; lab.textContent = "Where the " + f.name + "s sleep this night";
   var sel = document.createElement("select");
-  var none = document.createElement("option"); none.value = ""; none.textContent = "Not with the group / no plan"; sel.appendChild(none);
+  var none = document.createElement("option"); none.value = ""; none.textContent = "Not with the group"; sel.appendChild(none);
   var names = Object.keys(PLACES);
   ((doc.families[who] || {}).plan || []).forEach(function(s){ if (s.place && names.indexOf(s.place) < 0) names.push(s.place); });
   names.forEach(function(n){ var o = document.createElement("option"); o.value = n; o.textContent = n; sel.appendChild(o); });
@@ -515,16 +522,13 @@ function dayEditor(d){
   var save = document.createElement("button"); save.className = "primary"; save.textContent = "Save";
   var cancel = document.createElement("button"); cancel.className = "link"; cancel.textContent = "Cancel";
   var msg = document.createElement("span"); msg.className = "muted";
-  var hint = document.createElement("div"); hint.className = "note"; hint.style.marginTop = "4px";
-  hint.textContent = "Where the " + f.name + "s sleep that night. Drive days are worked out for you.";
-  btn.addEventListener("click", function(){ panel.classList.toggle("hide"); });
-  cancel.addEventListener("click", function(){ panel.classList.add("hide"); });
-  save.addEventListener("click", function(){ msg.textContent = "Saving…"; setDay(who, d, sel.value).then(function(ok){ msg.textContent = ok ? "" : "Not saved."; }); });
+  cancel.addEventListener("click", function(){ openDay = null; renderDays(); });
+  save.addEventListener("click", function(){ msg.textContent = "Saving…"; setDay(who, d, sel.value).then(function(ok){ if (ok){ openDay = null; renderDays(); } else msg.textContent = "Not saved."; }); });
   row.appendChild(save); row.appendChild(cancel); row.appendChild(msg);
-  panel.appendChild(sel); panel.appendChild(hint); panel.appendChild(row);
-  wrap.appendChild(btn); wrap.appendChild(panel);
-  return wrap;
+  panel.appendChild(lab); panel.appendChild(sel); panel.appendChild(row);
+  return panel;
 }
+var openDay = null;
 
 function placeOptions(sel, current, withNone){
   sel.innerHTML = "";
@@ -604,7 +608,7 @@ function renderIdeas(){
     var v = document.createElement("button"); v.className = "vote" + (mine ? " on" : "");
     v.textContent = "+1 · " + votes.length;
     v.title = votes.map(function(x){ return fam(x).name; }).join(", ");
-    v.addEventListener("click", function(){ if (!who){ alert("Choose your family under Make changes first."); return; } send({type:"vote", id:i.id, family:who, on:!mine}); });
+    v.addEventListener("click", function(){ if (!who){ alert("Choose your family next to Day by day first."); return; } send({type:"vote", id:i.id, family:who, on:!mine}); });
     r.appendChild(v);
     if (votes.length){ var vw = document.createElement("span"); vw.className = "muted"; vw.textContent = votes.map(function(x){ return fam(x).name; }).join(", "); r.appendChild(vw); }
     d.appendChild(r);
@@ -657,7 +661,7 @@ document.addEventListener("DOMContentLoaded", function(){
   placeOptions(document.getElementById("rsPlace"), "Rio Grande Village", false);
   document.getElementById("rsAdd").addEventListener("click", function(){
     var msg = document.getElementById("rsMsg");
-    if (!who){ msg.textContent = "Choose your family above first."; return; }
+    if (!who){ msg.textContent = "Choose your family next to Day by day first."; return; }
     var st = document.getElementById("rsStart").value, en = document.getElementById("rsEnd").value, pl = document.getElementById("rsPlace").value;
     if (!st || !en){ msg.textContent = "Add check-in and check-out dates."; return; }
     if (dayNum(en) <= dayNum(st)){ msg.textContent = "Check-out has to be after check-in."; return; }
@@ -679,7 +683,7 @@ document.addEventListener("DOMContentLoaded", function(){
   });
   document.getElementById("ibSend").addEventListener("click", function(){
     var msg = document.getElementById("ibMsg"), text = document.getElementById("ibText").value.trim(), fi = document.getElementById("ibFile");
-    if (!who){ msg.textContent = "Choose your family above first."; return; }
+    if (!who){ msg.textContent = "Choose your family next to Day by day first."; return; }
     if (!text && !fi.files.length){ msg.textContent = "Paste something or attach a file."; return; }
     if (!API_URL){ msg.textContent = "This turns on once Ryan finishes setting up the shared sheet. For now, text it to him."; return; }
     var f = fi.files[0];
@@ -724,13 +728,13 @@ document.addEventListener("DOMContentLoaded", function(){
   document.getElementById("hdAdd").addEventListener("click", function(){
     var dt = document.getElementById("hdDate").value, lb = document.getElementById("hdLabel").value.trim();
     if (!dt || !lb){ alert("Enter a date and what has to happen."); return; }
-    if (!who){ alert("Choose your family under Make changes first."); return; }
+    if (!who){ alert("Choose your family next to Day by day first."); return; }
     send({type:"addHard", item:{id:uid("h"), date:dt, label:lb, by:who}}).then(function(ok){ if (ok){ document.getElementById("hdDate").value = ""; document.getElementById("hdLabel").value = ""; } });
   });
   document.getElementById("idAdd").addEventListener("click", function(){
     var t = document.getElementById("idTitle").value.trim(), msg = document.getElementById("idMsg");
     if (!t){ msg.textContent = "Give the idea a name first."; return; }
-    if (!who){ msg.textContent = "Choose your family above first."; return; }
+    if (!who){ msg.textContent = "Choose your family next to Day by day first."; return; }
     var pl = document.getElementById("idPlace").value;
     var item = {id:uid("i"), title:t, note:document.getElementById("idNote").value.trim(), date:document.getElementById("idDate").value, place:pl, lat:pl ? PLACES[pl][0] : null, lng:pl ? PLACES[pl][1] : null, by:who, status:"idea", votes:{}};
     item.votes[who] = true;

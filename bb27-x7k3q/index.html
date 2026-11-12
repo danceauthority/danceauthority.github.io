@@ -248,11 +248,11 @@ function loadDoc(){
   if (!API_URL){
     var saved = LS.get("bb27-doc");
     doc = saved ? JSON.parse(saved) : seed();
-    render(); return Promise.resolve();
+    cleanDoc(); render(); return Promise.resolve();
   }
   return fetch(API_URL, {cache:"no-store"}).then(function(r){ return r.json(); }).then(function(d){
     if (!d || !d.families){ return send({type:"init", doc:seed()}, true); }
-    doc = d; render();
+    doc = d; cleanDoc(); render();
   }).catch(function(){ if (!doc){ doc = seed(); render(); } document.getElementById("status").textContent = "Offline: showing last known plan"; });
 }
 
@@ -372,15 +372,54 @@ function whereOn(plan, d){
     var prev = i > 0 ? sp[i-1] : null;
     var moved = !!(prev && prev.place !== s.place);
     if (a != null && b != null && d >= a && d < b) out = {place:s.place, tentative:!!s.tentative, drive:(d === a && moved), hours:(d === a && moved ? driveHours(prev, s) : null), note:(d === a ? s.note : "")};
-    if (a != null && b == null && d === a) out = {place:s.place, drive:i > 0, hours:prev ? driveHours(prev, s) : null, note:s.note, last:true};
+    if (a != null && b == null && d === a) out = {place:s.place, tentative:!!s.tentative, drive:moved, hours:moved ? driveHours(prev, s) : null, note:s.note, last:true};
   });
   return out;
 }
 
 function isoOf(d){ return new Date(d * 86400000).toISOString().slice(0,10); }
+function normalizePlan(plan){
+  var sp = sortedPlan(plan), origins = [], finals = [], stays = [];
+  sp.forEach(function(s){ if (!s.start && s.end) origins.push(s); else if (s.start && !s.end) finals.push(s); else if (s.start && s.end) stays.push(s); });
+  var merged = [];
+  stays.forEach(function(s){
+    var last = merged[merged.length - 1];
+    if (last && last.place === s.place && !!last.tentative === !!s.tentative && dayNum(last.end) >= dayNum(s.start)){
+      if (dayNum(s.end) > dayNum(last.end)) last.end = s.end;
+      if (!last.note && s.note) last.note = s.note;
+    } else merged.push(s);
+  });
+  var origin = origins.length ? origins[origins.length - 1] : null;
+  var final = finals.length ? finals[finals.length - 1] : null;
+  if (final){
+    var lastStay = merged[merged.length - 1];
+    if (lastStay && lastStay.place === final.place && dayNum(lastStay.end) >= dayNum(final.start)){
+      final.start = lastStay.start; if (!final.note) final.note = lastStay.note || ""; merged.pop();
+    }
+    if (merged.length && dayNum(merged[merged.length - 1].end) > dayNum(final.start)) final.start = merged[merged.length - 1].end;
+  }
+  return (origin ? [origin] : []).concat(merged).concat(final ? [final] : []);
+}
+
+function cleanDoc(){ Object.keys(doc.families || {}).forEach(function(k){ if (doc.families[k] && doc.families[k].plan) doc.families[k].plan = normalizePlan(doc.families[k].plan); }); }
+
 function setDay(family, d, placeName, dEnd, tentative){
+  var single = !dEnd;
   dEnd = dEnd || d + 1;
-  var plan = JSON.parse(JSON.stringify(((doc.families[family] || {}).plan) || []));
+  var plan = normalizePlan(JSON.parse(JSON.stringify(((doc.families[family] || {}).plan) || [])));
+  var fin = plan.filter(function(s){ return s.start && !s.end; })[0];
+  if (single && fin && dayNum(fin.start) === d){
+    if (!placeName){ plan = plan.filter(function(s){ return s !== fin; }); }
+    else {
+      if (fin.place !== placeName){
+        var ll0 = PLACES[placeName] || [null, null];
+        fin.place = placeName; fin.lat = ll0[0]; fin.lng = ll0[1]; fin.note = "";
+      }
+      if (tentative) fin.tentative = true; else delete fin.tentative;
+    }
+    draft = null;
+    return send({type:"setPlan", family:family, plan:plan});
+  }
   var origin = null, final = null, days = {};
   plan.forEach(function(s){
     if (!s.start && s.end){ origin = s; return; }
@@ -401,7 +440,7 @@ function setDay(family, d, placeName, dEnd, tentative){
   });
   if (origin && stops.length) origin.end = stops[0].start;
   if (final && stops.length) final.start = stops[stops.length - 1].end;
-  var out = (origin ? [origin] : []).concat(stops).concat(final ? [final] : []);
+  var out = normalizePlan((origin ? [origin] : []).concat(stops).concat(final ? [final] : []));
   draft = null;
   return send({type:"setPlan", family:family, plan:out});
 }

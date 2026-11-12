@@ -486,7 +486,7 @@ function renderDays(){
       var c = document.createElement("div"); c.className = "chips";
       g.fams.forEach(function(f){ var ch = document.createElement("span"); ch.className = "chip"; if (f.id === who) ch.style.boxShadow = "0 0 0 2px var(--card), 0 0 0 3.5px " + f.color;
         ch.style.background = f.color; ch.textContent = f.name;
-        if (g.tent[f.id]){ ch.style.background = "transparent"; ch.style.color = f.color; ch.style.border = "1.5px dashed " + f.color; ch.style.padding = "0 8px"; ch.textContent = f.name + " · tentative"; }
+        if (g.tent[f.id]){ ch.style.background = "transparent"; ch.style.color = f.color; ch.style.border = "2px dotted " + f.color; ch.style.padding = "0 7px"; ch.title = "Tentative"; }
         c.appendChild(ch); });
       e.appendChild(c);
       g.notes.forEach(function(n){ var nt = document.createElement("div"); nt.className = "note"; nt.textContent = n; e.appendChild(nt); });

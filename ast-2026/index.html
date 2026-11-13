@@ -199,7 +199,7 @@ const S={
   gpsOn:false, shareOn:false, shareUntil:0, gps:null,
   tab:'route', stop:null, planMode:!!ld.planMode, drawer:'half', q:''
 };
-const DEMO=new URLSearchParams(location.search).has('demo');
+const DEMO=new URLSearchParams(location.search).has('demo')||location.hash==='#demo'||(!!window.AST_PREVIEW&&location.hash!=='#solo');
 function save(){ if(DEMO) return; try{ localStorage.setItem(KEY,JSON.stringify({favs:[...S.favs],plan:S.plan,visited:S.visited,cur:S.cur,day:S.day,f:S.f,speed:S.speed,dwell:S.dwell,name:S.name,crew:S.crew,src:S.src,localMeets:S.localMeets,planMode:S.planMode})); }catch(e){} }
 const urlCrew=new URLSearchParams(location.search).get('crew');
 if(urlCrew && /^[a-z0-9]{8,24}$/.test(urlCrew)) S.crew=urlCrew;
@@ -331,7 +331,12 @@ function dayDate(b){ return DAYS.find(d=>d.b===b).d; }
 let map, markers=new Map(), routeLayer=null, doneLayer=null, meMk=null, meAcc=null, peopleMks=[], meetMks=[];
 function initMap(){
   map=L.map('map',{zoomControl:false,minZoom:11,maxZoom:19,maxBounds:[[29.9,-98.2],[30.7,-97.3]]});
-  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> · routes OSRM'}).addTo(map);
+  if(window.AST_TILES){ // offline preview: map images bundled into the page
+    const T=window.AST_TILES, TL=L.GridLayer.extend({createTile(c){ const img=document.createElement('img'); img.alt=''; const k=c.z+'/'+c.x+'/'+c.y; img.src=T[k]?'data:image/webp;base64,'+T[k]:'data:image/gif;base64,R0lGODlhAQABAAAAACw='; return img; }});
+    new TL({minZoom:11,maxZoom:12,minNativeZoom:12,maxNativeZoom:12,attribution:'© OpenStreetMap contributors'}).addTo(map);
+    new TL({minZoom:13,maxZoom:19,minNativeZoom:13,maxNativeZoom:13}).addTo(map);
+    new TL({minZoom:14,maxZoom:19,minNativeZoom:15,maxNativeZoom:15,bounds:L.latLngBounds([[EAST.s-0.004,EAST.w-0.012],[EAST.n+0.004,EAST.e+0.006]])}).addTo(map);
+  } else L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> · routes OSRM'}).addTo(map);
   map.setView([30.262,-97.712],14);
   map.on('click',e=>{
     if(S.pick){ const fn=S.pick; S.pick=null; fn({lat:+e.latlng.lat.toFixed(5),lng:+e.latlng.lng.toFixed(5)}); return; }
@@ -615,7 +620,7 @@ function writeMeet(mid,sub,val){
 // ---- crew ----
 function crewView(){
   const cfg=DEMO||(window.AST_FIREBASE&&window.AST_FIREBASE.apiKey);
-  let pre=DEMO?'<div class="card" style="background:var(--gold-2);border-color:#f1d38f"><b>Demo crew</b><div class="small" style="margin-top:4px">Sample data: you, Maya, Jordan and Priya are riding together; Sam, Alex and Tess are on their own. Nothing here is saved or sent anywhere.</div><a class="btn sm ghost" style="margin-top:8px" href="'+location.pathname+'">Exit demo</a></div>':'';
+  let pre=DEMO?'<div class="card" style="background:var(--gold-2);border-color:#f1d38f"><b>Demo crew</b><div class="small" style="margin-top:4px">Sample data: you, Maya, Jordan and Priya are riding together; Sam, Alex and Tess are on their own. Nothing here is saved or sent anywhere.</div><button class="btn sm ghost" style="margin-top:8px" data-act="exitDemo">Exit demo</button></div>':'';
   let s=pre;
   if(!cfg){ s+='<div class="card"><h3 style="font-size:17px">Crew sync isn’t set up yet</h3><div class="small muted" style="margin-top:6px">The site owner needs to add a free Firebase project (see “_About AST 2026.md” in the repo). Until then, everything works on this phone and you can share plans as text.</div></div>'; }
   else if(!S.crew){ s+='<div class="card"><h3 style="font-size:17px">Ride together</h3><div class="small muted" style="margin:6px 0 10px">Start a crew and send the link to your friends. Everyone with the link shares the route, meetups and check-ins.</div><button class="btn violet block" data-act="newCrew">Start a crew</button><label class="f">Have a crew code or link?</label><div class="row"><input type="text" id="joinCode" placeholder="paste link or code"><button class="btn sm ghost" data-act="joinCrew">Join</button></div></div>'; }
@@ -735,6 +740,7 @@ document.addEventListener('click',e=>{
     case 'askName': askName(); break;
     case 'pushMine': setPlan({stops:S.plan.slice(),visited:S.visited.slice()}); toast('Crew route updated'); break;
     case 'saveName': { const v=($('#nameIn').value||'').trim().slice(0,30); if(!v){ toast('Type a name'); break; } S.name=v; save(); closeModal(); if(C.uid) fbSet('members/'+C.uid,{name:v,ts:Date.now()}); renderAll(); if(S._created) S._created(); break; }
+    case 'exitDemo': if(window.AST_PREVIEW){ location.hash='solo'; location.reload(); } else location.href=location.pathname; break;
     case 'closeModal': closeModal(); break;
   }
 });

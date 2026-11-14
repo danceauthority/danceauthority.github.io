@@ -58,6 +58,7 @@ The Firebase web config is not a secret. Google designs it to sit in public web 
 - Phone storage key: `ast26-crew-v2`.
 
 ## Log
+- 2026-11-14: Fix: crew dots no longer blink on and off (markers update in place); friends draw on top of your own dot; Route view includes riders within 2.5 mi. Crew list tags each rider 📍 live / last seen / location off.
 - 2026-11-14: Crew tab condensed: crew name at the top (tap to rename; set when the crew is started), riders listed right under it, and a single "Share my location" switch (shares with the crew, turns off after 8 hours). Crew name is saved with the crew route.
 - 2026-11-14: Fix: people who open the invite link now appear in the crew right away, even before entering a name (shown as "New rider (no name yet)").
 - 2026-11-14: Slimmer header; menu has "Start fresh on this phone" (clears this phone's route, stars, name and crew link).

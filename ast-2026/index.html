@@ -340,7 +340,7 @@ function stopTags(l){ let t=''; if(l.nArt) t+='<span class="tag hot">'+l.nArt+' 
 function dayDate(b){ return DAYS.find(d=>d.b===b).d; }
 
 // ================= MAP =================
-let map, markers=new Map(), routeLayer=null, doneLayer=null, meMk=null, meAcc=null, peopleMks=[], meetMks=[];
+let map, markers=new Map(), routeLayer=null, doneLayer=null, meMk=null, meAcc=null, meetMks=[];
 function initMap(){
   map=L.map('map',{zoomControl:false,minZoom:11,maxZoom:19,maxBounds:[[29.9,-98.2],[30.7,-97.3]]});
   if(window.AST_TILES){ // offline preview: map images bundled into the page
@@ -422,17 +422,32 @@ function renderMe(){
   if(meMk){ map.removeLayer(meMk); meMk=null; } if(meAcc){ map.removeLayer(meAcc); meAcc=null; }
   const h=here(); if(!h) { $('#gpsBtn').classList.toggle('on',S.gpsOn); return; }
   if(S.gpsOn&&S.gps&&S.gps.acc) meAcc=L.circle([h.lat,h.lng],{radius:S.gps.acc,color:'#2F6FD6',weight:1,fillOpacity:.08,interactive:false}).addTo(map);
-  meMk=L.marker([h.lat,h.lng],{icon:L.divIcon({className:'',html:'<div class="me"></div>',iconSize:[18,18],iconAnchor:[9,9]}),zIndexOffset:1000,interactive:false}).addTo(map);
+  meMk=L.marker([h.lat,h.lng],{icon:L.divIcon({className:'',html:'<div class="me"></div>',iconSize:[18,18],iconAnchor:[9,9]}),zIndexOffset:900,interactive:false}).addTo(map);
   $('#gpsBtn').classList.toggle('on',S.gpsOn); $('#gpsBtn').classList.toggle('share',S.shareOn);
   scheduleRoute();
 }
+const peopleMap=new Map(); // uid -> {m, key, tipMode}
 function renderMapPeople(){
   if(!map) return;
-  peopleMks.forEach(m=>map.removeLayer(m)); peopleMks=[];
-  if(!crewOn()) return;
-  Object.entries(C.pos).forEach(([uid,p])=>{ if(uid===C.uid||!p||Date.now()-p.ts>30*60e3||(p.until&&Date.now()>p.until)) return;
+  const keep=new Set();
+  if(crewOn()) Object.entries(C.pos).forEach(([uid,p])=>{
+    if(uid===C.uid||!p||Date.now()-p.ts>30*60e3||(p.until&&Date.now()>p.until)) return;
+    keep.add(uid);
     const ageMin=Math.round((Date.now()-p.ts)/60e3);
-    peopleMks.push(L.marker([p.lat,p.lng],{icon:L.divIcon({className:'',html:'<div class="mk friend" style="width:26px;height:26px;font-size:12px">'+esc(initial(uid))+'</div>',iconSize:[26,26],iconAnchor:[13,13]}),zIndexOffset:950}).bindTooltip(esc(nameOf(uid))+(S.tab==='crew'?'':' · '+(ageMin<1?'now':ageMin+' min ago')),S.tab==='crew'?{permanent:true,direction:'auto',className:'pt-lbl'}:{direction:'top'}).addTo(map)); });
+    const label=esc(nameOf(uid))+(S.tab==='crew'?'':' · '+(ageMin<1?'now':ageMin+' min ago'));
+    const key=initial(uid); const tipMode=S.tab==='crew'?'perm':'hover';
+    let e=peopleMap.get(uid);
+    if(!e){
+      const m=L.marker([p.lat,p.lng],{icon:L.divIcon({className:'',html:'<div class="mk friend" style="width:26px;height:26px;font-size:12px">'+esc(key)+'</div>',iconSize:[26,26],iconAnchor:[13,13]}),zIndexOffset:1100}).addTo(map);
+      e={m,key,tipMode:null}; peopleMap.set(uid,e);
+    } else {
+      const ll=e.m.getLatLng(); if(ll.lat!==p.lat||ll.lng!==p.lng) e.m.setLatLng([p.lat,p.lng]);
+      if(e.key!==key){ e.key=key; e.m.setIcon(L.divIcon({className:'',html:'<div class="mk friend" style="width:26px;height:26px;font-size:12px">'+esc(key)+'</div>',iconSize:[26,26],iconAnchor:[13,13]})); }
+    }
+    if(e.tipMode!==tipMode){ e.m.unbindTooltip(); e.m.bindTooltip(label,tipMode==='perm'?{permanent:true,direction:'auto',className:'pt-lbl'}:{direction:'top'}); e.tipMode=tipMode; }
+    else e.m.setTooltipContent(label);
+  });
+  for(const [uid,e] of peopleMap){ if(!keep.has(uid)){ map.removeLayer(e.m); peopleMap.delete(uid); } }
 }
 function renderMeetMarkers(){
   if(!map) return;
@@ -449,7 +464,7 @@ function fitPts(pts,emptyMsg,rightPad){
 }
 function fitTab(){
   const t=S.tab; const h=here(); const me=h?[[h.lat,h.lng]]:[];
-  if(t==='route'){ const p=plan().map(n=>LOC.get(n)).filter(Boolean); fitPts(p.map(l=>[l.lat,l.lng]).concat(me)); }
+  if(t==='route'){ const p=plan().map(n=>LOC.get(n)).filter(Boolean); const pts=p.map(l=>[l.lat,l.lng]).concat(me); const anchor=h||p[0]; if(anchor) Object.entries(C.pos).forEach(([u,q])=>{ if(u!==C.uid&&q&&Date.now()-q.ts<30*60e3&&hav(anchor,q)<2.5) pts.push([q.lat,q.lng]); }); fitPts(pts); }
   else if(t==='stops'){ let r=ALL.filter(stopMatches); if(r.length>30){ if(h) r=r.sort((a,b)=>hav(h,a)-hav(h,b)).slice(0,30); else r=r.sort((a,b)=>(b.nArt-a.nArt)||(a.n-b.n)).slice(0,30); } fitPts(r.map(l=>[l.lat,l.lng]).concat(me)); }
   else if(t==='meet'){ const pts=[]; upcomingMeets().forEach(mt=>sortedProps(mt).forEach(p=>{ if(!mt.meta.locked||mt.meta.locked===p.id) pts.push([p.lat,p.lng]); })); fitPts(pts.length?pts.concat(me):[],null,70); }
   else if(t==='crew'){ const pts=me.slice(); Object.entries(C.pos).forEach(([u,p])=>{ if(u!==C.uid&&p&&Date.now()-p.ts<30*60e3) pts.push([p.lat,p.lng]); }); Object.entries(C.status).forEach(([u,st])=>{ if(u===C.uid||!st||!st.at) return; if(C.pos[u]) return; const l=LOC.get(st.at); if(l) pts.push([l.lat,l.lng]); }); fitPts(pts,null,70); }

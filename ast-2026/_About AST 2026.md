@@ -1,4 +1,4 @@
-# About AST 2026 (Studio Tour Crew)
+# About AST 2026 (Austin Studio Tour Mission Control)
 
 ## What this is
 A phone web app for riding the Austin Studio Tour (Nov 14–15 and 21–22, 2026) by bike with a group. You plan on the map first: tap studios to add them to a route, see the bike route drawn on the map, re-plan after each stop, set up meetups that the crew votes on, and hand off turn-by-turn directions to Apple Maps or Google Maps.
@@ -56,5 +56,6 @@ The Firebase web config is not a secret. Google designs it to sit in public web 
 
 ## Log
 - 2026-11-10: Created folder; first version published.
+- 2026-11-14: Renamed the app to "Austin Studio Tour Mission Control".
 - 2026-11-11: Added demo crew (`?demo=1`), a close (X) button on every pop-up, and renamed the meetup form to "Propose a meetup" with the field "Proposed time to meet".
 - 2026-11-11: Meetup 👍/👎 responses replace single-choice votes (Firebase path `meetups/<id>/rsvp/<option>/<person>`). Re-paste `database.rules.json` if Firebase was already set up.

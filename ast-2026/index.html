@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#FBF5EE">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<title>Studio Tour Crew — AST 2026 by bike</title>
+<title>Austin Studio Tour Mission Control</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
@@ -27,8 +27,8 @@ h1,h2,h3{font-family:Fraunces,Georgia,serif;margin:0;letter-spacing:-.01em}
 #top{position:fixed;left:0;right:0;top:0;z-index:900;padding:calc(8px + var(--st)) 10px 8px;background:linear-gradient(var(--cream) 70%,rgba(251,245,238,0));pointer-events:none}
 #top>*{pointer-events:auto}
 .brand{display:flex;align-items:center;gap:8px;justify-content:space-between}
-.brand h1{font-size:19px;font-weight:800}
-.brand h1 span{color:var(--coral)}
+.brand h1{font-size:17px;font-weight:800;color:var(--ink);line-height:1.1}
+.brand h1 span{color:#E8781A}
 .pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;background:var(--paper);border:1px solid var(--line);border-radius:999px;padding:5px 10px}
 .dot{width:8px;height:8px;border-radius:50%;background:#bbb;display:inline-block}
 .dot.on{background:#27a35a}
@@ -143,7 +143,7 @@ label.f{display:block;font-size:12px;font-weight:600;color:var(--mute);margin:12
 
 <div id="top">
   <div class="brand">
-    <h1>Studio Tour <span>Crew</span></h1>
+    <h1>Austin Studio Tour <span>Mission Control</span></h1>
     <button class="pill" data-act="tab" data-v="crew" id="syncPill"><span class="dot" id="syncDot"></span><span id="syncTxt">Solo</span></button>
   </div>
   <div class="days" id="days"></div>

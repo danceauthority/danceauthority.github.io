@@ -329,15 +329,25 @@ async function dirSync(){ // members keep their crew's public listing fresh
     db.onValue(db.ref(d,'joinreq/'+pub),s=>{ DIR.reqs=s.val()||{}; renderAll(); },()=>{});
   }
   const listed=!(C.plan&&C.plan.unlisted);
-  if(listed) fbRaw('directory/'+DIR.pub,{name:crewName().slice(0,40),n:Math.max(1,Object.keys(C.members).length),ts:Date.now()}).catch(()=>{});
+  const recent=Object.values(C.status||{}).filter(x=>x&&x.at&&Date.now()-(x.ts||0)<2*3600e3).sort((a,b)=>b.ts-a.ts);
+  const at=recent.length?recent[0].at:null; const v=visited(); const nxt=plan().find(n=>!v.has(n))||null;
+  if(listed) fbRaw('directory/'+DIR.pub,{name:crewName().slice(0,40),n:Math.max(1,Object.keys(C.members).length),ts:Date.now(),at:at,next:nxt}).catch(()=>{});
   else fbRaw('directory/'+DIR.pub,null).catch(()=>{});
 }
 function pendingReqs(){ return Object.entries(DIR.reqs||{}).filter(([u,r])=>r&&r.status==='pending'&&Date.now()-(r.ts||0)<6*3600e3); }
+let spotMk=null;
+function spotlight(lat,lng,label){ if(!map) return; if(spotMk){ map.removeLayer(spotMk); spotMk=null; }
+  setDrawer('half'); const top=(document.getElementById('top').getBoundingClientRect().height||50); const bot=Math.min(drawerPx(),window.innerHeight*0.62);
+  const z=Math.max(map.getZoom(),16); const c=map.unproject(map.project([lat,lng],z).add([0,(bot-top)/2]),z); map.setView(c,z,{animate:true});
+  spotMk=L.circleMarker([lat,lng],{radius:22,color:'#7a4fd6',weight:3,fill:false,opacity:.9,interactive:false}).addTo(map);
+  if(label) spotMk.bindTooltip(label,{permanent:true,direction:'top',offset:[0,-20],className:'pt-lbl'}).openTooltip();
+  setTimeout(()=>{ if(spotMk){ map.removeLayer(spotMk); spotMk=null; } },8000); }
 function dirCards(excludePub){
   const rows=Object.entries(DIR.list).filter(([p,e])=>dirFresh(e)&&p!==excludePub).sort((a,b)=>b[1].ts-a[1].ts);
   if(!rows.length) return '<div class="small muted" style="margin-top:6px">No other crews out right now.</div>';
   return rows.map(([p,e])=>{ const mine=DIR.myReq&&DIR.myReq.pub===p; const st=mine?DIR.myReq.status:null;
-    return '<div class="friend"><div class="av" style="background:#5b524b">'+esc((e.name||'?')[0].toUpperCase())+'</div><div class="grow" style="min-width:0"><div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(e.name||'Unnamed crew')+'</div><div class="small muted">'+(e.n||1)+' rider'+((e.n||1)!==1?'s':'')+' · active '+ago(e.ts)+'</div></div>'+
+    const atL=e.at?LOC.get(e.at):null, nxL=e.next?LOC.get(e.next):null;
+    return '<div class="friend"><div class="av" style="background:#5b524b">'+esc((e.name||'?')[0].toUpperCase())+'</div><div class="grow" style="min-width:0" data-act="showCrew" data-p="'+p+'"><div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(e.name||'Unnamed crew')+(atL||nxL?' <span class="small" style="color:var(--violet)">📍</span>':'')+'</div><div class="small muted">'+(e.n||1)+' rider'+((e.n||1)!==1?'s':'')+(atL?' · at #'+atL.n+' '+esc(atL.v):nxL?' · heading to #'+nxL.n:'')+' · '+ago(e.ts)+'</div></div>'+
       (st==='pending'?'<button class="btn sm ghost" data-act="cancelReq" data-p="'+p+'">Requested · Cancel</button>':st==='declined'?'<span class="small muted">Declined</span>':'<button class="btn sm violet" data-act="askJoin" data-p="'+p+'">Ask to join</button>')+'</div>'; }).join('');
 }
 
@@ -781,7 +791,7 @@ function crewView(){
     s+='<div class="card"><div class="row"><div class="grow" style="min-width:0"><button data-act="renameCrew" style="border:0;background:none;padding:0;text-align:left;font:inherit;display:block;width:100%"><h3 style="font-size:19px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(crewName())+' <span style="font:500 13px Inter,sans-serif;color:var(--mute)">✎</span></h3></button><div class="small muted">'+(C.ready?'<span class="dot on"></span> Live · '+mem.length+' rider'+(mem.length!==1?'s':''):'Connecting…')+(C.err&&C.err!=='nocfg'?' · '+esc(C.err):'')+'</div></div><button class="btn sm violet" data-act="shareCrew">Invite</button></div>';
     mem.sort((a,b)=>(b===C.uid)-(a===C.uid)||((C.status[b]||{}).ts||0)-((C.status[a]||{}).ts||0)).forEach(uid=>{ const st=C.status[uid]||{}; const pos=C.pos[uid]; const at=st.at?LOC.get(st.at):null, nx=st.next?LOC.get(st.next):null; const live=pos&&Date.now()-pos.ts<30*60e3;
       const h=here(); const dist=live&&h?bikeMi(h,pos):null; const me=uid===C.uid;
-      s+='<div class="friend"><div class="av" style="'+(me?'background:var(--sky)':'')+'">'+esc(initial(uid))+'</div><div class="grow" style="min-width:0"><div style="font-weight:600">'+(me?esc(S.name||'You')+' <span class="small muted" style="font-weight:400">(you)</span>':esc(nameOf(uid)))+(!me?(live?' <span class="tag" style="background:#efe7fb;color:#5b33b4;border-color:#d9c9f5">📍 live</span>':(pos?' <span class="tag">📍 '+ago(pos.ts)+'</span>':' <span class="tag">location off</span>')):(S.shareOn?' <span class="tag" style="background:#efe7fb;color:#5b33b4;border-color:#d9c9f5">📍 sharing</span>':''))+(dist!=null&&!me&&dist<0.12?' <span class="tag fam">with you</span>':'')+'</div><div class="small muted">'+(at?'At #'+at.n+' '+esc(at.v):'Joined'+((C.members[uid]||{}).ts?' '+ago(C.members[uid].ts):''))+(nx?' → next #'+nx.n:'')+(at&&st.ts?' · '+ago(st.ts):'')+(dist!=null&&!me?' · '+fmtMi(dist)+' away':'')+'</div></div>'+(me?'<button class="btn sm ghost" data-act="askName">Rename</button>':(live?'<button class="btn sm ghost" data-act="showOnMap" data-lat="'+pos.lat+'" data-lng="'+pos.lng+'">Map</button>':''))+'</div>'; });
+      s+='<div class="friend"><div class="av" style="'+(me?'background:var(--sky)':'')+'">'+esc(initial(uid))+'</div><div class="grow" style="min-width:0" data-act="showRider" data-u="'+uid+'"><div style="font-weight:600">'+(me?esc(S.name||'You')+' <span class="small muted" style="font-weight:400">(you)</span>':esc(nameOf(uid)))+(!me?(live?' <span class="tag" style="background:#efe7fb;color:#5b33b4;border-color:#d9c9f5">📍 live</span>':(pos?' <span class="tag">📍 '+ago(pos.ts)+'</span>':' <span class="tag">location off</span>')):(S.shareOn?' <span class="tag" style="background:#efe7fb;color:#5b33b4;border-color:#d9c9f5">📍 sharing</span>':''))+(dist!=null&&!me&&dist<0.12?' <span class="tag fam">with you</span>':'')+'</div><div class="small muted">'+(at?'At #'+at.n+' '+esc(at.v):'Joined'+((C.members[uid]||{}).ts?' '+ago(C.members[uid].ts):''))+(nx?' → next #'+nx.n:'')+(at&&st.ts?' · '+ago(st.ts):'')+(dist!=null&&!me?' · '+fmtMi(dist)+' away':'')+'</div></div>'+(me?'<button class="btn sm ghost" data-act="askName">Rename</button>':(live?'<button class="btn sm ghost" data-act="showOnMap" data-lat="'+pos.lat+'" data-lng="'+pos.lng+'">Map</button>':''))+'</div>'; });
     const pr=pendingReqs();
     if(pr.length){ s+='<div class="card" style="background:#f3edfc;border-color:#d9c9f5;margin:10px 0 0;padding:10px"><div class="small" style="font-weight:700">'+pr.length+' asking to join</div>'+pr.map(([u,r])=>'<div class="row" style="margin-top:8px"><div class="grow"><b>'+esc(r.name||'Someone')+'</b> <span class="small muted">'+ago(r.ts)+'</span></div><button class="btn sm ghost" data-act="declineReq" data-u="'+u+'">Decline</button><button class="btn sm violet" data-act="approveReq" data-u="'+u+'">Let in</button></div>').join('')+'</div>'; }
     s+='<div class="row" style="padding-top:12px"><div class="grow"><b>Share my location</b>'+(S.shareOn?'<div class="small muted">On until '+clock(new Date(S.shareUntil))+'</div>':'')+'</div><label class="switch"><input type="checkbox" id="locSw" '+((S.shareOn||(!crewOn()&&S.gpsOn))?'checked':'')+'><span></span></label></div>';
@@ -824,7 +834,7 @@ function renderAll(){ renderTop(); renderMarkers(); renderMe(); renderMapPeople(
 
 // ================= ACTIONS =================
 function togglePlan(n){ const p=plan().slice(); const i=p.indexOf(n); if(i>=0){ p.splice(i,1); setPlan({stops:p}); toast('Removed #'+n,{label:'Undo',fn:()=>{ const q=plan().slice(); q.splice(i,0,n); setPlan({stops:q}); }}); } else { p.push(n); setPlan({stops:p}); toast('#'+n+' added as stop '+p.length,{label:'Undo',fn:()=>setPlan({stops:plan().filter(x=>x!==n)})}); } }
-function setHere(n){ log('here',{n,gps:!!S.gps,acc:S.gps?Math.round(S.gps.acc||0):null});
+function setHere(n){ dirSyncSoon(); log('here',{n,gps:!!S.gps,acc:S.gps?Math.round(S.gps.acc||0):null});
   const l=LOC.get(n); S.cur={lat:l.lat,lng:l.lng,n}; save();
   const v=[...visited()]; if(!v.includes(n)) v.push(n); setPlan({visited:v});
   const ls=legs(), sg=suggestions(3);
@@ -901,6 +911,13 @@ document.addEventListener('click',e=>{
     case 'saveName': { const v=($('#nameIn').value||'').trim().slice(0,30); if(!v){ toast('Type a name'); break; } S.name=v; save(); const cn=$('#crewNameIn')?($('#crewNameIn').value||'').trim().slice(0,40):null; closeModal(); if(cn!=null) setPlan({name:cn||(v+'’s crew')}); if(S._afterName){ const f=S._afterName; S._afterName=null; f(); } if(C.uid) fbSet('members/'+C.uid,{name:v,ts:Date.now()}); renderAll(); if(S._created) S._created(); break; }
     case 'exitDemo': if(window.AST_PREVIEW){ location.hash='solo'; location.reload(); } else location.href=location.pathname; break;
     case 'menu': openMenu(); break;
+    case 'showRider': { const u=t.dataset.u; const me=u===C.uid; const p=me?(S.gps||S.cur):C.pos[u]; const live=p&&(me||Date.now()-(p.ts||0)<30*60e3);
+      if(live){ spotlight(p.lat,p.lng,esc(me?'You':nameOf(u))); break; }
+      const st=C.status[u]||{}; const l=st.at?LOC.get(st.at):null; if(l){ spotlight(l.lat,l.lng,esc(nameOf(u))+' checked in here '+ago(st.ts)); break; }
+      toast((me?'Turn on Share my location to see yourself':nameOf(u)+' hasn’t shared a location or checked in yet')); break; }
+    case 'showCrew': { const e=DIR.list[t.dataset.p]||{}; const l=e.at?LOC.get(e.at):(e.next?LOC.get(e.next):null);
+      if(l){ spotlight(l.lat,l.lng,esc(e.name||'Crew')+(e.at?' is here':' is heading here')); log('show_crew',{p:t.dataset.p}); }
+      else toast((e.name||'That crew')+' hasn’t checked in at a studio yet'); break; }
     case 'askJoin': { const p=t.dataset.p; if(!C.uid){ toast('Still connecting — try again in a moment'); break; } const go=()=>{ fbRaw('joinreq/'+p+'/'+C.uid,{name:(S.name||'Someone').slice(0,40),ts:Date.now(),status:'pending'}).then(()=>{ try{ localStorage.setItem('ast26-req',JSON.stringify({pub:p,ts:Date.now()})); }catch(e){} watchMyRequest(p); toast('Request sent — someone in the crew will let you in'); }).catch(()=>toast('Couldn’t send the request')); };
       if(!S.name){ S._afterName=go; askName(); } else go(); break; }
     case 'cancelReq': fbRaw('joinreq/'+t.dataset.p+'/'+C.uid,null).catch(()=>{}); try{ localStorage.removeItem('ast26-req'); }catch(e){} DIR.myReq=null; renderAll(); break;

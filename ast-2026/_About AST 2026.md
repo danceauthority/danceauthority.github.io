@@ -49,6 +49,7 @@ The Firebase web config is not a secret. Google designs it to sit in public web 
 ## Finding other crews
 - **Public list (`directory`):** shows each crew's **name, rider count and when it was last active**. Crews drop off after 14 hours of inactivity. The secret crew code is never listed, because anyone with the code could read the crew's route and live locations.
 - **Asking to join:** someone not in a crew (or in another one) taps **Ask to join**. Every member of that crew sees "X asking to join" on the Crew tab, with **Let in** or **Decline**. Letting someone in hands their phone the crew code, and it joins automatically.
+- **Where other crews are:** the list also shows the studio a crew most recently checked in at (or its next planned stop). Tapping the crew shows that studio on the map. Exact GPS positions are only ever visible inside a crew.
 - **Hiding a crew:** the "We're listed / We're hidden" switch on the Crew tab takes the crew off the public list. Invite links still work.
 - Behind the scenes: `crews/<code>/pub` holds the crew's public ID, `pubmembers/<pubId>/<person>` proves membership (the rules check it), and requests live in `joinreq/<pubId>/<person>`.
 
@@ -72,6 +73,7 @@ The Firebase web config is not a secret. Google designs it to sit in public web 
 - Phone storage key: `ast26-crew-v2`.
 
 ## Log
+- 2026-11-14: Tap a rider in your crew to jump the map to them (live dot, or their last check-in). Tap another crew in the list to see the studio they're at, or heading to. Only the studio is shared with other crews, never anyone's GPS position.
 - 2026-11-14: Crew list and join requests (public list shows names only; any member can let people in). Rules updated — re-paste database.rules.json.
 - 2026-11-14: Usage study instrumentation added (event log, sessions, planned vs actual, errors; ride paths opt-in). Rules updated with a write-only `study` section — re-paste database.rules.json.
 - 2026-11-14: Fix: crew dots no longer blink on and off (markers update in place); friends draw on top of your own dot; Route view includes riders within 2.5 mi. Crew list tags each rider 📍 live / last seen / location off.

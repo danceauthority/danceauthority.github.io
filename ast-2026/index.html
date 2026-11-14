@@ -56,6 +56,8 @@ h1,h2,h3{font-family:Fraunces,Georgia,serif;margin:0;letter-spacing:-.01em}
 /* drawer */
 #drawer{position:fixed;left:0;right:0;bottom:0;z-index:880;background:var(--paper);border-radius:18px 18px 0 0;box-shadow:0 -8px 30px rgba(0,0,0,.16);display:flex;flex-direction:column;height:calc(var(--peek) + var(--sb));transition:height .25s ease}
 #drawer .handle,#dhead{touch-action:none}
+#drawer .handle{padding:9px 0 7px}
+#drawer .handle i{width:48px}
 #drawer.half{height:56%}
 #drawer.full{height:calc(100% - 64px - var(--st))}
 #drawer .handle{flex:none;padding:7px 0 3px;cursor:grab}
@@ -459,12 +461,35 @@ function onMarker(n){
 
 // ================= DRAWER =================
 function drawerPx(){ return $('#drawer').getBoundingClientRect().height; }
-function setDrawer(st){ S.drawer=st; const d=$('#drawer'); d.classList.remove('half','full'); if(st!=='peek') d.classList.add(st); setTimeout(posBtns,260); posBtns(); }
+function setDrawer(st){ const was=S.drawer; S.drawer=st; if(was!==st&&(was==='full'||st==='full')) setTimeout(renderDrawer,0); const d=$('#drawer'); d.classList.remove('half','full'); if(st!=='peek') d.classList.add(st); setTimeout(posBtns,260); posBtns(); }
 function posBtns(){ $('#mapbtns').style.bottom=(Math.min(drawerPx(),window.innerHeight*0.6)+12)+'px'; }
-(function(){ const h=[$('#handle'),$('#dhead')]; let y0=null,t0=0;
-  h.forEach(el=>{ el.addEventListener('touchstart',e=>{ if(e.target.closest('button,input,select,a')) return; y0=e.touches[0].clientY; t0=Date.now(); },{passive:true});
-    el.addEventListener('touchend',e=>{ if(y0==null) return; const dy=e.changedTouches[0].clientY-y0; y0=null; const order=['peek','half','full']; let i=order.indexOf(S.drawer); if(dy<-40) i=Math.min(2,i+1); else if(dy>40) i=Math.max(0,i-1); else if(Math.abs(dy)<8&&Date.now()-t0<300&&e.target.closest('.handle')) i=(i+1)%3; setDrawer(order[i]); },{passive:true}); });
-  $('#handle').addEventListener('click',()=>{ if('ontouchstart' in window) return; const order=['peek','half','full']; setDrawer(order[(order.indexOf(S.drawer)+1)%3]); });
+(function(){ // drag the panel from anywhere: handle, tabs, or the content (when it can't scroll further)
+  const d=$('#drawer'), body=$('#dbody'); const order=['peek','half','full'];
+  let y0=null, x0=0, h0=0, t0=0, mode=null, fromBody=false, lastY=0, lastT=0, vel=0;
+  d.addEventListener('touchstart',e=>{ if(e.touches.length!==1) return; y0=lastY=e.touches[0].clientY; x0=e.touches[0].clientX; t0=lastT=Date.now(); h0=d.getBoundingClientRect().height; mode=null; vel=0; fromBody=!!e.target.closest('#dbody'); },{passive:true});
+  d.addEventListener('touchmove',e=>{ if(y0==null) return; const y=e.touches[0].clientY, dy=y-y0, dx=e.touches[0].clientX-x0;
+    if(mode===null){ if(Math.abs(dy)<6) return; if(Math.abs(dx)>Math.abs(dy)){ mode='none'; return; }
+      if(!fromBody) mode='drag';
+      else if(dy>0&&body.scrollTop<=0) mode='drag';          // pulling down at the top of the list
+      else if(dy<0&&S.drawer!=='full') mode='drag';          // pushing up while not fully open
+      else mode='scroll';
+      if(mode==='drag'){ d.style.transition='none'; } }
+    if(mode!=='drag') return;
+    e.preventDefault();
+    const maxH=window.innerHeight-64, minH=90; d.style.height=Math.max(minH,Math.min(maxH,h0-dy))+'px';
+    const now=Date.now(); vel=(y-lastY)/Math.max(1,now-lastT); lastY=y; lastT=now; posBtns();
+  },{passive:false});
+  const end=e=>{ if(y0==null) return; const dy=(e.changedTouches?e.changedTouches[0].clientY:lastY)-y0; const tapped=mode===null&&Date.now()-t0<300&&e.target.closest('.handle'); const was=mode; y0=null; mode=null;
+    if(tapped){ setDrawer(S.drawer==='full'?'half':S.drawer==='half'?'peek':'half'); return; }
+    if(was!=='drag') return;
+    d.style.transition=''; const hNow=d.getBoundingClientRect().height; d.style.height='';
+    const H=window.innerHeight, snaps={peek:132,half:H*0.56,full:H-64}; let best;
+    if(vel>0.5) best=S.drawer==='full'&&hNow>H*0.5?'half':'peek';            // flicked down
+    else if(vel<-0.5) best=hNow<H*0.5?'half':'full';                         // flicked up
+    else best=Object.keys(snaps).reduce((a,k)=>Math.abs(snaps[k]-hNow)<Math.abs(snaps[a]-hNow)?k:a,'peek');
+    setDrawer(best); };
+  d.addEventListener('touchend',end); d.addEventListener('touchcancel',end);
+  $('#handle').addEventListener('click',()=>{ if('ontouchstart' in window) return; setDrawer(S.drawer==='full'?'half':S.drawer==='half'?'peek':'half'); });
 })();
 function setTab(t){ const was=S.tab; if(t!=='stop'){ S.prevTab=t; S.stop=null; } S.tab=t; if(t!=='stop'&&(S.drawer==='full'||(S.drawer==='peek'&&t!=='route'))) setDrawer('half'); renderAll(); $('#dbody').scrollTop=0; if(t!=='stop'&&(t!==was||was==='stop')) setTimeout(fitTab,280); }
 let rdT=null; function renderDrawerSoon(){ clearTimeout(rdT); rdT=setTimeout(renderDrawer,120); }
@@ -473,7 +498,7 @@ function head(){
   const meK=C.uid||'me'; const nMeet=upcomingMeets().filter(mt=>!mt.meta.locked).reduce((a,mt)=>a+sortedProps(mt).filter(p=>!p.up.includes(meK)&&!p.down.includes(meK)).length,0);
   const tabs=[['route','Route',remN],['stops','Stops',0],['meet','Meet',nMeet],['crew','Crew',0]];
   if(S.tab==='stop') return '<div class="row"><button class="btn sm ghost" data-act="back">'+I.back+' Back</button><div class="grow"></div><button class="btn sm ghost" data-act="expand">'+(S.drawer==='full'?'Less':'More')+'</button></div>';
-  return '<div class="seg">'+tabs.map(([k,l,b])=>'<button class="'+(S.tab===k?'on':'')+'" data-act="tab" data-v="'+k+'">'+l+(b?'<span class="badge">'+b+'</span>':'')+'</button>').join('')+'</div>'+(S.tab==='route'?routeSummary():'');
+  return (S.drawer==='full'?'<button class="btn sm ghost block" style="margin-bottom:8px" data-act="shrink">'+I.down+' Show the map</button>':'')+'<div class="seg">'+tabs.map(([k,l,b])=>'<button class="'+(S.tab===k?'on':'')+'" data-act="tab" data-v="'+k+'">'+l+(b?'<span class="badge">'+b+'</span>':'')+'</button>').join('')+'</div>'+(S.tab==='route'?routeSummary():'');
 }
 function routeSummary(){
   const ls=legs(); const h=here();
@@ -788,6 +813,7 @@ document.addEventListener('click',e=>{
     case 'saveName': { const v=($('#nameIn').value||'').trim().slice(0,30); if(!v){ toast('Type a name'); break; } S.name=v; save(); closeModal(); if(C.uid) fbSet('members/'+C.uid,{name:v,ts:Date.now()}); renderAll(); if(S._created) S._created(); break; }
     case 'exitDemo': if(window.AST_PREVIEW){ location.hash='solo'; location.reload(); } else location.href=location.pathname; break;
     case 'menu': openMenu(); break;
+    case 'shrink': setDrawer('half'); renderDrawer(); setTimeout(fitTab,280); break;
     case 'goDemo': if(window.AST_PREVIEW){ location.hash='demo'; location.reload(); } else location.href=location.pathname+'?demo=1'; break;
     case 'closeModal': closeModal(); break;
   }

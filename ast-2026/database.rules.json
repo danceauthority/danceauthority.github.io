@@ -46,6 +46,10 @@
               }
             }
           }
+        },
+        "pub": {
+          ".write": "auth != null && $crew.length >= 10 && !data.exists() && root.child('crews/'+$crew+'/members/'+auth.uid).exists()",
+          ".validate": "newData.isString() && newData.val().length <= 20"
         }
       }
     },
@@ -54,6 +58,31 @@
         "$batch": {
           ".write": "auth != null && auth.uid === $uid && !data.exists()",
           ".validate": "newData.hasChildren(['ts','ev']) && newData.child('ts').isNumber()"
+        }
+      }
+    },
+    "pubmembers": {
+      "$pub": {
+        "$uid": {
+          ".write": "auth != null && auth.uid === $uid && (!newData.exists() || (root.child('crews/'+newData.val()+'/members/'+auth.uid).exists() && root.child('crews/'+newData.val()+'/pub').val() === $pub))",
+          ".validate": "!newData.exists() || newData.isString()"
+        }
+      }
+    },
+    "directory": {
+      ".read": "auth != null",
+      "$pub": {
+        ".write": "auth != null && root.child('pubmembers/'+$pub+'/'+auth.uid).exists()",
+        ".validate": "!newData.exists() || (newData.child('name').isString() && newData.child('name').val().length <= 40 && newData.child('n').isNumber() && newData.child('ts').isNumber())"
+      }
+    },
+    "joinreq": {
+      "$pub": {
+        ".read": "auth != null && root.child('pubmembers/'+$pub+'/'+auth.uid).exists()",
+        "$uid": {
+          ".read": "auth != null && auth.uid === $uid",
+          ".write": "auth != null && (auth.uid === $uid || root.child('pubmembers/'+$pub+'/'+auth.uid).exists())",
+          ".validate": "!newData.exists() || (newData.child('name').isString() && newData.child('name').val().length <= 40 && newData.child('status').isString())"
         }
       }
     }

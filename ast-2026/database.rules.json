@@ -12,7 +12,7 @@
         "members": {
           "$uid": {
             ".write": "auth != null && auth.uid === $uid",
-            ".validate": "!newData.exists() || (newData.child('name').isString() && newData.child('name').val().length <= 40 && (!newData.child('token').exists() || (newData.child('token').isString() && newData.child('token').val().length <= 20)))"
+            ".validate": "!newData.exists() || (newData.child('name').isString() && newData.child('name').val().length <= 40)"
           }
         },
         "status": {

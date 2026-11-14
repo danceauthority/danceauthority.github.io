@@ -59,8 +59,7 @@ The Firebase web config is not a secret. Google designs it to sit in public web 
 ## Log
 - 2026-11-10: Created folder; first version published.
 - 2026-11-14: Renamed the app to "Austin Studio Tour Mission Control".
-- 2026-11-14: Game pieces redrawn as plain one-colour silhouettes (no disc) so they cover less of the map: unicorn, sea monster, top hat, bicycle, boot, cat, bat, cactus, guitar, rocket, taco, UFO, crown, anchor, lightning, paw. You are always blue.
-- 2026-11-14: Crew members pick a pewter game piece (unicorn, sea monster, top hat, bicycle and 12 more) instead of a letter; it shows on the map and in the crew list. Two people can’t take the same piece.
+- 2026-11-14: Tried game-piece icons for crew members (emoji, then silhouettes) and went back to letters in a purple circle.
 - 2026-11-14: One route only — in a crew, everyone uses the crew route (the "Just mine" option is gone; stops planned before joining become the crew route if it is still empty). "Stops" tab renamed "Studios". Title and menu button centered.
 - 2026-11-14: Bottom panel can be dragged from anywhere (handle, tabs, or the list when it's scrolled to the top); a "Show the map" button appears when it's fully open.
 - 2026-11-14: One-line title; the day picker and crew status moved into a menu (☰, green dot = crew connected). Switching Route / Stops / Meet / Crew now moves the map to show those items and fades everything else.

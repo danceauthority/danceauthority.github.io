@@ -59,6 +59,7 @@ The Firebase web config is not a secret. Google designs it to sit in public web 
 ## Log
 - 2026-11-10: Created folder; first version published.
 - 2026-11-14: Renamed the app to "Austin Studio Tour Mission Control".
+- 2026-11-14: Bottom panel can be dragged from anywhere (handle, tabs, or the list when it's scrolled to the top); a "Show the map" button appears when it's fully open.
 - 2026-11-14: One-line title; the day picker and crew status moved into a menu (☰, green dot = crew connected). Switching Route / Stops / Meet / Crew now moves the map to show those items and fades everything else.
 - 2026-11-11: Added demo crew (`?demo=1`), a close (X) button on every pop-up, and renamed the meetup form to "Propose a meetup" with the field "Proposed time to meet".
 - 2026-11-11: Meetup 👍/👎 responses replace single-choice votes (Firebase path `meetups/<id>/rsvp/<option>/<person>`). Re-paste `database.rules.json` if Firebase was already set up.

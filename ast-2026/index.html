@@ -225,7 +225,7 @@ function meetups(){ return crewOn()?C.meets:S.localMeets; }
 function setPlan(patch){
   const cur={stops:plan().slice(),visited:[...visited()]};
   const next=Object.assign(cur,patch);
-  if(shared()){ const nm=(patch.name!=null?patch.name:(C.plan&&C.plan.name))||''; C.plan=Object.assign({},next,{name:nm,ts:Date.now(),by:C.uid}); fbSet('plan',{stops:next.stops,visited:next.visited,name:nm,ts:Date.now(),by:C.uid}); }
+  if(shared()){ const nm=(patch.name!=null?patch.name:(C.plan&&C.plan.name))||''; const ul=patch.unlisted!=null?!!patch.unlisted:!!(C.plan&&C.plan.unlisted); C.plan=Object.assign({},next,{name:nm,unlisted:ul,ts:Date.now(),by:C.uid}); fbSet('plan',{stops:next.stops,visited:next.visited,name:nm,unlisted:ul,ts:Date.now(),by:C.uid}); }
   else { S.plan=next.stops; S.visited=next.visited; save(); }
   log('plan',{stops:(next.stops||[]).slice(0,40),visited:(next.visited||[]).slice(0,40)}); pushStatus(); renderAll();
 }
@@ -245,11 +245,12 @@ async function initCrew(){
     const fa=app.initializeApp(cfg); const au=auth.getAuth(fa); const d=db.getDatabase(fa);
     C.fb={db,d,root:'crews/'+S.crew};
     const cred=await auth.signInAnonymously(au); C.uid=cred.user.uid; flushLog();
+    dirInit();
     if(!S.crew){ renderAll(); return; }
     const r=p=>db.ref(d,C.fb.root+(p?'/'+p:''));
     let netState=null; db.onValue(db.ref(d,'.info/connected'),s=>{ const v=!!s.val(); if(v!==netState){ if(netState!==null||v===false) log(v?'net_up':'net_down'); netState=v; } });
-    db.onValue(r('plan'),s=>{ const v=s.val(); C.plan=v?{stops:v.stops||[],visited:v.visited||[],name:v.name||'',ts:v.ts,by:v.by}:{stops:[],visited:[],name:''}; C.ready=true; if(!C.seeded){ C.seeded=true; if(!(C.plan.stops||[]).length&&S.plan.length){ setPlan({stops:S.plan.slice(),visited:S.visited.slice()}); toast('Your planned stops are now the crew route'); } } renderAll(); },e=>{ C.err=String(e.code||e); renderAll(); });
-    db.onValue(r('members'),s=>{ C.members=s.val()||{}; renderAll(); });
+    db.onValue(r('plan'),s=>{ const v=s.val(); C.plan=v?{stops:v.stops||[],visited:v.visited||[],name:v.name||'',unlisted:!!v.unlisted,ts:v.ts,by:v.by}:{stops:[],visited:[],name:''}; C.ready=true; if(!C.seeded){ C.seeded=true; if(!(C.plan.stops||[]).length&&S.plan.length){ setPlan({stops:S.plan.slice(),visited:S.visited.slice()}); toast('Your planned stops are now the crew route'); } } renderAll(); },e=>{ C.err=String(e.code||e); renderAll(); });
+    db.onValue(r('members'),s=>{ C.members=s.val()||{}; renderAll(); dirSyncSoon(); });
     db.onValue(r('status'),s=>{ C.status=s.val()||{}; renderAll(); });
     db.onValue(r('pos'),s=>{ C.pos=s.val()||{}; renderMapPeople(); if(S.tab==='crew') renderDrawer(); });
     db.onValue(r('meetups'),s=>{ C.meets=s.val()||{}; renderAll(); });
@@ -290,11 +291,55 @@ window.addEventListener('error',ev=>log('err',{m:String(ev.message||'').slice(0,
 window.addEventListener('unhandledrejection',ev=>log('err',{m:String((ev.reason&&(ev.reason.code||ev.reason.message))||ev.reason||'').slice(0,200),src:'promise'}));
 document.addEventListener('visibilitychange',()=>{ log(document.visibilityState==='visible'?'fg':'bg'); if(document.visibilityState!=='visible') flushLog(); });
 window.addEventListener('pagehide',()=>{ log('close'); flushLog(); });
+setInterval(()=>{ if(crewOn()) dirSync(); },10*60e3);
 setInterval(()=>{ if(tileErr){ log('tile_err',{n:tileErr}); tileErr=0; } },60000);
 // handoffs to Maps (links) — logged before the phone leaves for Apple/Google Maps
 document.addEventListener('click',e=>{ const a=e.target.closest('a[href]'); if(!a) return; const h=a.getAttribute('href')||''; const app=/maps\.apple/.test(h)?'apple':/google\.[a-z.]+\/maps/.test(h)?'google':/atxstudiotour/.test(h)?'profile':null; if(!app) return; const m=h.match(/destination=([-\d.]+),([-\d.]+)/); let n=null; if(m){ const L0=ALL.find(l=>Math.abs(l.lat-+m[1])<1e-4&&Math.abs(l.lng-+m[2])<1e-4); n=L0?L0.n:null; } log('handoff',{app,n,multi:/waypoints=/.test(h)}); flushLog(); },true);
 // every in-app button press, generically
 document.addEventListener('click',e=>{ const t=e.target.closest('[data-act],[data-f]'); if(!t) return; const d={}; ['n','v','d','b','m','p','h'].forEach(k=>{ if(t.dataset[k]!=null) d[k]=t.dataset[k]; }); if(t.dataset.f){ log('filter',{f:t.dataset.f,on:!S.f[t.dataset.f]}); return; } log('tap',Object.assign({a:t.dataset.act},d)); },true);
+
+
+// ================= CREW DIRECTORY & JOIN REQUESTS =================
+// Public list (directory/<pubId>) shows only name + rider count; the secret crew code is never listed.
+// Requests go to joinreq/<pubId>/<uid>; any member approves, which hands the requester the crew code.
+const DIR={list:{},myReq:null,reqs:{},pub:null,unsubReq:null};
+function dirFresh(e){ return e&&e.ts&&Date.now()-e.ts<14*3600e3; }
+function fbRaw(path,val){ if(!C.fb||C.fb.demo) return Promise.resolve(); const r=C.fb.db.ref(C.fb.d,path); return (val==null?C.fb.db.remove(r):C.fb.db.set(r,val)).catch(e=>{ log('dir_fail',{p:path.split('/')[0],c:String(e.code||e.message).slice(0,80)}); throw e; }); }
+function dirInit(){
+  const {db,d}=C.fb;
+  db.onValue(db.ref(d,'directory'),s=>{ DIR.list=s.val()||{}; renderAll(); },()=>{});
+  try{ const pr=JSON.parse(localStorage.getItem('ast26-req')||'null'); if(pr&&pr.pub&&Date.now()-pr.ts<14*3600e3) watchMyRequest(pr.pub); }catch(e){}
+}
+function watchMyRequest(pub){
+  const {db,d}=C.fb; if(DIR.unsubReq) DIR.unsubReq();
+  DIR.unsubReq=db.onValue(db.ref(d,'joinreq/'+pub+'/'+C.uid),s=>{ const v=s.val(); DIR.myReq=v?Object.assign({pub},v):null;
+    if(v&&v.status==='approved'&&v.crew&&v.crew!==S.crew){ log('join_approved',{pub}); try{ localStorage.removeItem('ast26-req'); }catch(e){} stopShare(); S.crew=v.crew; save(); fbRaw('joinreq/'+pub+'/'+C.uid,null).finally(()=>{ location.href=location.pathname+'?crew='+v.crew; }); return; }
+    renderAll(); },()=>{});
+}
+let dirT=null;
+function dirSyncSoon(){ clearTimeout(dirT); dirT=setTimeout(dirSync,1500); }
+async function dirSync(){ // members keep their crew's public listing fresh
+  if(!crewOn()||DEMO||!C.fb||!C.uid) return;
+  const {db,d}=C.fb;
+  if(!DIR.pub){
+    const snap=await db.get(db.ref(d,C.fb.root+'/pub')).catch(()=>null); let pub=snap&&snap.val();
+    if(!pub){ pub='p'+newCode().slice(0,10); try{ await fbRaw(C.fb.root+'/pub',pub); }catch(e){ const s2=await db.get(db.ref(d,C.fb.root+'/pub')).catch(()=>null); pub=s2&&s2.val(); } }
+    if(!pub) return; DIR.pub=pub;
+    try{ await fbRaw('pubmembers/'+pub+'/'+C.uid,S.crew); }catch(e){ return; }
+    db.onValue(db.ref(d,'joinreq/'+pub),s=>{ DIR.reqs=s.val()||{}; renderAll(); },()=>{});
+  }
+  const listed=!(C.plan&&C.plan.unlisted);
+  if(listed) fbRaw('directory/'+DIR.pub,{name:crewName().slice(0,40),n:Math.max(1,Object.keys(C.members).length),ts:Date.now()}).catch(()=>{});
+  else fbRaw('directory/'+DIR.pub,null).catch(()=>{});
+}
+function pendingReqs(){ return Object.entries(DIR.reqs||{}).filter(([u,r])=>r&&r.status==='pending'&&Date.now()-(r.ts||0)<6*3600e3); }
+function dirCards(excludePub){
+  const rows=Object.entries(DIR.list).filter(([p,e])=>dirFresh(e)&&p!==excludePub).sort((a,b)=>b[1].ts-a[1].ts);
+  if(!rows.length) return '<div class="small muted" style="margin-top:6px">No other crews out right now.</div>';
+  return rows.map(([p,e])=>{ const mine=DIR.myReq&&DIR.myReq.pub===p; const st=mine?DIR.myReq.status:null;
+    return '<div class="friend"><div class="av" style="background:#5b524b">'+esc((e.name||'?')[0].toUpperCase())+'</div><div class="grow" style="min-width:0"><div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(e.name||'Unnamed crew')+'</div><div class="small muted">'+(e.n||1)+' rider'+((e.n||1)!==1?'s':'')+' · active '+ago(e.ts)+'</div></div>'+
+      (st==='pending'?'<button class="btn sm ghost" data-act="cancelReq" data-p="'+p+'">Requested · Cancel</button>':st==='declined'?'<span class="small muted">Declined</span>':'<button class="btn sm violet" data-act="askJoin" data-p="'+p+'">Ask to join</button>')+'</div>'; }).join('');
+}
 
 // ================= GEO =================
 function hav(a,b){ const R=3958.8,r=Math.PI/180; const dLat=(b.lat-a.lat)*r,dLng=(b.lng-a.lng)*r; const x=Math.sin(dLat/2)**2+Math.cos(a.lat*r)*Math.cos(b.lat*r)*Math.sin(dLng/2)**2; return 2*R*Math.asin(Math.sqrt(x)); }
@@ -543,7 +588,7 @@ let rdT=null; function renderDrawerSoon(){ clearTimeout(rdT); rdT=setTimeout(ren
 function head(){
   const v=visited(); const remN=plan().filter(n=>!v.has(n)).length;
   const meK=C.uid||'me'; const nMeet=upcomingMeets().filter(mt=>!mt.meta.locked).reduce((a,mt)=>a+sortedProps(mt).filter(p=>!p.up.includes(meK)&&!p.down.includes(meK)).length,0);
-  const tabs=[['route','Route',remN],['stops','Studios',0],['meet','Meet',nMeet],['crew','Crew',0]];
+  const tabs=[['route','Route',remN],['stops','Studios',0],['meet','Meet',nMeet],['crew','Crew',crewOn()?pendingReqs().length:0]];
   if(S.tab==='stop') return '<div class="row"><button class="btn sm ghost" data-act="back">'+I.back+' Back</button><div class="grow"></div><button class="btn sm ghost" data-act="expand">'+(S.drawer==='full'?'Less':'More')+'</button></div>';
   return (S.drawer==='full'?'<button class="btn sm ghost block" style="margin-bottom:8px" data-act="shrink">'+I.down+' Show the map</button>':'')+'<div class="seg">'+tabs.map(([k,l,b])=>'<button class="'+(S.tab===k?'on':'')+'" data-act="tab" data-v="'+k+'">'+l+(b?'<span class="badge">'+b+'</span>':'')+'</button>').join('')+'</div>'+(S.tab==='route'?routeSummary():'');
 }
@@ -729,15 +774,19 @@ function crewView(){
   let pre=DEMO?'<div class="card" style="background:var(--gold-2);border-color:#f1d38f"><b>Demo crew</b><div class="small" style="margin-top:4px">Sample data: you, Maya, Jordan and Priya are riding together; Sam, Alex and Tess are on their own. Nothing here is saved or sent anywhere.</div><button class="btn sm ghost" style="margin-top:8px" data-act="exitDemo">Exit demo</button></div>':'';
   let s=pre;
   if(!cfg){ s+='<div class="card"><h3 style="font-size:17px">Crew sync isn’t set up yet</h3><div class="small muted" style="margin-top:6px">The site owner needs to add a free Firebase project (see “_About AST 2026.md” in the repo). Until then, everything works on this phone and you can share plans as text.</div></div>'; }
-  else if(!S.crew){ s+='<div class="card"><h3 style="font-size:17px">Ride together</h3><div class="small muted" style="margin:6px 0 10px">Start a crew and send the link to your friends. Everyone with the link shares the route, meetups and check-ins.</div><button class="btn violet block" data-act="newCrew">Start a crew</button><label class="f">Have a crew code or link?</label><div class="row"><input type="text" id="joinCode" placeholder="paste link or code"><button class="btn sm ghost" data-act="joinCrew">Join</button></div></div>'; }
+  else if(!S.crew){ s+='<div class="card"><h3 style="font-size:17px">Crews out today</h3>'+(C.uid?dirCards(null):'<div class="small muted" style="margin-top:6px">Loading…</div>')+(DIR.myReq&&DIR.myReq.status==='pending'?'<div class="small muted" style="margin-top:8px">Waiting for someone in the crew to approve you…</div>':'')+'</div>';
+    s+='<div class="card"><h3 style="font-size:17px">Ride together</h3><div class="small muted" style="margin:6px 0 10px">Start a crew and send the link to your friends. Everyone with the link shares the route, meetups and check-ins.</div><button class="btn violet block" data-act="newCrew">Start a crew</button><label class="f">Have a crew code or link?</label><div class="row"><input type="text" id="joinCode" placeholder="paste link or code"><button class="btn sm ghost" data-act="joinCrew">Join</button></div></div>'; }
   else {
     const mem=Object.keys(C.members); if(C.uid&&!mem.includes(C.uid)) mem.push(C.uid);
     s+='<div class="card"><div class="row"><div class="grow" style="min-width:0"><button data-act="renameCrew" style="border:0;background:none;padding:0;text-align:left;font:inherit;display:block;width:100%"><h3 style="font-size:19px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(crewName())+' <span style="font:500 13px Inter,sans-serif;color:var(--mute)">✎</span></h3></button><div class="small muted">'+(C.ready?'<span class="dot on"></span> Live · '+mem.length+' rider'+(mem.length!==1?'s':''):'Connecting…')+(C.err&&C.err!=='nocfg'?' · '+esc(C.err):'')+'</div></div><button class="btn sm violet" data-act="shareCrew">Invite</button></div>';
     mem.sort((a,b)=>(b===C.uid)-(a===C.uid)||((C.status[b]||{}).ts||0)-((C.status[a]||{}).ts||0)).forEach(uid=>{ const st=C.status[uid]||{}; const pos=C.pos[uid]; const at=st.at?LOC.get(st.at):null, nx=st.next?LOC.get(st.next):null; const live=pos&&Date.now()-pos.ts<30*60e3;
       const h=here(); const dist=live&&h?bikeMi(h,pos):null; const me=uid===C.uid;
       s+='<div class="friend"><div class="av" style="'+(me?'background:var(--sky)':'')+'">'+esc(initial(uid))+'</div><div class="grow" style="min-width:0"><div style="font-weight:600">'+(me?esc(S.name||'You')+' <span class="small muted" style="font-weight:400">(you)</span>':esc(nameOf(uid)))+(!me?(live?' <span class="tag" style="background:#efe7fb;color:#5b33b4;border-color:#d9c9f5">📍 live</span>':(pos?' <span class="tag">📍 '+ago(pos.ts)+'</span>':' <span class="tag">location off</span>')):(S.shareOn?' <span class="tag" style="background:#efe7fb;color:#5b33b4;border-color:#d9c9f5">📍 sharing</span>':''))+(dist!=null&&!me&&dist<0.12?' <span class="tag fam">with you</span>':'')+'</div><div class="small muted">'+(at?'At #'+at.n+' '+esc(at.v):'Joined'+((C.members[uid]||{}).ts?' '+ago(C.members[uid].ts):''))+(nx?' → next #'+nx.n:'')+(at&&st.ts?' · '+ago(st.ts):'')+(dist!=null&&!me?' · '+fmtMi(dist)+' away':'')+'</div></div>'+(me?'<button class="btn sm ghost" data-act="askName">Rename</button>':(live?'<button class="btn sm ghost" data-act="showOnMap" data-lat="'+pos.lat+'" data-lng="'+pos.lng+'">Map</button>':''))+'</div>'; });
+    const pr=pendingReqs();
+    if(pr.length){ s+='<div class="card" style="background:#f3edfc;border-color:#d9c9f5;margin:10px 0 0;padding:10px"><div class="small" style="font-weight:700">'+pr.length+' asking to join</div>'+pr.map(([u,r])=>'<div class="row" style="margin-top:8px"><div class="grow"><b>'+esc(r.name||'Someone')+'</b> <span class="small muted">'+ago(r.ts)+'</span></div><button class="btn sm ghost" data-act="declineReq" data-u="'+u+'">Decline</button><button class="btn sm violet" data-act="approveReq" data-u="'+u+'">Let in</button></div>').join('')+'</div>'; }
     s+='<div class="row" style="padding-top:12px"><div class="grow"><b>Share my location</b>'+(S.shareOn?'<div class="small muted">On until '+clock(new Date(S.shareUntil))+'</div>':'')+'</div><label class="switch"><input type="checkbox" id="locSw" '+((S.shareOn||(!crewOn()&&S.gpsOn))?'checked':'')+'><span></span></label></div>';
     s+='</div>';
+    s+='<div class="card"><div class="row"><h3 class="grow" style="font-size:16px">Other crews out today</h3><button class="chip sm '+((C.plan&&C.plan.unlisted)?'':'on')+'" data-act="toggleListed">'+((C.plan&&C.plan.unlisted)?'We’re hidden':'We’re listed')+'</button></div>'+dirCards(DIR.pub)+'</div>';
     s+='<button class="btn sm ghost" data-act="leaveCrew">Leave crew on this phone</button>';
   }
   s+='<div class="btns" style="margin-top:12px"><button class="btn ghost" data-act="sharePlan">Share route as text</button><button class="btn ghost" data-act="importPlan">Import</button></div>';
@@ -818,7 +867,7 @@ document.addEventListener('click',e=>{
     case 'gpsOn': closeModal(); startGps(); break;
     case 'locOn': closeModal(); locOn(); break;
     case 'renameCrew': { if(!crewOn()) break; openModal('<h2 style="font-size:20px">Crew name</h2><label class="f">Name</label><input type="text" id="crewNameIn" maxlength="40" value="'+esc(C.plan&&C.plan.name||'')+'" placeholder="e.g. Saturday East Side"><div class="btns" style="margin-top:14px"><button class="btn violet" data-act="saveCrewName">Save</button></div>'); break; }
-    case 'saveCrewName': { const v=($('#crewNameIn').value||'').trim().slice(0,40); closeModal(); setPlan({name:v}); break; }
+    case 'saveCrewName': { const v=($('#crewNameIn').value||'').trim().slice(0,40); closeModal(); setPlan({name:v}); dirSyncSoon(); break; }
     case 'shareFor': closeModal(); startShare(+t.dataset.h); break;
     case 'pickStart': setDrawer('peek'); toast('Tap the map where you are'); S.pick=pt=>{ S.cur={lat:pt.lat,lng:pt.lng,n:null}; save(); pushStatus(); setDrawer('half'); renderAll(); }; break;
     case 'newMeet': meetEditor({}); break;
@@ -849,9 +898,15 @@ document.addEventListener('click',e=>{
     case 'shareCrew': copy('Join my Studio Tour bike crew: '+crewLink(),'Invite link copied'); break;
     case 'leaveCrew': stopShare(); S.crew=null; save(); location.href=location.pathname; break;
     case 'askName': askName(); break;
-    case 'saveName': { const v=($('#nameIn').value||'').trim().slice(0,30); if(!v){ toast('Type a name'); break; } S.name=v; save(); const cn=$('#crewNameIn')?($('#crewNameIn').value||'').trim().slice(0,40):null; closeModal(); if(cn!=null) setPlan({name:cn||(v+'’s crew')}); if(C.uid) fbSet('members/'+C.uid,{name:v,ts:Date.now()}); renderAll(); if(S._created) S._created(); break; }
+    case 'saveName': { const v=($('#nameIn').value||'').trim().slice(0,30); if(!v){ toast('Type a name'); break; } S.name=v; save(); const cn=$('#crewNameIn')?($('#crewNameIn').value||'').trim().slice(0,40):null; closeModal(); if(cn!=null) setPlan({name:cn||(v+'’s crew')}); if(S._afterName){ const f=S._afterName; S._afterName=null; f(); } if(C.uid) fbSet('members/'+C.uid,{name:v,ts:Date.now()}); renderAll(); if(S._created) S._created(); break; }
     case 'exitDemo': if(window.AST_PREVIEW){ location.hash='solo'; location.reload(); } else location.href=location.pathname; break;
     case 'menu': openMenu(); break;
+    case 'askJoin': { const p=t.dataset.p; if(!C.uid){ toast('Still connecting — try again in a moment'); break; } const go=()=>{ fbRaw('joinreq/'+p+'/'+C.uid,{name:(S.name||'Someone').slice(0,40),ts:Date.now(),status:'pending'}).then(()=>{ try{ localStorage.setItem('ast26-req',JSON.stringify({pub:p,ts:Date.now()})); }catch(e){} watchMyRequest(p); toast('Request sent — someone in the crew will let you in'); }).catch(()=>toast('Couldn’t send the request')); };
+      if(!S.name){ S._afterName=go; askName(); } else go(); break; }
+    case 'cancelReq': fbRaw('joinreq/'+t.dataset.p+'/'+C.uid,null).catch(()=>{}); try{ localStorage.removeItem('ast26-req'); }catch(e){} DIR.myReq=null; renderAll(); break;
+    case 'approveReq': { const u=t.dataset.u, r=DIR.reqs[u]||{}; fbRaw('joinreq/'+DIR.pub+'/'+u,{name:r.name||'',ts:r.ts||Date.now(),status:'approved',crew:S.crew,by:C.uid}).then(()=>toast((r.name||'They')+' can join now')).catch(()=>toast('Couldn’t approve')); break; }
+    case 'declineReq': { const u=t.dataset.u, r=DIR.reqs[u]||{}; fbRaw('joinreq/'+DIR.pub+'/'+u,{name:r.name||'',ts:r.ts||Date.now(),status:'declined',by:C.uid}).catch(()=>{}); break; }
+    case 'toggleListed': setPlan({unlisted:!(C.plan&&C.plan.unlisted)}); dirSyncSoon(); break;
     case 'studyOk': ST.asked=true; ST.on=true; ST.trail=!!($('#stTrail')&&$('#stTrail').checked); studySave(); closeModal(); log('consent',{on:true,trail:ST.trail}); break;
     case 'studyNo': log('consent',{on:false}); flushLog(); ST.asked=true; ST.on=false; ST.trail=false; studySave(); closeModal(); break;
     case 'studyToggle': ST.on=!ST.on; if(!ST.on) ST.trail=false; ST.asked=true; studySave(); openMenu(); toast(ST.on?'Usage recording on':'Usage recording off'); break;

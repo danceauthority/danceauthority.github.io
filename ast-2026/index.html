@@ -258,7 +258,8 @@ async function initCrew(){
     pushStatus();
     if(!S.name) setTimeout(()=>askName(),400);
     if(new URLSearchParams(location.search).get('new')){ history.replaceState(null,'',location.pathname+'?crew='+S.crew); S._created=()=>{ S._created=null; openModal('<h2 style="font-size:20px">Crew created</h2><p class="small muted">Send this link to your friends. Anyone with it can join, see the route and meetups, and see live locations of people who opt in.</p><div class="card" style="background:var(--cream);word-break:break-all">'+esc(crewLink())+'</div><div class="btns"><button class="btn violet" data-act="shareCrew">Share invite</button></div>'); }; if(S.name) setTimeout(S._created,600); }
-    db.onDisconnect(r('pos/'+C.uid)).remove();
+    // resume location sharing after the phone reloads the page (iPhones do this often in the background)
+    try{ const sm=JSON.parse(localStorage.getItem(SHK)||'null'); if(sm&&sm.crew===S.crew&&sm.until>Date.now()) startShare(0,sm.until); else if(sm) shareMem(null); }catch(e){}
   }catch(e){ C.err=String(e.code||e.message||e); log('fb_fail',{c:C.err.slice(0,120)}); renderAll(); }
 }
 function fbSet(p,v){ if(C.fb&&C.fb.demo){ demoWrite(p,v); return Promise.resolve(); } if(!C.fb||!S.crew) return Promise.resolve(); return C.fb.db.set(C.fb.db.ref(C.fb.d,C.fb.root+'/'+p),v).catch(e=>{ log('sync_fail',{p:String(p).split('/')[0],c:String(e.code||e.message).slice(0,80)}); toast('Sync failed: '+(e.code||e.message)); }); }
@@ -368,12 +369,14 @@ function startGps(){
     S.gps={lat:p.coords.latitude,lng:p.coords.longitude,acc:p.coords.accuracy,ts:Date.now()};
     if(!S._fix){ S._fix=true; if(map) map.setView([S.gps.lat,S.gps.lng],Math.max(map.getZoom(),15)); }
     renderMe(); maybeShare(); nearCheck(); if(S.tab==='route'||S.tab==='stops') renderDrawerSoon();
-  },e=>{ log('gps_err',{c:e.code}); toast(e.code===1?'Location permission denied — turn it on in your browser settings':'Can’t get your location right now'); stopGps(); },{enableHighAccuracy:true,maximumAge:10000,timeout:20000});
+  },e=>{ log('gps_err',{c:e.code}); if(e.code===1){ toast('Location permission denied — turn it on in your browser settings'); stopGps(); } else toast('Can’t get your location right now — still trying'); },{enableHighAccuracy:true,maximumAge:10000,timeout:20000});
   S.gpsOn=true; renderAll();
 }
 function stopGps(){ S._fix=false; if(watchId!=null) navigator.geolocation.clearWatch(watchId); watchId=null; S.gpsOn=false; S.gps=null; stopShare(); renderMe(); renderAll(); }
-function startShare(hours){ log('share_on',{h:hours}); S.shareOn=true; S.shareUntil=Date.now()+hours*3600e3; lastShare=null; if(!S.gpsOn) startGps(); maybeShare(true); renderAll(); toast('Sharing your location with the crew'); }
-function stopShare(){ if(S.shareOn){ log('share_off'); S.shareOn=false; fbRemove('pos/'+C.uid); renderAll(); } }
+const SHK='ast26-share';
+function shareMem(v){ try{ v?localStorage.setItem(SHK,JSON.stringify(v)):localStorage.removeItem(SHK); }catch(e){} }
+function startShare(hours,until){ log('share_on',{h:hours,resume:!!until}); S.shareOn=true; S.shareUntil=until||Date.now()+hours*3600e3; if(!DEMO) shareMem({crew:S.crew,until:S.shareUntil}); lastShare=null; if(!S.gpsOn) startGps(); maybeShare(true); renderAll(); toast(until?'Still sharing your location with the crew':'Sharing your location with the crew'); }
+function stopShare(){ shareMem(null); if(S.shareOn){ log('share_off'); S.shareOn=false; fbRemove('pos/'+C.uid); renderAll(); } }
 function maybeShare(force){
   if(!S.shareOn||!S.gps||!C.fb) return;
   if(Date.now()>S.shareUntil){ stopShare(); toast('Location sharing ended'); return; }

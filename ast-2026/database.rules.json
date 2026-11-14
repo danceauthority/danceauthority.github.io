@@ -48,6 +48,14 @@
           }
         }
       }
+    },
+    "study": {
+      "$uid": {
+        "$batch": {
+          ".write": "auth != null && auth.uid === $uid && !data.exists()",
+          ".validate": "newData.hasChildren(['ts','ev']) && newData.child('ts').isNumber()"
+        }
+      }
     }
   }
 }

@@ -227,7 +227,7 @@ function setPlan(patch){
   const next=Object.assign(cur,patch);
   if(shared()){ const nm=(patch.name!=null?patch.name:(C.plan&&C.plan.name))||''; C.plan=Object.assign({},next,{name:nm,ts:Date.now(),by:C.uid}); fbSet('plan',{stops:next.stops,visited:next.visited,name:nm,ts:Date.now(),by:C.uid}); }
   else { S.plan=next.stops; S.visited=next.visited; save(); }
-  pushStatus(); renderAll();
+  log('plan',{stops:(next.stops||[]).slice(0,40),visited:(next.visited||[]).slice(0,40)}); pushStatus(); renderAll();
 }
 function crewName(){ return (C.plan&&C.plan.name)||'Unnamed crew'; }
 function nameOf(uid){ if(uid===(C.uid||'me')) return 'You'; return (C.members[uid]&&C.members[uid].name)||'New rider (no name yet)'; }
@@ -237,7 +237,6 @@ async function initCrew(){
   if(DEMO){ seedDemo(); return; }
   const cfg=window.AST_FIREBASE;
   if(!cfg||!cfg.apiKey||!cfg.databaseURL){ C.err='nocfg'; renderAll(); return; }
-  if(!S.crew){ renderAll(); return; }
   try{
     const [app,auth,db]=await Promise.all([
       import('https://www.gstatic.com/firebasejs/'+FBV+'/firebase-app.js'),
@@ -245,8 +244,10 @@ async function initCrew(){
       import('https://www.gstatic.com/firebasejs/'+FBV+'/firebase-database.js')]);
     const fa=app.initializeApp(cfg); const au=auth.getAuth(fa); const d=db.getDatabase(fa);
     C.fb={db,d,root:'crews/'+S.crew};
-    const cred=await auth.signInAnonymously(au); C.uid=cred.user.uid;
+    const cred=await auth.signInAnonymously(au); C.uid=cred.user.uid; flushLog();
+    if(!S.crew){ renderAll(); return; }
     const r=p=>db.ref(d,C.fb.root+(p?'/'+p:''));
+    let netState=null; db.onValue(db.ref(d,'.info/connected'),s=>{ const v=!!s.val(); if(v!==netState){ if(netState!==null||v===false) log(v?'net_up':'net_down'); netState=v; } });
     db.onValue(r('plan'),s=>{ const v=s.val(); C.plan=v?{stops:v.stops||[],visited:v.visited||[],name:v.name||'',ts:v.ts,by:v.by}:{stops:[],visited:[],name:''}; C.ready=true; if(!C.seeded){ C.seeded=true; if(!(C.plan.stops||[]).length&&S.plan.length){ setPlan({stops:S.plan.slice(),visited:S.visited.slice()}); toast('Your planned stops are now the crew route'); } } renderAll(); },e=>{ C.err=String(e.code||e); renderAll(); });
     db.onValue(r('members'),s=>{ C.members=s.val()||{}; renderAll(); });
     db.onValue(r('status'),s=>{ C.status=s.val()||{}; renderAll(); });
@@ -257,14 +258,43 @@ async function initCrew(){
     if(!S.name) setTimeout(()=>askName(),400);
     if(new URLSearchParams(location.search).get('new')){ history.replaceState(null,'',location.pathname+'?crew='+S.crew); S._created=()=>{ S._created=null; openModal('<h2 style="font-size:20px">Crew created</h2><p class="small muted">Send this link to your friends. Anyone with it can join, see the route and meetups, and see live locations of people who opt in.</p><div class="card" style="background:var(--cream);word-break:break-all">'+esc(crewLink())+'</div><div class="btns"><button class="btn violet" data-act="shareCrew">Share invite</button></div>'); }; if(S.name) setTimeout(S._created,600); }
     db.onDisconnect(r('pos/'+C.uid)).remove();
-  }catch(e){ C.err=String(e.code||e.message||e); renderAll(); }
+  }catch(e){ C.err=String(e.code||e.message||e); log('fb_fail',{c:C.err.slice(0,120)}); renderAll(); }
 }
-function fbSet(p,v){ if(C.fb&&C.fb.demo){ demoWrite(p,v); return Promise.resolve(); } if(!C.fb) return Promise.resolve(); return C.fb.db.set(C.fb.db.ref(C.fb.d,C.fb.root+'/'+p),v).catch(e=>toast('Sync failed: '+(e.code||e.message))); }
-function fbRemove(p){ if(C.fb&&C.fb.demo){ demoWrite(p,null); return; } if(!C.fb) return; C.fb.db.remove(C.fb.db.ref(C.fb.d,C.fb.root+'/'+p)).catch(()=>{}); }
+function fbSet(p,v){ if(C.fb&&C.fb.demo){ demoWrite(p,v); return Promise.resolve(); } if(!C.fb||!S.crew) return Promise.resolve(); return C.fb.db.set(C.fb.db.ref(C.fb.d,C.fb.root+'/'+p),v).catch(e=>{ log('sync_fail',{p:String(p).split('/')[0],c:String(e.code||e.message).slice(0,80)}); toast('Sync failed: '+(e.code||e.message)); }); }
+function fbRemove(p){ if(C.fb&&C.fb.demo){ demoWrite(p,null); return; } if(!C.fb||!S.crew) return; C.fb.db.remove(C.fb.db.ref(C.fb.d,C.fb.root+'/'+p)).catch(()=>{}); }
 let stT=null;
-function pushStatus(){ if(!C.fb||!C.uid) return; clearTimeout(stT); stT=setTimeout(()=>{ const p=plan(),v=visited(); fbSet('status/'+C.uid,{at:(S.cur&&S.cur.n)||null,next:p.find(n=>!v.has(n))||null,favs:[...S.favs].slice(0,80),ts:Date.now()}); },700); }
+function pushStatus(){ if(!C.fb||!C.uid||!S.crew) return; clearTimeout(stT); stT=setTimeout(()=>{ const p=plan(),v=visited(); fbSet('status/'+C.uid,{at:(S.cur&&S.cur.n)||null,next:p.find(n=>!v.has(n))||null,favs:[...S.favs].slice(0,80),ts:Date.now()}); },700); }
 function newCode(){ const a='abcdefghjkmnpqrstuvwxyz23456789'; let s=''; const r=crypto.getRandomValues(new Uint8Array(12)); r.forEach(x=>s+=a[x%a.length]); return s; }
 function crewLink(){ return location.origin+location.pathname+'?crew='+S.crew; }
+
+
+// ================= USAGE STUDY (Nov 14 2026) =================
+// Records anonymous app events to Firebase at study/<anonymous id>/<batch>. Nobody can read it from the app;
+// the owner exports it from the Firebase console. Opt-out and ride-path opt-in are stored on the phone.
+const STUDY_KEY='ast26-study';
+const ST=(()=>{ try{ return JSON.parse(localStorage.getItem(STUDY_KEY)||'null'); }catch(e){ return null; } })()||{asked:false,on:true,trail:false};
+function studySave(){ try{ localStorage.setItem(STUDY_KEY,JSON.stringify(ST)); }catch(e){} }
+const LOGQ=[]; let logFlushT=null, sessionId=Math.random().toString(36).slice(2,10), tileErr=0;
+function log(e,extra){ if(DEMO||!ST.on||window.AST_PREVIEW) return; const ev=Object.assign({t:Date.now(),e,tab:S.tab},extra||{}); LOGQ.push(ev); if(LOGQ.length>400) LOGQ.splice(0,LOGQ.length-400); if(!logFlushT) logFlushT=setTimeout(flushLog,20000); }
+function flushLog(){ clearTimeout(logFlushT); logFlushT=null; if(!LOGQ.length||!C.fb||C.fb.demo||!C.uid) { if(LOGQ.length) logFlushT=setTimeout(flushLog,20000); return; }
+  const ev=LOGQ.splice(0,LOGQ.length); const key=Date.now()+'-'+Math.random().toString(36).slice(2,6);
+  C.fb.db.set(C.fb.db.ref(C.fb.d,'study/'+C.uid+'/'+key),{ts:Date.now(),sid:sessionId,crew:S.crew||null,day:S.day,ev}).catch(()=>{ LOGQ.unshift(...ev); if(!logFlushT) logFlushT=setTimeout(flushLog,30000); }); }
+function studyNotice(){
+  if(DEMO||window.AST_PREVIEW||ST.asked||!(window.AST_FIREBASE&&window.AST_FIREBASE.apiKey)) return;
+  if($('#modal').classList.contains('on')){ setTimeout(studyNotice,2500); return; } // wait until the name prompt etc. is done
+  openModal('<h2 style="font-size:20px">Quick heads-up</h2><p class="small" style="margin:6px 0 0">Ryan is studying how this app gets used today. It records which buttons you tap and when — <b>no names</b>. You can switch this off any time in the ☰ menu.</p>'+
+    '<label class="row" style="margin-top:12px;gap:10px;align-items:flex-start"><input type="checkbox" id="stTrail" style="margin-top:3px"><span class="small">Also save my <b>ride path</b> while I share my location (off unless you tick it)</span></label>'+
+    '<div class="btns" style="margin-top:14px"><button class="btn ghost" data-act="studyNo">Don’t record me</button><button class="btn teal" data-act="studyOk">OK</button></div>');
+}
+window.addEventListener('error',ev=>log('err',{m:String(ev.message||'').slice(0,200),src:String(ev.filename||'').split('/').pop()+':'+(ev.lineno||'')}));
+window.addEventListener('unhandledrejection',ev=>log('err',{m:String((ev.reason&&(ev.reason.code||ev.reason.message))||ev.reason||'').slice(0,200),src:'promise'}));
+document.addEventListener('visibilitychange',()=>{ log(document.visibilityState==='visible'?'fg':'bg'); if(document.visibilityState!=='visible') flushLog(); });
+window.addEventListener('pagehide',()=>{ log('close'); flushLog(); });
+setInterval(()=>{ if(tileErr){ log('tile_err',{n:tileErr}); tileErr=0; } },60000);
+// handoffs to Maps (links) — logged before the phone leaves for Apple/Google Maps
+document.addEventListener('click',e=>{ const a=e.target.closest('a[href]'); if(!a) return; const h=a.getAttribute('href')||''; const app=/maps\.apple/.test(h)?'apple':/google\.[a-z.]+\/maps/.test(h)?'google':/atxstudiotour/.test(h)?'profile':null; if(!app) return; const m=h.match(/destination=([-\d.]+),([-\d.]+)/); let n=null; if(m){ const L0=ALL.find(l=>Math.abs(l.lat-+m[1])<1e-4&&Math.abs(l.lng-+m[2])<1e-4); n=L0?L0.n:null; } log('handoff',{app,n,multi:/waypoints=/.test(h)}); flushLog(); },true);
+// every in-app button press, generically
+document.addEventListener('click',e=>{ const t=e.target.closest('[data-act],[data-f]'); if(!t) return; const d={}; ['n','v','d','b','m','p','h'].forEach(k=>{ if(t.dataset[k]!=null) d[k]=t.dataset[k]; }); if(t.dataset.f){ log('filter',{f:t.dataset.f,on:!S.f[t.dataset.f]}); return; } log('tap',Object.assign({a:t.dataset.act},d)); },true);
 
 // ================= GEO =================
 function hav(a,b){ const R=3958.8,r=Math.PI/180; const dLat=(b.lat-a.lat)*r,dLng=(b.lng-a.lng)*r; const x=Math.sin(dLat/2)**2+Math.cos(a.lat*r)*Math.cos(b.lat*r)*Math.sin(dLng/2)**2; return 2*R*Math.asin(Math.sqrt(x)); }
@@ -283,22 +313,22 @@ function startGps(){
     S.gps={lat:p.coords.latitude,lng:p.coords.longitude,acc:p.coords.accuracy,ts:Date.now()};
     if(!S._fix){ S._fix=true; if(map) map.setView([S.gps.lat,S.gps.lng],Math.max(map.getZoom(),15)); }
     renderMe(); maybeShare(); nearCheck(); if(S.tab==='route'||S.tab==='stops') renderDrawerSoon();
-  },e=>{ toast(e.code===1?'Location permission denied — turn it on in your browser settings':'Can’t get your location right now'); stopGps(); },{enableHighAccuracy:true,maximumAge:10000,timeout:20000});
+  },e=>{ log('gps_err',{c:e.code}); toast(e.code===1?'Location permission denied — turn it on in your browser settings':'Can’t get your location right now'); stopGps(); },{enableHighAccuracy:true,maximumAge:10000,timeout:20000});
   S.gpsOn=true; renderAll();
 }
 function stopGps(){ S._fix=false; if(watchId!=null) navigator.geolocation.clearWatch(watchId); watchId=null; S.gpsOn=false; S.gps=null; stopShare(); renderMe(); renderAll(); }
-function startShare(hours){ S.shareOn=true; S.shareUntil=Date.now()+hours*3600e3; lastShare=null; if(!S.gpsOn) startGps(); maybeShare(true); renderAll(); toast('Sharing your location with the crew'); }
-function stopShare(){ if(S.shareOn){ S.shareOn=false; fbRemove('pos/'+C.uid); renderAll(); } }
+function startShare(hours){ log('share_on',{h:hours}); S.shareOn=true; S.shareUntil=Date.now()+hours*3600e3; lastShare=null; if(!S.gpsOn) startGps(); maybeShare(true); renderAll(); toast('Sharing your location with the crew'); }
+function stopShare(){ if(S.shareOn){ log('share_off'); S.shareOn=false; fbRemove('pos/'+C.uid); renderAll(); } }
 function maybeShare(force){
   if(!S.shareOn||!S.gps||!C.fb) return;
   if(Date.now()>S.shareUntil){ stopShare(); toast('Location sharing ended'); return; }
   const g=S.gps; const moved=lastShare?hav(lastShare,g)*1609:1e9; const age=lastShare?Date.now()-lastShare.ts:1e9;
-  if(force||moved>60||age>90e3){ lastShare={lat:g.lat,lng:g.lng,ts:Date.now()}; fbSet('pos/'+C.uid,{lat:+g.lat.toFixed(5),lng:+g.lng.toFixed(5),acc:Math.round(g.acc||0),ts:Date.now(),until:S.shareUntil}); }
+  if(force||moved>60||age>90e3){ lastShare={lat:g.lat,lng:g.lng,ts:Date.now()}; if(ST.trail) log('trail',{lat:+g.lat.toFixed(5),lng:+g.lng.toFixed(5),acc:Math.round(g.acc||0)}); fbSet('pos/'+C.uid,{lat:+g.lat.toFixed(5),lng:+g.lng.toFixed(5),acc:Math.round(g.acc||0),ts:Date.now(),until:S.shareUntil}); }
 }
 function nearCheck(){
   if(!S.gps) return; let best=null,bd=1e9;
   ALL.forEach(l=>{ if(!openToday(l)) return; const d=hav(S.gps,l)*1609; if(d<bd){bd=d;best=l;} });
-  if(best && bd<70 && !(S.cur&&S.cur.n===best.n) && !nearAsked[best.n]){ nearAsked[best.n]=1; toast('You’re at #'+best.n+' '+best.v,{label:'Check in',fn:()=>setHere(best.n)},6000); }
+  if(best && bd<70 && !(S.cur&&S.cur.n===best.n) && !nearAsked[best.n]){ nearAsked[best.n]=1; log('near',{n:best.n,m:Math.round(bd)}); toast('You’re at #'+best.n+' '+best.v,{label:'Check in',fn:()=>{ log('autocheckin_ok',{n:best.n}); setHere(best.n); }},6000); }
 }
 
 // ================= FILTERS =================
@@ -348,7 +378,7 @@ function initMap(){
     new TL({minZoom:11,maxZoom:12,minNativeZoom:12,maxNativeZoom:12,attribution:'© OpenStreetMap contributors'}).addTo(map);
     new TL({minZoom:13,maxZoom:19,minNativeZoom:13,maxNativeZoom:13}).addTo(map);
     new TL({minZoom:14,maxZoom:19,minNativeZoom:15,maxNativeZoom:15,bounds:L.latLngBounds([[EAST.s-0.004,EAST.w-0.012],[EAST.n+0.004,EAST.e+0.006]])}).addTo(map);
-  } else L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> · routes OSRM'}).addTo(map);
+  } else L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> · routes OSRM'}).on('tileerror',()=>tileErr++).addTo(map);
   map.setView([30.262,-97.712],14);
   map.on('click',e=>{
     if(S.pick){ const fn=S.pick; S.pick=null; fn({lat:+e.latlng.lat.toFixed(5),lng:+e.latlng.lng.toFixed(5)}); return; }
@@ -401,7 +431,7 @@ async function fetchRoute(){
     if(key!==routeKey) return;
     if(j.code==='Ok'){ const rt=j.routes[0]; routeData={key,geom:rt.geometry.coordinates.map(c=>[c[1],c[0]]),legs:rt.legs.map(g=>g.distance/1609.34)}; }
     else routeData=null;
-  }catch(e){ routeData=null; }
+  }catch(e){ routeData=null; log('route_fail'); }
   drawRoute(); renderDrawerSoon();
 }
 function drawRoute(){
@@ -471,7 +501,7 @@ function fitTab(){
 }
 let fitT=null; function fitTabSoon(){ clearTimeout(fitT); fitT=setTimeout(fitTab,350); }
 function fitRoute(){ const {pts}=routePts(); const all=pts.map(p=>[p.lat,p.lng]); plan().forEach(n=>{ const l=LOC.get(n); if(l) all.push([l.lat,l.lng]); }); if(all.length>1) map.fitBounds(all,{paddingTopLeft:[30,110],paddingBottomRight:[30,drawerPx()+20]}); else if(all.length) map.setView(all[0],16); else toast('Tap stops on the map to build your route'); }
-function onMarker(n){
+function onMarker(n){ log('marker',{n,plan:!!S.planMode});
   if(S.planMode){ togglePlan(n); return; }
   openStop(n);
 }
@@ -532,7 +562,7 @@ function renderDrawer(){
   else if(S.tab==='meet') b.innerHTML=meetView();
   else if(S.tab==='crew') b.innerHTML=crewView();
   b.scrollTop=st;
-  if(S.tab==='stops'){ const q=$('#q'); if(q){ q.value=S.q; q.oninput=()=>{ S.q=q.value; clearTimeout(qT); qT=setTimeout(()=>{ const pos=q.selectionStart; renderMarkers(); fitTabSoon(); renderDrawer(); const q2=$('#q'); q2.focus(); q2.setSelectionRange(pos,pos); },200); }; } const ms=$('#medSel'); if(ms) ms.onchange=e=>{ S.f.med=e.target.value; save(); renderAll(); fitTabSoon(); }; }
+  if(S.tab==='stops'){ const q=$('#q'); if(q){ q.value=S.q; q.oninput=()=>{ S.q=q.value; clearTimeout(qT); qT=setTimeout(()=>{ if(S.q.trim().length>1) log('search',{q:S.q.trim().slice(0,40)}); const pos=q.selectionStart; renderMarkers(); fitTabSoon(); renderDrawer(); const q2=$('#q'); q2.focus(); q2.setSelectionRange(pos,pos); },200); }; } const ms=$('#medSel'); if(ms) ms.onchange=e=>{ S.f.med=e.target.value; save(); renderAll(); fitTabSoon(); }; }
 }
 let qT=null;
 
@@ -739,13 +769,13 @@ function openMenu(){
     '<button class="menu-row" data-act="importPlan">'+I.down+'<span class="grow">Import a route</span></button>'+
     (!DEMO?'<button class="menu-row" data-act="resetPhone"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 3-6.7M3 4v5h5"/></svg><span class="grow">Start fresh on this phone</span></button>':'')+
     (DEMO?'<button class="menu-row" data-act="exitDemo">'+I.x+'<span class="grow">Exit demo</span></button>':'<button class="menu-row" data-act="goDemo">'+I.star+'<span class="grow">Try the demo crew</span></button>')+
-    '</div><div class="small muted" style="margin-top:10px">Studio data from atxstudiotour.com (Nov 10). Map © OpenStreetMap contributors.</div></div>');
+    '</div>'+(!DEMO&&!window.AST_PREVIEW?'<div class="hr"></div><div class="small" style="font-weight:600">Usage study (today)</div><div class="row" style="margin-top:6px"><div class="grow small">Record which buttons I tap (no names)</div><button class="chip sm '+(ST.on?'on':'')+'" data-act="studyToggle">'+(ST.on?'On':'Off')+'</button></div><div class="row" style="margin-top:6px"><div class="grow small">Also save my ride path while sharing location</div><button class="chip sm '+(ST.trail?'on':'')+'" data-act="trailToggle">'+(ST.trail?'On':'Off')+'</button></div>':'')+'<div class="small muted" style="margin-top:10px">Studio data from atxstudiotour.com (Nov 10). Map © OpenStreetMap contributors.</div></div>');
 }
 function renderAll(){ renderTop(); renderMarkers(); renderMe(); renderMapPeople(); renderMeetMarkers(); scheduleRoute(); drawRoute(); renderDrawer(); }
 
 // ================= ACTIONS =================
 function togglePlan(n){ const p=plan().slice(); const i=p.indexOf(n); if(i>=0){ p.splice(i,1); setPlan({stops:p}); toast('Removed #'+n,{label:'Undo',fn:()=>{ const q=plan().slice(); q.splice(i,0,n); setPlan({stops:q}); }}); } else { p.push(n); setPlan({stops:p}); toast('#'+n+' added as stop '+p.length,{label:'Undo',fn:()=>setPlan({stops:plan().filter(x=>x!==n)})}); } }
-function setHere(n){
+function setHere(n){ log('here',{n,gps:!!S.gps,acc:S.gps?Math.round(S.gps.acc||0):null});
   const l=LOC.get(n); S.cur={lat:l.lat,lng:l.lng,n}; save();
   const v=[...visited()]; if(!v.includes(n)) v.push(n); setPlan({visited:v});
   const ls=legs(), sg=suggestions(3);
@@ -822,6 +852,10 @@ document.addEventListener('click',e=>{
     case 'saveName': { const v=($('#nameIn').value||'').trim().slice(0,30); if(!v){ toast('Type a name'); break; } S.name=v; save(); const cn=$('#crewNameIn')?($('#crewNameIn').value||'').trim().slice(0,40):null; closeModal(); if(cn!=null) setPlan({name:cn||(v+'’s crew')}); if(C.uid) fbSet('members/'+C.uid,{name:v,ts:Date.now()}); renderAll(); if(S._created) S._created(); break; }
     case 'exitDemo': if(window.AST_PREVIEW){ location.hash='solo'; location.reload(); } else location.href=location.pathname; break;
     case 'menu': openMenu(); break;
+    case 'studyOk': ST.asked=true; ST.on=true; ST.trail=!!($('#stTrail')&&$('#stTrail').checked); studySave(); closeModal(); log('consent',{on:true,trail:ST.trail}); break;
+    case 'studyNo': log('consent',{on:false}); flushLog(); ST.asked=true; ST.on=false; ST.trail=false; studySave(); closeModal(); break;
+    case 'studyToggle': ST.on=!ST.on; if(!ST.on) ST.trail=false; ST.asked=true; studySave(); openMenu(); toast(ST.on?'Usage recording on':'Usage recording off'); break;
+    case 'trailToggle': ST.trail=!ST.trail; if(ST.trail) ST.on=true; ST.asked=true; studySave(); openMenu(); break;
     case 'resetPhone': openModal('<h2 style="font-size:20px">Start fresh on this phone?</h2><p class="small muted">Clears the route, stars, visited stops, start point and saved name on this phone'+(S.crew?', and leaves the crew on this phone (the crew itself and everyone else’s data are not touched)':'')+'.</p><div class="btns"><button class="btn ghost" data-act="closeModal">Cancel</button><button class="btn coral" data-act="resetYes">Start fresh</button></div>'); break;
     case 'resetYes': try{ stopShare(); localStorage.removeItem(KEY); }catch(e){} location.href=location.pathname; break;
     case 'shrink': setDrawer('half'); renderDrawer(); setTimeout(fitTab,280); break;
@@ -874,6 +908,8 @@ const urlPlan=new URLSearchParams(location.search).get('plan');
 initMap();
 if(urlPlan){ const p=urlPlan.split(',').map(Number).filter(x=>LOC.has(x)); if(p.length){ S.plan=p; S.visited=[]; save(); setTimeout(()=>toast('Loaded shared route ('+p.length+' stops)'),400); } }
 setDrawer(S.drawer); renderAll(); initCrew();
+log('open',{load:Math.round(performance.now()),ua:(/iPhone|iPad/.test(navigator.userAgent)?'ios':/Android/.test(navigator.userAgent)?'android':'desktop')+'/'+(/CriOS|Chrome/.test(navigator.userAgent)?'chrome':/FxiOS|Firefox/.test(navigator.userAgent)?'firefox':/Safari/.test(navigator.userAgent)?'safari':'other')+(/(FBAN|FBAV|Instagram|Line|GSA)/.test(navigator.userAgent)?'-inapp':''),w:innerWidth,h:innerHeight,standalone:!!(navigator.standalone||matchMedia('(display-mode: standalone)').matches),crew:!!S.crew,stops:S.plan.length,urlPlan:!!urlPlan});
+setTimeout(studyNotice,urlCrew&&!S.name?2500:1200);
 window.addEventListener('resize',posBtns);
 })();
 </script>

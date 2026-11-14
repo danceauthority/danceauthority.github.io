@@ -225,10 +225,11 @@ function meetups(){ return crewOn()?C.meets:S.localMeets; }
 function setPlan(patch){
   const cur={stops:plan().slice(),visited:[...visited()]};
   const next=Object.assign(cur,patch);
-  if(shared()){ C.plan=Object.assign({},next,{ts:Date.now(),by:C.uid}); fbSet('plan',{stops:next.stops,visited:next.visited,ts:Date.now(),by:C.uid}); }
+  if(shared()){ const nm=(patch.name!=null?patch.name:(C.plan&&C.plan.name))||''; C.plan=Object.assign({},next,{name:nm,ts:Date.now(),by:C.uid}); fbSet('plan',{stops:next.stops,visited:next.visited,name:nm,ts:Date.now(),by:C.uid}); }
   else { S.plan=next.stops; S.visited=next.visited; save(); }
   pushStatus(); renderAll();
 }
+function crewName(){ return (C.plan&&C.plan.name)||'Unnamed crew'; }
 function nameOf(uid){ if(uid===(C.uid||'me')) return 'You'; return (C.members[uid]&&C.members[uid].name)||'New rider (no name yet)'; }
 function initial(uid){ const n=nameOf(uid); return n==='You'?(S.name||'Y')[0].toUpperCase():(n[0]||'?').toUpperCase(); }
 const FBV='10.12.2';
@@ -246,7 +247,7 @@ async function initCrew(){
     C.fb={db,d,root:'crews/'+S.crew};
     const cred=await auth.signInAnonymously(au); C.uid=cred.user.uid;
     const r=p=>db.ref(d,C.fb.root+(p?'/'+p:''));
-    db.onValue(r('plan'),s=>{ const v=s.val(); C.plan=v?{stops:v.stops||[],visited:v.visited||[],ts:v.ts,by:v.by}:{stops:[],visited:[]}; C.ready=true; if(!C.seeded){ C.seeded=true; if(!(C.plan.stops||[]).length&&S.plan.length){ setPlan({stops:S.plan.slice(),visited:S.visited.slice()}); toast('Your planned stops are now the crew route'); } } renderAll(); },e=>{ C.err=String(e.code||e); renderAll(); });
+    db.onValue(r('plan'),s=>{ const v=s.val(); C.plan=v?{stops:v.stops||[],visited:v.visited||[],name:v.name||'',ts:v.ts,by:v.by}:{stops:[],visited:[],name:''}; C.ready=true; if(!C.seeded){ C.seeded=true; if(!(C.plan.stops||[]).length&&S.plan.length){ setPlan({stops:S.plan.slice(),visited:S.visited.slice()}); toast('Your planned stops are now the crew route'); } } renderAll(); },e=>{ C.err=String(e.code||e); renderAll(); });
     db.onValue(r('members'),s=>{ C.members=s.val()||{}; renderAll(); });
     db.onValue(r('status'),s=>{ C.status=s.val()||{}; renderAll(); });
     db.onValue(r('pos'),s=>{ C.pos=s.val()||{}; renderMapPeople(); if(S.tab==='crew') renderDrawer(); });
@@ -286,7 +287,7 @@ function startGps(){
   S.gpsOn=true; renderAll();
 }
 function stopGps(){ S._fix=false; if(watchId!=null) navigator.geolocation.clearWatch(watchId); watchId=null; S.gpsOn=false; S.gps=null; stopShare(); renderMe(); renderAll(); }
-function startShare(hours){ S.shareOn=true; S.shareUntil=Date.now()+hours*3600e3; lastShare=null; if(!S.gpsOn) startGps(); maybeShare(true); renderAll(); toast('Sharing your location with the crew for '+hours+'h'); }
+function startShare(hours){ S.shareOn=true; S.shareUntil=Date.now()+hours*3600e3; lastShare=null; if(!S.gpsOn) startGps(); maybeShare(true); renderAll(); toast('Sharing your location with the crew'); }
 function stopShare(){ if(S.shareOn){ S.shareOn=false; fbRemove('pos/'+C.uid); renderAll(); } }
 function maybeShare(force){
   if(!S.shareOn||!S.gps||!C.fb) return;
@@ -685,20 +686,12 @@ function crewView(){
   if(!cfg){ s+='<div class="card"><h3 style="font-size:17px">Crew sync isn’t set up yet</h3><div class="small muted" style="margin-top:6px">The site owner needs to add a free Firebase project (see “_About AST 2026.md” in the repo). Until then, everything works on this phone and you can share plans as text.</div></div>'; }
   else if(!S.crew){ s+='<div class="card"><h3 style="font-size:17px">Ride together</h3><div class="small muted" style="margin:6px 0 10px">Start a crew and send the link to your friends. Everyone with the link shares the route, meetups and check-ins.</div><button class="btn violet block" data-act="newCrew">Start a crew</button><label class="f">Have a crew code or link?</label><div class="row"><input type="text" id="joinCode" placeholder="paste link or code"><button class="btn sm ghost" data-act="joinCrew">Join</button></div></div>'; }
   else {
-    s+='<div class="card"><div class="row"><div class="grow"><h3 style="font-size:17px">Your crew</h3><div class="small muted">'+(C.ready?'<span class="dot on"></span> Live':'Connecting…')+(C.err&&C.err!=='nocfg'?' · '+esc(C.err):'')+'</div></div><button class="btn sm violet" data-act="shareCrew">Invite</button></div>';
-    s+='<div class="row" style="margin-top:10px"><div class="grow small">You appear as <b>'+esc(S.name||'—')+'</b></div><button class="btn sm ghost" data-act="askName">Change</button></div>';
-    s+='</div>';
-    // location sharing
-    s+='<div class="card"><div class="row"><div class="grow"><b>My location</b><div class="small muted">Only used on this phone unless you share it.</div></div><label class="switch"><input type="checkbox" id="gpsSw" '+(S.gpsOn?'checked':'')+'><span></span></label></div>';
-    s+='<div class="hr"></div><div class="row"><div class="grow"><b>Share live location with crew</b><div class="small muted">'+(S.shareOn?'On until '+clock(new Date(S.shareUntil))+'. Updates while this page is open.':'Off. Opt in for 1–6 hours; it turns itself off.')+'</div></div><label class="switch"><input type="checkbox" id="shareSw" '+(S.shareOn?'checked':'')+'><span></span></label></div>';
-    s+='<div class="small muted" style="margin-top:8px">Phones only send location while this page is open on screen. Your dot disappears when you stop sharing or close the page.</div></div>';
-    // who's where
-    const mem=Object.keys(C.members);
-    s+='<div class="card"><h3 style="font-size:17px">Who’s where</h3>';
-    if(!mem.length) s+='<div class="small muted" style="margin-top:6px">Nobody else yet — tap Invite.</div>';
-    mem.sort((a,b)=>((C.status[b]||{}).ts||0)-((C.status[a]||{}).ts||0)).forEach(uid=>{ const st=C.status[uid]||{}; const pos=C.pos[uid]; const at=st.at?LOC.get(st.at):null, nx=st.next?LOC.get(st.next):null; const live=pos&&Date.now()-pos.ts<30*60e3;
-      const h=here(); const dist=live&&h?bikeMi(h,pos):null;
-      s+='<div class="friend"><div class="av" style="'+(uid===C.uid?'background:var(--sky)':'')+'">'+esc(initial(uid))+'</div><div class="grow"><div style="font-weight:600">'+esc(nameOf(uid))+(live?' <span class="tag" style="background:#efe7fb;color:#5b33b4;border-color:#d9c9f5">live</span>':'')+(dist!=null&&uid!==C.uid&&dist<0.12?' <span class="tag fam">with you</span>':'')+'</div><div class="small muted">'+(at?'At #'+at.n+' '+esc(at.v):'Joined'+((C.members[uid]||{}).ts?' '+ago(C.members[uid].ts):''))+(nx?' → next #'+nx.n:'')+(at&&st.ts?' · '+ago(st.ts):'')+(dist!=null&&uid!==C.uid?' · '+fmtMi(dist)+' away':'')+'</div></div>'+(live&&uid!==C.uid?'<button class="btn sm ghost" data-act="showOnMap" data-lat="'+pos.lat+'" data-lng="'+pos.lng+'">Map</button>':'')+'</div>'; });
+    const mem=Object.keys(C.members); if(C.uid&&!mem.includes(C.uid)) mem.push(C.uid);
+    s+='<div class="card"><div class="row"><div class="grow" style="min-width:0"><button data-act="renameCrew" style="border:0;background:none;padding:0;text-align:left;font:inherit;display:block;width:100%"><h3 style="font-size:19px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(crewName())+' <span style="font:500 13px Inter,sans-serif;color:var(--mute)">✎</span></h3></button><div class="small muted">'+(C.ready?'<span class="dot on"></span> Live · '+mem.length+' rider'+(mem.length!==1?'s':''):'Connecting…')+(C.err&&C.err!=='nocfg'?' · '+esc(C.err):'')+'</div></div><button class="btn sm violet" data-act="shareCrew">Invite</button></div>';
+    mem.sort((a,b)=>(b===C.uid)-(a===C.uid)||((C.status[b]||{}).ts||0)-((C.status[a]||{}).ts||0)).forEach(uid=>{ const st=C.status[uid]||{}; const pos=C.pos[uid]; const at=st.at?LOC.get(st.at):null, nx=st.next?LOC.get(st.next):null; const live=pos&&Date.now()-pos.ts<30*60e3;
+      const h=here(); const dist=live&&h?bikeMi(h,pos):null; const me=uid===C.uid;
+      s+='<div class="friend"><div class="av" style="'+(me?'background:var(--sky)':'')+'">'+esc(initial(uid))+'</div><div class="grow" style="min-width:0"><div style="font-weight:600">'+(me?esc(S.name||'You')+' <span class="small muted" style="font-weight:400">(you)</span>':esc(nameOf(uid)))+(live&&!me?' <span class="tag" style="background:#efe7fb;color:#5b33b4;border-color:#d9c9f5">live</span>':'')+(dist!=null&&!me&&dist<0.12?' <span class="tag fam">with you</span>':'')+'</div><div class="small muted">'+(at?'At #'+at.n+' '+esc(at.v):'Joined'+((C.members[uid]||{}).ts?' '+ago(C.members[uid].ts):''))+(nx?' → next #'+nx.n:'')+(at&&st.ts?' · '+ago(st.ts):'')+(dist!=null&&!me?' · '+fmtMi(dist)+' away':'')+'</div></div>'+(me?'<button class="btn sm ghost" data-act="askName">Rename</button>':(live?'<button class="btn sm ghost" data-act="showOnMap" data-lat="'+pos.lat+'" data-lng="'+pos.lng+'">Map</button>':''))+'</div>'; });
+    s+='<div class="row" style="padding-top:12px"><div class="grow"><b>Share my location</b>'+(S.shareOn?'<div class="small muted">On until '+clock(new Date(S.shareUntil))+'</div>':'')+'</div><label class="switch"><input type="checkbox" id="locSw" '+((S.shareOn||(!crewOn()&&S.gpsOn))?'checked':'')+'><span></span></label></div>';
     s+='</div>';
     s+='<button class="btn sm ghost" data-act="leaveCrew">Leave crew on this phone</button>';
   }
@@ -707,11 +700,11 @@ function crewView(){
   return s;
 }
 function ago(ts){ const m=Math.round((Date.now()-ts)/60e3); if(m<1) return 'just now'; if(m<60) return m+' min ago'; return Math.round(m/60)+'h ago'; }
-function askName(){ openModal('<h2 style="font-size:20px">What should the crew call you?</h2><p class="small muted" style="margin:4px 0 0">You’re already in the crew — this is just the name they’ll see.</p><label class="f">Name</label><input type="text" id="nameIn" maxlength="30" value="'+esc(S.name)+'" placeholder="e.g. Ryan"><div class="btns" style="margin-top:14px"><button class="btn violet" data-act="saveName">Save</button></div>'); setTimeout(()=>$('#nameIn')&&$('#nameIn').focus(),100); }
+function askName(){ const starter=!!S._created; openModal((starter?'<h2 style="font-size:20px">Name your crew</h2><label class="f">Crew name</label><input type="text" id="crewNameIn" maxlength="40" placeholder="e.g. Saturday East Side"><div style="height:6px"></div>':'')+'<h2 style="font-size:20px">What should the crew call you?</h2><p class="small muted" style="margin:4px 0 0">You’re already in the crew — this is just the name they’ll see.</p><label class="f">Name</label><input type="text" id="nameIn" maxlength="30" value="'+esc(S.name)+'" placeholder="e.g. Ryan"><div class="btns" style="margin-top:14px"><button class="btn violet" data-act="saveName">Save</button></div>'); setTimeout(()=>$('#nameIn')&&$('#nameIn').focus(),100); }
+function locOn(){ if(crewOn()&&!DEMO) startShare(8); else startGps(); }
 function gpsPrompt(){
-  openModal('<h2 style="font-size:20px">Use your location?</h2><p class="small muted">Your phone will ask for permission. Location is used on this phone for the blue dot, distances, and “you’re at a stop” check-ins. Nothing is sent to anyone unless you also turn on crew sharing.</p>'+
-    '<div class="btns" style="margin-top:12px"><button class="btn ghost" data-act="closeModal">Not now</button><button class="btn teal" data-act="gpsOn">Use on this phone</button></div>'+
-    (crewOn()?'<div class="hr"></div><div class="small" style="font-weight:600">Also share live with your crew for…</div><div class="btns" style="margin-top:8px"><button class="btn sm violet" data-act="shareFor" data-h="1">1 hour</button><button class="btn sm violet" data-act="shareFor" data-h="3">3 hours</button><button class="btn sm violet" data-act="shareFor" data-h="6">6 hours</button></div>':''));
+  openModal('<h2 style="font-size:20px">Share my location?</h2><p class="small muted">Your phone will ask for permission. '+(crewOn()?'Your crew sees your dot while the app is open; it switches off by itself after 8 hours.':'Used on this phone for the blue dot and distances.')+'</p>'+
+    '<div class="btns" style="margin-top:12px"><button class="btn ghost" data-act="closeModal">Not now</button><button class="btn teal" data-act="locOn">Share my location</button></div>');
 }
 
 // ================= RENDER =================
@@ -778,6 +771,9 @@ document.addEventListener('click',e=>{
     case 'filters': setTab('stops'); setDrawer('full'); break;
     case 'gps': if(S.gpsOn){ map.setView([S.gps?S.gps.lat:30.262,S.gps?S.gps.lng:-97.712],Math.max(map.getZoom(),15)); if(S.gps) break; } gpsPrompt(); break;
     case 'gpsOn': closeModal(); startGps(); break;
+    case 'locOn': closeModal(); locOn(); break;
+    case 'renameCrew': { if(!crewOn()) break; openModal('<h2 style="font-size:20px">Crew name</h2><label class="f">Name</label><input type="text" id="crewNameIn" maxlength="40" value="'+esc(C.plan&&C.plan.name||'')+'" placeholder="e.g. Saturday East Side"><div class="btns" style="margin-top:14px"><button class="btn violet" data-act="saveCrewName">Save</button></div>'); break; }
+    case 'saveCrewName': { const v=($('#crewNameIn').value||'').trim().slice(0,40); closeModal(); setPlan({name:v}); break; }
     case 'shareFor': closeModal(); startShare(+t.dataset.h); break;
     case 'pickStart': setDrawer('peek'); toast('Tap the map where you are'); S.pick=pt=>{ S.cur={lat:pt.lat,lng:pt.lng,n:null}; save(); pushStatus(); setDrawer('half'); renderAll(); }; break;
     case 'newMeet': meetEditor({}); break;
@@ -808,7 +804,7 @@ document.addEventListener('click',e=>{
     case 'shareCrew': copy('Join my Studio Tour bike crew: '+crewLink(),'Invite link copied'); break;
     case 'leaveCrew': stopShare(); S.crew=null; save(); location.href=location.pathname; break;
     case 'askName': askName(); break;
-    case 'saveName': { const v=($('#nameIn').value||'').trim().slice(0,30); if(!v){ toast('Type a name'); break; } S.name=v; save(); closeModal(); if(C.uid) fbSet('members/'+C.uid,{name:v,ts:Date.now()}); renderAll(); if(S._created) S._created(); break; }
+    case 'saveName': { const v=($('#nameIn').value||'').trim().slice(0,30); if(!v){ toast('Type a name'); break; } S.name=v; save(); const cn=$('#crewNameIn')?($('#crewNameIn').value||'').trim().slice(0,40):null; closeModal(); if(cn!=null) setPlan({name:cn||(v+'’s crew')}); if(C.uid) fbSet('members/'+C.uid,{name:v,ts:Date.now()}); renderAll(); if(S._created) S._created(); break; }
     case 'exitDemo': if(window.AST_PREVIEW){ location.hash='solo'; location.reload(); } else location.href=location.pathname; break;
     case 'menu': openMenu(); break;
     case 'resetPhone': openModal('<h2 style="font-size:20px">Start fresh on this phone?</h2><p class="small muted">Clears the route, stars, visited stops, start point and saved name on this phone'+(S.crew?', and leaves the crew on this phone (the crew itself and everyone else’s data are not touched)':'')+'.</p><div class="btns"><button class="btn ghost" data-act="closeModal">Cancel</button><button class="btn coral" data-act="resetYes">Start fresh</button></div>'); break;
@@ -819,8 +815,7 @@ document.addEventListener('click',e=>{
   }
 });
 document.addEventListener('change',e=>{
-  if(e.target.id==='gpsSw'){ if(e.target.checked) startGps(); else stopGps(); }
-  if(e.target.id==='shareSw'){ if(e.target.checked){ e.target.checked=false; openModal('<h2 style="font-size:20px">Share your live location?</h2><p class="small muted">Your crew sees your dot on the map while this page is open. It stops automatically.</p><div class="btns" style="margin-top:10px"><button class="btn sm violet" data-act="shareFor" data-h="1">1 hour</button><button class="btn sm violet" data-act="shareFor" data-h="3">3 hours</button><button class="btn sm violet" data-act="shareFor" data-h="6">6 hours</button></div><div class="btns" style="margin-top:8px"><button class="btn ghost" data-act="closeModal">Cancel</button></div>'); } else stopShare(); }
+  if(e.target.id==='locSw'){ if(e.target.checked) locOn(); else stopGps(); }
 });
 $('#modal').addEventListener('click',e=>{ if(e.target.id==='modal') closeModal(); });
 document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeModal(); });
@@ -831,14 +826,14 @@ document.addEventListener('visibilitychange',()=>{ if(document.visibilityState!=
 // ================= DEMO CREW (?demo=1) =================
 const DB={};
 function demoWrite(p,v){ const ks=p.split('/'); let o=DB; for(let i=0;i<ks.length-1;i++){ o[ks[i]]=o[ks[i]]||{}; o=o[ks[i]]; } if(v==null) delete o[ks[ks.length-1]]; else o[ks[ks.length-1]]=JSON.parse(JSON.stringify(v)); demoSync(); }
-function demoSync(){ const c=x=>JSON.parse(JSON.stringify(x||{})); const pl=DB.plan||{}; C.plan={stops:(pl.stops||[]).slice(),visited:(pl.visited||[]).slice(),ts:pl.ts,by:pl.by}; C.members=c(DB.members); C.status=c(DB.status); C.pos=c(DB.pos); C.meets=c(DB.meetups); renderAll(); }
+function demoSync(){ const c=x=>JSON.parse(JSON.stringify(x||{})); const pl=DB.plan||{}; C.plan={stops:(pl.stops||[]).slice(),visited:(pl.visited||[]).slice(),name:pl.name||'',ts:pl.ts,by:pl.by}; C.members=c(DB.members); C.status=c(DB.status); C.pos=c(DB.pos); C.meets=c(DB.meetups); renderAll(); }
 function seedDemo(){
   C.fb={demo:true}; C.uid='me'; C.ready=true;
   const now=Date.now(), min=60e3, L18=LOC.get(18);
   const jit=(l,a,b)=>({lat:+(l.lat+a).toFixed(5),lng:+(l.lng+b).toFixed(5)});
   // the group of four is at Canopy (#18) and has already done #46 and #272
   S.cur={lat:L18.lat,lng:L18.lng,n:18};
-  DB.plan={stops:[46,272,18,33,40,117,101,5],visited:[46,272,18],ts:now-6*min,by:'maya'};
+  DB.plan={stops:[46,272,18,33,40,117,101,5],visited:[46,272,18],name:'Saturday East Side',ts:now-6*min,by:'maya'};
   DB.members={me:{name:'Ryan',ts:now},maya:{name:'Maya',ts:now},jordan:{name:'Jordan',ts:now},priya:{name:'Priya',ts:now},sam:{name:'Sam',ts:now},alex:{name:'Alex',ts:now},tess:{name:'Tess',ts:now}};
   const loose={sam:{n:101,next:20},alex:{n:12,next:33},tess:{n:111,next:20}};
   DB.status={me:{at:18,next:33,favs:[33,101,40],ts:now-2*min}};

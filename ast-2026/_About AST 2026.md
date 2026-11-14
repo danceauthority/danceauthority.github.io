@@ -88,3 +88,5 @@ The Firebase web config is not a secret. Google designs it to sit in public web 
 - 2026-11-14: One-line title; the day picker and crew status moved into a menu (☰, green dot = crew connected). Switching Route / Stops / Meet / Crew now moves the map to show those items and fades everything else.
 - 2026-11-11: Added demo crew (`?demo=1`), a close (X) button on every pop-up, and renamed the meetup form to "Propose a meetup" with the field "Proposed time to meet".
 - 2026-11-11: Meetup 👍/👎 responses replace single-choice votes (Firebase path `meetups/<id>/rsvp/<option>/<person>`). Re-paste `database.rules.json` if Firebase was already set up.
+
+- 2026-11-14: Location sharing now survives page reloads (iPhones reload background tabs often), and a rider's dot no longer disappears when their phone locks; it shows their last position, up to 30 minutes old.

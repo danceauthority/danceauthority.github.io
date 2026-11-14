@@ -229,7 +229,7 @@ function setPlan(patch){
   else { S.plan=next.stops; S.visited=next.visited; save(); }
   pushStatus(); renderAll();
 }
-function nameOf(uid){ if(uid===(C.uid||'me')) return 'You'; return (C.members[uid]&&C.members[uid].name)||'Crew member'; }
+function nameOf(uid){ if(uid===(C.uid||'me')) return 'You'; return (C.members[uid]&&C.members[uid].name)||'New rider (no name yet)'; }
 function initial(uid){ const n=nameOf(uid); return n==='You'?(S.name||'Y')[0].toUpperCase():(n[0]||'?').toUpperCase(); }
 const FBV='10.12.2';
 async function initCrew(){
@@ -251,8 +251,9 @@ async function initCrew(){
     db.onValue(r('status'),s=>{ C.status=s.val()||{}; renderAll(); });
     db.onValue(r('pos'),s=>{ C.pos=s.val()||{}; renderMapPeople(); if(S.tab==='crew') renderDrawer(); });
     db.onValue(r('meetups'),s=>{ C.meets=s.val()||{}; renderAll(); });
-    if(S.name) fbSet('members/'+C.uid,{name:S.name.slice(0,40),ts:Date.now()});
-    else setTimeout(()=>askName(),400);
+    fbSet('members/'+C.uid,{name:(S.name||'').slice(0,40),ts:Date.now()});
+    pushStatus();
+    if(!S.name) setTimeout(()=>askName(),400);
     if(new URLSearchParams(location.search).get('new')){ history.replaceState(null,'',location.pathname+'?crew='+S.crew); S._created=()=>{ S._created=null; openModal('<h2 style="font-size:20px">Crew created</h2><p class="small muted">Send this link to your friends. Anyone with it can join, see the route and meetups, and see live locations of people who opt in.</p><div class="card" style="background:var(--cream);word-break:break-all">'+esc(crewLink())+'</div><div class="btns"><button class="btn violet" data-act="shareCrew">Share invite</button></div>'); }; if(S.name) setTimeout(S._created,600); }
     db.onDisconnect(r('pos/'+C.uid)).remove();
   }catch(e){ C.err=String(e.code||e.message||e); renderAll(); }
@@ -697,7 +698,7 @@ function crewView(){
     if(!mem.length) s+='<div class="small muted" style="margin-top:6px">Nobody else yet — tap Invite.</div>';
     mem.sort((a,b)=>((C.status[b]||{}).ts||0)-((C.status[a]||{}).ts||0)).forEach(uid=>{ const st=C.status[uid]||{}; const pos=C.pos[uid]; const at=st.at?LOC.get(st.at):null, nx=st.next?LOC.get(st.next):null; const live=pos&&Date.now()-pos.ts<30*60e3;
       const h=here(); const dist=live&&h?bikeMi(h,pos):null;
-      s+='<div class="friend"><div class="av" style="'+(uid===C.uid?'background:var(--sky)':'')+'">'+esc(initial(uid))+'</div><div class="grow"><div style="font-weight:600">'+esc(nameOf(uid))+(live?' <span class="tag" style="background:#efe7fb;color:#5b33b4;border-color:#d9c9f5">live</span>':'')+(dist!=null&&uid!==C.uid&&dist<0.12?' <span class="tag fam">with you</span>':'')+'</div><div class="small muted">'+(at?'At #'+at.n+' '+esc(at.v):'No check-in')+(nx?' → next #'+nx.n:'')+(st.ts?' · '+ago(st.ts):'')+(dist!=null&&uid!==C.uid?' · '+fmtMi(dist)+' away':'')+'</div></div>'+(live&&uid!==C.uid?'<button class="btn sm ghost" data-act="showOnMap" data-lat="'+pos.lat+'" data-lng="'+pos.lng+'">Map</button>':'')+'</div>'; });
+      s+='<div class="friend"><div class="av" style="'+(uid===C.uid?'background:var(--sky)':'')+'">'+esc(initial(uid))+'</div><div class="grow"><div style="font-weight:600">'+esc(nameOf(uid))+(live?' <span class="tag" style="background:#efe7fb;color:#5b33b4;border-color:#d9c9f5">live</span>':'')+(dist!=null&&uid!==C.uid&&dist<0.12?' <span class="tag fam">with you</span>':'')+'</div><div class="small muted">'+(at?'At #'+at.n+' '+esc(at.v):'Joined'+((C.members[uid]||{}).ts?' '+ago(C.members[uid].ts):''))+(nx?' → next #'+nx.n:'')+(at&&st.ts?' · '+ago(st.ts):'')+(dist!=null&&uid!==C.uid?' · '+fmtMi(dist)+' away':'')+'</div></div>'+(live&&uid!==C.uid?'<button class="btn sm ghost" data-act="showOnMap" data-lat="'+pos.lat+'" data-lng="'+pos.lng+'">Map</button>':'')+'</div>'; });
     s+='</div>';
     s+='<button class="btn sm ghost" data-act="leaveCrew">Leave crew on this phone</button>';
   }
@@ -706,7 +707,7 @@ function crewView(){
   return s;
 }
 function ago(ts){ const m=Math.round((Date.now()-ts)/60e3); if(m<1) return 'just now'; if(m<60) return m+' min ago'; return Math.round(m/60)+'h ago'; }
-function askName(){ openModal('<h2 style="font-size:20px">What should the crew call you?</h2><label class="f">Name</label><input type="text" id="nameIn" maxlength="30" value="'+esc(S.name)+'" placeholder="e.g. Ryan"><div class="btns" style="margin-top:14px"><button class="btn violet" data-act="saveName">Save</button></div>'); setTimeout(()=>$('#nameIn')&&$('#nameIn').focus(),100); }
+function askName(){ openModal('<h2 style="font-size:20px">What should the crew call you?</h2><p class="small muted" style="margin:4px 0 0">You’re already in the crew — this is just the name they’ll see.</p><label class="f">Name</label><input type="text" id="nameIn" maxlength="30" value="'+esc(S.name)+'" placeholder="e.g. Ryan"><div class="btns" style="margin-top:14px"><button class="btn violet" data-act="saveName">Save</button></div>'); setTimeout(()=>$('#nameIn')&&$('#nameIn').focus(),100); }
 function gpsPrompt(){
   openModal('<h2 style="font-size:20px">Use your location?</h2><p class="small muted">Your phone will ask for permission. Location is used on this phone for the blue dot, distances, and “you’re at a stop” check-ins. Nothing is sent to anyone unless you also turn on crew sharing.</p>'+
     '<div class="btns" style="margin-top:12px"><button class="btn ghost" data-act="closeModal">Not now</button><button class="btn teal" data-act="gpsOn">Use on this phone</button></div>'+
@@ -824,7 +825,7 @@ document.addEventListener('change',e=>{
 $('#modal').addEventListener('click',e=>{ if(e.target.id==='modal') closeModal(); });
 document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeModal(); });
 setInterval(()=>{ if(S.shareOn) maybeShare(); renderMapPeople(); },30e3);
-document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible'&&S.shareOn) maybeShare(true); });
+document.addEventListener('visibilitychange',()=>{ if(document.visibilityState!=='visible') return; if(S.shareOn) maybeShare(true); if(C.fb&&C.uid&&!DEMO){ fbSet('members/'+C.uid,{name:(S.name||'').slice(0,40),ts:Date.now()}); pushStatus(); } });
 
 
 // ================= DEMO CREW (?demo=1) =================

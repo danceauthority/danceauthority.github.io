@@ -91,3 +91,4 @@ The Firebase web config is not a secret. Google designs it to sit in public web 
 
 - 2026-11-14: Location sharing now survives page reloads (iPhones reload background tabs often), and a rider's dot no longer disappears when their phone locks; it shows their last position, up to 30 minutes old.
 - 2026-11-14: When a crew member opens the app with location off, a banner offers one tap to turn it on.
+- 2026-11-14: Whoever proposed a meetup time can change its time or place (✎ Change time/place). Changing it clears the old votes so the crew answers again.

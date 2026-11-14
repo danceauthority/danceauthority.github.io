@@ -735,7 +735,7 @@ function meetView(){
         '<div style="margin-bottom:3px"><b>👎 '+p.down.length+'</b> '+(p.down.length?nameList(p.down):'<span class="muted">—</span>')+'</div>'+
         (crewOn()&&noAns.length?'<div class="muted">No answer: '+nameList(noAns)+'</div>':'')+'</div>'+
         '<div class="btns" style="margin-top:8px"><a class="btn sm teal" target="_blank" rel="noopener" href="'+apple(l||p)+'">'+I.nav+' Apple</a><a class="btn sm ghost" target="_blank" rel="noopener" href="'+google(p)+'">'+I.g+' Google</a><button class="btn sm ghost" data-act="showOnMap" data-lat="'+p.lat+'" data-lng="'+p.lng+'">Map</button></div>'+
-        (p.by===me&&!locked?'<button class="btn sm ghost" style="margin-top:6px" data-act="delProp" data-m="'+mt.id+'" data-p="'+p.id+'">Withdraw this option</button>':'')+'</div>'; });
+        (p.by===me?'<div class="btns" style="margin-top:6px"><button class="btn sm ghost" data-act="editProp" data-m="'+mt.id+'" data-p="'+p.id+'">✎ Change time/place</button>'+(!locked?'<button class="btn sm ghost" data-act="delProp" data-m="'+mt.id+'" data-p="'+p.id+'">Withdraw</button>':'')+'</div>':'')+'</div>'; });
     s+='<div class="btns" style="margin-top:10px">'+(mt.meta.locked?'<button class="btn sm ghost" data-act="unlock" data-m="'+mt.id+'">Reopen</button>':'<button class="btn sm ghost" data-act="altMeet" data-m="'+mt.id+'">Propose another time/place</button><button class="btn sm teal" data-act="lock" data-m="'+mt.id+'"'+(ps.length&&ps[0].up.length?'':' disabled')+'>Lock in top option</button>')+'<button class="btn sm ghost" data-act="shareMeet" data-m="'+mt.id+'">Share</button></div>';
     if(mt.meta.by===me) s+='<button class="btn sm ghost" style="margin-top:8px" data-act="delMeet" data-m="'+mt.id+'">Delete meetup</button>';
     s+='</div>'; });
@@ -747,7 +747,7 @@ function meetEditor(opts){
   S._draft=Object.assign({day:dayDate(S.day),time:'',note:''},opts||{});
   const dr=S._draft; const pl=dr.place;
   const now=new Date(); const def=(()=>{ const d=new Date(now.getTime()+60*60e3); return String(d.getHours()).padStart(2,'0')+':'+String(Math.round(d.getMinutes()/15)*15%60).padStart(2,'0'); })();
-  const hTitle=dr.mid?'Propose another time & place':'Propose a meetup';
+  const hTitle=dr.editPid?'Change your proposal':dr.mid?'Propose another time & place':'Propose a meetup';
   const titleF=!dr.mid?'<label class="f">What’s it for? (optional)</label><input type="text" id="mTitle" maxlength="60" placeholder="e.g. Lunch break, regroup, final drinks" value="'+esc(dr.title||'')+'">':'';
   const whereF='<label class="f">Where</label><div class="card" style="margin:0;background:var(--cream)" id="mPlace">'+(pl?'<b>'+esc(pl.label)+'</b>'+(pl.n?' <span class="small muted">#'+pl.n+'</span>':''):'<span class="muted small">Not chosen yet</span>')+'</div>'+
     '<div class="btns" style="margin-top:8px"><button class="btn sm ghost" data-act="mPickMap">'+I.pin+' '+(pl&&!pl.n?'Move pin':'Tap on map')+'</button><button class="btn sm ghost" data-act="mPickStop">Pick a stop</button>'+(here()?'<button class="btn sm ghost" data-act="mPickHere">Where I am</button>':'')+'</div>'+
@@ -757,8 +757,8 @@ function meetEditor(opts){
   const noteF='<label class="f">Note (optional)</label><input type="text" id="mNote" maxlength="120" value="'+esc(dr.note||'')+'" placeholder="e.g. by the bike racks">';
   const body = dr.fromPin ? whenF+titleF+whereF+noteF : titleF+whereF+whenF+noteF;
   openModal('<h2 style="font-size:20px">'+hTitle+'</h2>'+body+
-    '<div class="small muted" style="margin-top:10px">You’ll be marked 👍 on this. Everyone else answers 👍 or 👎.</div>'+
-    '<div class="btns" style="margin-top:12px"><button class="btn ghost" data-act="closeModal">Cancel</button><button class="btn coral" data-act="saveProp">'+(dr.mid?'Propose':'Propose meetup')+'</button></div>');
+    '<div class="small muted" style="margin-top:10px">'+(dr.editPid?'Changing it clears the old 👍/👎 so everyone answers again for the new time.':'You’ll be marked 👍 on this. Everyone else answers 👍 or 👎.')+'</div>'+
+    '<div class="btns" style="margin-top:12px"><button class="btn ghost" data-act="closeModal">Cancel</button><button class="btn coral" data-act="saveProp">'+(dr.editPid?'Save change':dr.mid?'Propose':'Propose meetup')+'</button></div>');
 }
 function focusTime(){ setTimeout(()=>{ const t=$('#mTime'); if(t&&S._draft&&S._draft.fromPin){ t.focus(); try{ t.showPicker&&t.showPicker(); }catch(e){} } },150); }
 function readDraft(){ const d=S._draft; if($('#mTitle')) d.title=$('#mTitle').value; d.day=$('#mDay').value; d.time=$('#mTime').value; d.note=$('#mNote').value; if(d.place) d.place.label=$('#mLabel').value.trim()||d.place.label; }
@@ -772,6 +772,7 @@ function saveProp(){
   const me=C.uid||'me'; const pid='p'+Date.now().toString(36)+Math.random().toString(36).slice(2,5);
   const prop={by:me,ts:Date.now(),n:d.place.n||null,lat:d.place.lat,lng:d.place.lng,label:(d.place.label||'Meetup spot').slice(0,60),when,day:d.day,note:(d.note||'').slice(0,120)};
   closeModal();
+  if(d.editPid){ const mt=(meetups()||{})[d.mid]||{}; writeMeet(d.mid,'props/'+pid,prop); writeMeet(d.mid,'rsvp/'+pid+'/'+me,1); writeMeet(d.mid,'props/'+d.editPid,null); if(mt.meta&&mt.meta.locked===d.editPid) writeMeet(d.mid,'meta/locked',pid); log('edit_prop'); toast('Changed — the crew will be asked to 👍 again'); setTab('meet'); return; }
   if(d.mid){ writeMeet(d.mid,'props/'+pid,prop); writeMeet(d.mid,'rsvp/'+pid+'/'+me,1); toast('New option proposed — you’re 👍 on it'); }
   else { const mid='m'+Date.now().toString(36)+Math.random().toString(36).slice(2,5); writeMeet(mid,'meta',{by:me,ts:Date.now(),title:(d.title||'Meetup').slice(0,60),locked:null}); writeMeet(mid,'props/'+pid,prop); writeMeet(mid,'rsvp/'+pid+'/'+me,1); toast('Meetup proposed — the crew can 👍 or 👎'); }
   setTab('meet');
@@ -888,6 +889,7 @@ document.addEventListener('click',e=>{
     case 'pickStart': setDrawer('peek'); toast('Tap the map where you are'); S.pick=pt=>{ S.cur={lat:pt.lat,lng:pt.lng,n:null}; save(); pushStatus(); setDrawer('half'); renderAll(); }; break;
     case 'newMeet': meetEditor({}); break;
     case 'altMeet': meetEditor({mid:t.dataset.m}); break;
+    case 'editProp': { const mt=(meetups()||{})[t.dataset.m]; const p=mt&&mt.props&&mt.props[t.dataset.p]; if(!p) break; const w=new Date(p.when); meetEditor({mid:t.dataset.m,editPid:t.dataset.p,day:p.day||dayDate(S.day),time:String(w.getHours()).padStart(2,'0')+':'+String(w.getMinutes()).padStart(2,'0'),note:p.note||'',place:{n:p.n||null,lat:p.lat,lng:p.lng,label:p.label}}); break; }
     case 'proposeAt': { const l=LOC.get(n); const ms=upcomingMeets().filter(m=>!m.meta.locked); if(ms.length){ openModal('<h2 style="font-size:20px">Meet at #'+n+'?</h2><p class="small muted">'+esc(l.v)+'</p>'+ms.map(m=>'<button class="btn ghost block" style="margin-top:8px" data-act="altAt" data-m="'+m.id+'" data-n="'+n+'">Propose as alternative for “'+esc(m.meta.title)+'”</button>').join('')+'<button class="btn coral block" style="margin-top:8px" data-act="newAt" data-n="'+n+'">New meetup here</button>'); } else meetEditor({place:{n,lat:l.lat,lng:l.lng,label:l.v}}); break; }
     case 'altAt': { const l=LOC.get(n); meetEditor({mid:t.dataset.m,place:{n,lat:l.lat,lng:l.lng,label:l.v}}); break; }
     case 'newAt': { const l=LOC.get(n); meetEditor({place:{n,lat:l.lat,lng:l.lng,label:l.v}}); break; }

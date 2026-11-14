@@ -23,7 +23,7 @@ Live address once published: https://danceauthority.github.io/ast-2026/
 - **Meetups.** Drop a pin (the coral pin button on the map, or Meet › Drop a pin) and the app asks for a time right away. You can also start from a stop or from where you are now. Every proposed time and place shows a 👍 / 👎 list of who can and can't make it, plus who hasn't answered yet. Anyone can propose another time and place. The option with the most 👍 rises to the top, and anyone can lock it in. Only the person who proposed an option can withdraw it, and only the person who started a meetup can delete it.
 - **GPS (opt-in, two levels).**
   1. *Use my location on this phone.* This gives the blue dot, distances and the "you're at a stop" check-in prompt. Nothing leaves the phone.
-  2. *Share live location with the crew* for 1, 3 or 6 hours. It turns itself off when the time is up, and it's removed when the person switches it off or closes the page. Updates go out about every 90 seconds or every 60 m moved. Phones only send updates while the page is open on screen, which is a browser limit.
+  2. *Share my location* (one switch on the Crew tab): in a crew, others see your dot. It turns itself off after 8 hours, and it's removed when the person switches it off or closes the page. Updates go out about every 90 seconds or every 60 m moved. Phones only send updates while the page is open on screen, which is a browser limit.
 - **Demo crew** (add `?demo=1` to the address): loads sample data for 7 riders. You, Maya, Jordan and Priya are together at Canopy partway through the shared route. Sam, Alex and Tess are on their own around town, with live dots that drift. Sam and Alex have proposed conflicting lunch plans that are tied 3–3. Nothing in demo mode is saved or sent anywhere.
 - **Solo mode** (no Firebase): everything is saved on each phone, and routes and meetups can be shared as text or as a `?plan=18,101,33` link.
 
@@ -58,6 +58,7 @@ The Firebase web config is not a secret. Google designs it to sit in public web 
 - Phone storage key: `ast26-crew-v2`.
 
 ## Log
+- 2026-11-14: Crew tab condensed: crew name at the top (tap to rename; set when the crew is started), riders listed right under it, and a single "Share my location" switch (shares with the crew, turns off after 8 hours). Crew name is saved with the crew route.
 - 2026-11-14: Fix: people who open the invite link now appear in the crew right away, even before entering a name (shown as "New rider (no name yet)").
 - 2026-11-14: Slimmer header; menu has "Start fresh on this phone" (clears this phone's route, stars, name and crew link).
 - 2026-11-10: Created folder; first version published.

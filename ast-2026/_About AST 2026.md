@@ -41,6 +41,7 @@ This needs your personal Google account (ryangossen@gmail.com). Nothing in here 
 The Firebase web config is not a secret. Google designs it to sit in public web pages. The security rules are what protect the data.
 
 ## Where it stands
+- Nov 14, 2026: Crew sync turned on — Firebase project "ast-mc" (personal Google account, ryangossen@gmail.com), Realtime Database in the US, anonymous sign-in, rules from database.rules.json published.
 - Nov 11, 2026: Meetups changed to 👍/👎 per proposed time and place, with name lists; dropping a pin goes straight to choosing a time.
 - Nov 10, 2026: v2 built (map-first planning, full descriptions, real bike route lines, meetup voting, opt-in GPS, Firebase sync).
 - Tested in a phone-size browser in solo mode and with two simulated crew members (shared route, proposals, votes, live location). It hasn't been tested against a real Firebase project yet, so do a two-phone test before Saturday.

@@ -1,14 +1,14 @@
-// Crew sync settings (Firebase Realtime Database).
-// Leave as null and the app runs "solo": everything is saved on each phone and
-// routes/meetups are shared as text. To turn on live crew sync, follow
-// "_About AST 2026.md" in this folder and paste your Firebase web config below.
-window.AST_FIREBASE = null;
-/* Example — replace with the values from Firebase console › Project settings › Your apps › Web app:
+// Crew sync settings (Firebase Realtime Database, project "ast-mc",
+// created under Ryan's personal Google account).
+// This web config is not a secret — it identifies the project. The security
+// rules in database.rules.json (published in the Firebase console) protect the data.
+// Set to null to switch the app back to solo mode.
 window.AST_FIREBASE = {
-  apiKey: "AIza...",
-  authDomain: "your-project.firebaseapp.com",
-  databaseURL: "https://your-project-default-rtdb.firebaseio.com",
-  projectId: "your-project",
-  appId: "1:1234567890:web:abc123"
+  apiKey: "AIzaSyCdLzL_uDhF3AE-ZvcXr4i6yQPv2I3Wgsg",
+  authDomain: "ast-mc.firebaseapp.com",
+  databaseURL: "https://ast-mc-default-rtdb.firebaseio.com",
+  projectId: "ast-mc",
+  storageBucket: "ast-mc.firebasestorage.app",
+  messagingSenderId: "464331233518",
+  appId: "1:464331233518:web:2c7a5d0571c45e103bfbff"
 };
-*/

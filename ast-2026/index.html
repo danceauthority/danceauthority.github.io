@@ -121,12 +121,6 @@ select.chip{appearance:none;-webkit-appearance:none;padding-right:22px;backgroun
 .modal .box{position:relative;background:var(--paper);width:100%;border-radius:18px 18px 0 0;padding:16px 14px calc(16px + var(--sb));max-height:88%;overflow-y:auto}
 label.f{display:block;font-size:12px;font-weight:600;color:var(--mute);margin:12px 0 4px}
 .sugg,.friend{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line)}
-.tok{display:inline-flex;align-items:center;justify-content:center;flex:none;border-radius:50%;border:2.5px solid #7a4fd6;background:radial-gradient(circle at 34% 28%,#ffffff 0%,#e4e7eb 38%,#b7bdc5 72%,#8e959e 100%);box-shadow:0 1px 4px rgba(0,0,0,.35),inset 0 -2px 3px rgba(0,0,0,.18);line-height:1}
-.tok i{font-style:normal;filter:grayscale(1) contrast(1.25) brightness(.95) drop-shadow(0 1px 0 rgba(255,255,255,.7));transform:translateY(1px)}
-.tokgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:6px}
-.tokpick{border:2px solid var(--line);background:var(--paper);border-radius:12px;padding:8px 2px 6px;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:11px;color:var(--mute)}
-.tokpick.on{border-color:var(--sky);background:#eef3fd;color:var(--ink)}
-.tokpick:disabled{opacity:.35}
 .av{width:30px;height:30px;border-radius:50%;background:var(--violet);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex:none}
 .empty{padding:22px 12px;text-align:center;color:var(--mute)}
 .hr{height:1px;background:var(--line);margin:10px 0}
@@ -211,12 +205,12 @@ function defaultDay(){ const t=new Date(); const iso=t.getFullYear()+'-'+String(
 const S={
   favs:new Set(ld.favs||[]), plan:ld.plan||[], visited:ld.visited||[], cur:ld.cur||null, day:ld.day||defaultDay(),
   f:Object.assign({east:true,med:'',fam:false,drinks:false,music:false,demo:false,favs:false,hide:false},ld.f||{}),
-  speed:ld.speed||9, dwell:ld.dwell||20, name:ld.name||'', token:ld.token||'', crew:ld.crew||null, src:ld.src||'crew', localMeets:ld.localMeets||{},
+  speed:ld.speed||9, dwell:ld.dwell||20, name:ld.name||'', crew:ld.crew||null, src:ld.src||'crew', localMeets:ld.localMeets||{},
   gpsOn:false, shareOn:false, shareUntil:0, gps:null,
   tab:'route', stop:null, planMode:!!ld.planMode, drawer:'half', q:''
 };
 const DEMO=new URLSearchParams(location.search).has('demo')||location.hash==='#demo'||(!!window.AST_PREVIEW&&location.hash!=='#solo');
-function save(){ if(DEMO) return; try{ localStorage.setItem(KEY,JSON.stringify({token:S.token,favs:[...S.favs],plan:S.plan,visited:S.visited,cur:S.cur,day:S.day,f:S.f,speed:S.speed,dwell:S.dwell,name:S.name,crew:S.crew,src:S.src,localMeets:S.localMeets,planMode:S.planMode})); }catch(e){} }
+function save(){ if(DEMO) return; try{ localStorage.setItem(KEY,JSON.stringify({favs:[...S.favs],plan:S.plan,visited:S.visited,cur:S.cur,day:S.day,f:S.f,speed:S.speed,dwell:S.dwell,name:S.name,crew:S.crew,src:S.src,localMeets:S.localMeets,planMode:S.planMode})); }catch(e){} }
 const urlCrew=new URLSearchParams(location.search).get('crew');
 if(urlCrew && /^[a-z0-9]{8,24}$/.test(urlCrew)) S.crew=urlCrew;
 if(DEMO){ S.crew='demo'; S.src='crew'; S.day=1; S.name='Ryan'; }
@@ -236,13 +230,6 @@ function setPlan(patch){
   pushStatus(); renderAll();
 }
 function nameOf(uid){ if(uid===(C.uid||'me')) return 'You'; return (C.members[uid]&&C.members[uid].name)||'Crew member'; }
-const TOKENS=[['unicorn','🦄','Unicorn'],['seamonster','🐙','Sea monster'],['tophat','🎩','Top hat'],['bike','🚲','Bicycle'],['boot','👢','Boot'],['dog','🐕','Dog'],['cat','🐈','Cat'],['bat','🦇','Bat'],['cactus','🌵','Cactus'],['guitar','🎸','Guitar'],['rocket','🚀','Rocket'],['flamingo','🦩','Flamingo'],['taco','🌮','Taco'],['ufo','🛸','UFO'],['dino','🦖','Dinosaur'],['palette','🎨','Paint palette']];
-const RINGS=['#7a4fd6','#E2533F','#16756F','#E9A21B','#0f8a8a','#c2185b','#5b7f1a','#8a5a00'];
-function hash(str){ let h=0; for(const ch of String(str)) h=(h*31+ch.charCodeAt(0))>>>0; return h; }
-function tokenKey(uid){ const me=C.uid||'me'; const m=(C.members||{})[uid]; const k=uid===me?(S.token||(m&&m.token)):(m&&m.token); if(k&&TOKENS.some(t=>t[0]===k)) return k; return TOKENS[hash(uid)%TOKENS.length][0]; }
-function tokenEmoji(uid){ return (TOKENS.find(t=>t[0]===tokenKey(uid))||TOKENS[0])[1]; }
-function tokenHTML(uid,sz,extra){ sz=sz||30; return '<span class="tok" style="width:'+sz+'px;height:'+sz+'px;font-size:'+Math.round(sz*0.58)+'px;border-color:'+(uid===(C.uid||'me')?'var(--sky)':RINGS[hash(uid)%RINGS.length])+';'+(extra||'')+'"><i>'+tokenEmoji(uid)+'</i></span>'; }
-function takenTokens(){ const me=C.uid||'me'; const t={}; Object.entries(C.members||{}).forEach(([u,m])=>{ if(u!==me&&m&&m.token) t[m.token]=nameOf(u); }); return t; }
 function initial(uid){ const n=nameOf(uid); return n==='You'?(S.name||'Y')[0].toUpperCase():(n[0]||'?').toUpperCase(); }
 const FBV='10.12.2';
 async function initCrew(){
@@ -264,7 +251,7 @@ async function initCrew(){
     db.onValue(r('status'),s=>{ C.status=s.val()||{}; renderAll(); });
     db.onValue(r('pos'),s=>{ C.pos=s.val()||{}; renderMapPeople(); if(S.tab==='crew') renderDrawer(); });
     db.onValue(r('meetups'),s=>{ C.meets=s.val()||{}; renderAll(); });
-    if(S.name) fbSet('members/'+C.uid,{name:S.name.slice(0,40),token:S.token||tokenKey(C.uid),ts:Date.now()});
+    if(S.name) fbSet('members/'+C.uid,{name:S.name.slice(0,40),ts:Date.now()});
     else setTimeout(()=>askName(),400);
     if(new URLSearchParams(location.search).get('new')){ history.replaceState(null,'',location.pathname+'?crew='+S.crew); S._created=()=>{ S._created=null; openModal('<h2 style="font-size:20px">Crew created</h2><p class="small muted">Send this link to your friends. Anyone with it can join, see the route and meetups, and see live locations of people who opt in.</p><div class="card" style="background:var(--cream);word-break:break-all">'+esc(crewLink())+'</div><div class="btns"><button class="btn violet" data-act="shareCrew">Share invite</button></div>'); }; if(S.name) setTimeout(S._created,600); }
     db.onDisconnect(r('pos/'+C.uid)).remove();
@@ -443,7 +430,7 @@ function renderMapPeople(){
   if(!crewOn()) return;
   Object.entries(C.pos).forEach(([uid,p])=>{ if(uid===C.uid||!p||Date.now()-p.ts>30*60e3||(p.until&&Date.now()>p.until)) return;
     const ageMin=Math.round((Date.now()-p.ts)/60e3);
-    peopleMks.push(L.marker([p.lat,p.lng],{icon:L.divIcon({className:'',html:tokenHTML(uid,32),iconSize:[32,32],iconAnchor:[16,16]}),zIndexOffset:950}).bindTooltip(esc(nameOf(uid))+(S.tab==='crew'?'':' · '+(ageMin<1?'now':ageMin+' min ago')),S.tab==='crew'?{permanent:true,direction:'auto',className:'pt-lbl'}:{direction:'top'}).addTo(map)); });
+    peopleMks.push(L.marker([p.lat,p.lng],{icon:L.divIcon({className:'',html:'<div class="mk friend" style="width:26px;height:26px;font-size:12px">'+esc(initial(uid))+'</div>',iconSize:[26,26],iconAnchor:[13,13]}),zIndexOffset:950}).bindTooltip(esc(nameOf(uid))+(S.tab==='crew'?'':' · '+(ageMin<1?'now':ageMin+' min ago')),S.tab==='crew'?{permanent:true,direction:'auto',className:'pt-lbl'}:{direction:'top'}).addTo(map)); });
 }
 function renderMeetMarkers(){
   if(!map) return;
@@ -698,7 +685,7 @@ function crewView(){
   else if(!S.crew){ s+='<div class="card"><h3 style="font-size:17px">Ride together</h3><div class="small muted" style="margin:6px 0 10px">Start a crew and send the link to your friends. Everyone with the link shares the route, meetups and check-ins.</div><button class="btn violet block" data-act="newCrew">Start a crew</button><label class="f">Have a crew code or link?</label><div class="row"><input type="text" id="joinCode" placeholder="paste link or code"><button class="btn sm ghost" data-act="joinCrew">Join</button></div></div>'; }
   else {
     s+='<div class="card"><div class="row"><div class="grow"><h3 style="font-size:17px">Your crew</h3><div class="small muted">'+(C.ready?'<span class="dot on"></span> Live':'Connecting…')+(C.err&&C.err!=='nocfg'?' · '+esc(C.err):'')+'</div></div><button class="btn sm violet" data-act="shareCrew">Invite</button></div>';
-    s+='<div class="row" style="margin-top:10px"><div class="grow small"><div class="row" style="gap:10px">'+tokenHTML(C.uid||'me',36)+'<div>You appear as <b>'+esc(S.name||'—')+'</b><div class="muted">'+esc((TOKENS.find(t=>t[0]===tokenKey(C.uid||'me'))||[])[2]||'')+'</div></div></div></div><button class="btn sm ghost" data-act="askName">Change</button></div>';
+    s+='<div class="row" style="margin-top:10px"><div class="grow small">You appear as <b>'+esc(S.name||'—')+'</b></div><button class="btn sm ghost" data-act="askName">Change</button></div>';
     s+='</div>';
     // location sharing
     s+='<div class="card"><div class="row"><div class="grow"><b>My location</b><div class="small muted">Only used on this phone unless you share it.</div></div><label class="switch"><input type="checkbox" id="gpsSw" '+(S.gpsOn?'checked':'')+'><span></span></label></div>';
@@ -710,7 +697,7 @@ function crewView(){
     if(!mem.length) s+='<div class="small muted" style="margin-top:6px">Nobody else yet — tap Invite.</div>';
     mem.sort((a,b)=>((C.status[b]||{}).ts||0)-((C.status[a]||{}).ts||0)).forEach(uid=>{ const st=C.status[uid]||{}; const pos=C.pos[uid]; const at=st.at?LOC.get(st.at):null, nx=st.next?LOC.get(st.next):null; const live=pos&&Date.now()-pos.ts<30*60e3;
       const h=here(); const dist=live&&h?bikeMi(h,pos):null;
-      s+='<div class="friend">'+tokenHTML(uid,36)+'<div class="grow"><div style="font-weight:600">'+esc(nameOf(uid))+(live?' <span class="tag" style="background:#efe7fb;color:#5b33b4;border-color:#d9c9f5">live</span>':'')+(dist!=null&&uid!==C.uid&&dist<0.12?' <span class="tag fam">with you</span>':'')+'</div><div class="small muted">'+(at?'At #'+at.n+' '+esc(at.v):'No check-in')+(nx?' → next #'+nx.n:'')+(st.ts?' · '+ago(st.ts):'')+(dist!=null&&uid!==C.uid?' · '+fmtMi(dist)+' away':'')+'</div></div>'+(live&&uid!==C.uid?'<button class="btn sm ghost" data-act="showOnMap" data-lat="'+pos.lat+'" data-lng="'+pos.lng+'">Map</button>':'')+'</div>'; });
+      s+='<div class="friend"><div class="av" style="'+(uid===C.uid?'background:var(--sky)':'')+'">'+esc(initial(uid))+'</div><div class="grow"><div style="font-weight:600">'+esc(nameOf(uid))+(live?' <span class="tag" style="background:#efe7fb;color:#5b33b4;border-color:#d9c9f5">live</span>':'')+(dist!=null&&uid!==C.uid&&dist<0.12?' <span class="tag fam">with you</span>':'')+'</div><div class="small muted">'+(at?'At #'+at.n+' '+esc(at.v):'No check-in')+(nx?' → next #'+nx.n:'')+(st.ts?' · '+ago(st.ts):'')+(dist!=null&&uid!==C.uid?' · '+fmtMi(dist)+' away':'')+'</div></div>'+(live&&uid!==C.uid?'<button class="btn sm ghost" data-act="showOnMap" data-lat="'+pos.lat+'" data-lng="'+pos.lng+'">Map</button>':'')+'</div>'; });
     s+='</div>';
     s+='<button class="btn sm ghost" data-act="leaveCrew">Leave crew on this phone</button>';
   }
@@ -719,12 +706,7 @@ function crewView(){
   return s;
 }
 function ago(ts){ const m=Math.round((Date.now()-ts)/60e3); if(m<1) return 'just now'; if(m<60) return m+' min ago'; return Math.round(m/60)+'h ago'; }
-function askName(){
-  const mine=tokenKey(C.uid||'me'); const taken=takenTokens(); S._tok=mine;
-  openModal('<h2 style="font-size:20px">Your name and game piece</h2><label class="f">Name</label><input type="text" id="nameIn" maxlength="30" value="'+esc(S.name)+'" placeholder="e.g. Ryan">'+
-    '<label class="f">Pick your piece — it’s what the crew sees on the map</label><div class="tokgrid">'+TOKENS.map(([k,e,n])=>'<button class="tokpick'+(k===mine?' on':'')+'" data-act="pickTok" data-k="'+k+'"'+(taken[k]?' disabled title="'+esc(taken[k])+' has this one"':'')+'><span class="tok" style="width:40px;height:40px;font-size:23px;border-color:'+(k===mine?'var(--sky)':'#c9c2b9')+'"><i>'+e+'</i></span>'+esc(taken[k]?taken[k]:n)+'</button>').join('')+'</div>'+
-    '<div class="btns" style="margin-top:14px"><button class="btn violet" data-act="saveName">Save</button></div>');
-  setTimeout(()=>{ const n=$('#nameIn'); if(n&&!n.value) n.focus(); },100); }
+function askName(){ openModal('<h2 style="font-size:20px">What should the crew call you?</h2><label class="f">Name</label><input type="text" id="nameIn" maxlength="30" value="'+esc(S.name)+'" placeholder="e.g. Ryan"><div class="btns" style="margin-top:14px"><button class="btn violet" data-act="saveName">Save</button></div>'); setTimeout(()=>$('#nameIn')&&$('#nameIn').focus(),100); }
 function gpsPrompt(){
   openModal('<h2 style="font-size:20px">Use your location?</h2><p class="small muted">Your phone will ask for permission. Location is used on this phone for the blue dot, distances, and “you’re at a stop” check-ins. Nothing is sent to anyone unless you also turn on crew sharing.</p>'+
     '<div class="btns" style="margin-top:12px"><button class="btn ghost" data-act="closeModal">Not now</button><button class="btn teal" data-act="gpsOn">Use on this phone</button></div>'+
@@ -824,8 +806,7 @@ document.addEventListener('click',e=>{
     case 'shareCrew': copy('Join my Studio Tour bike crew: '+crewLink(),'Invite link copied'); break;
     case 'leaveCrew': stopShare(); S.crew=null; save(); location.href=location.pathname; break;
     case 'askName': askName(); break;
-    case 'pickTok': { S._tok=t.dataset.k; document.querySelectorAll('.tokpick').forEach(b=>{ const on=b.dataset.k===S._tok; b.classList.toggle('on',on); const tk=b.querySelector('.tok'); if(tk) tk.style.borderColor=on?'var(--sky)':'#c9c2b9'; }); break; }
-    case 'saveName': { const v=($('#nameIn').value||'').trim().slice(0,30); if(!v){ toast('Type a name'); break; } S.name=v; if(S._tok) S.token=S._tok; save(); closeModal(); if(C.uid) fbSet('members/'+C.uid,{name:v,token:S.token||tokenKey(C.uid),ts:Date.now()}); renderAll(); if(S._created) S._created(); break; }
+    case 'saveName': { const v=($('#nameIn').value||'').trim().slice(0,30); if(!v){ toast('Type a name'); break; } S.name=v; save(); closeModal(); if(C.uid) fbSet('members/'+C.uid,{name:v,ts:Date.now()}); renderAll(); if(S._created) S._created(); break; }
     case 'exitDemo': if(window.AST_PREVIEW){ location.hash='solo'; location.reload(); } else location.href=location.pathname; break;
     case 'menu': openMenu(); break;
     case 'shrink': setDrawer('half'); renderDrawer(); setTimeout(fitTab,280); break;
@@ -854,8 +835,7 @@ function seedDemo(){
   // the group of four is at Canopy (#18) and has already done #46 and #272
   S.cur={lat:L18.lat,lng:L18.lng,n:18};
   DB.plan={stops:[46,272,18,33,40,117,101,5],visited:[46,272,18],ts:now-6*min,by:'maya'};
-  DB.members={me:{name:'Ryan',token:'tophat',ts:now},maya:{name:'Maya',token:'unicorn',ts:now},jordan:{name:'Jordan',token:'bike',ts:now},priya:{name:'Priya',token:'cat',ts:now},sam:{name:'Sam',token:'seamonster',ts:now},alex:{name:'Alex',token:'guitar',ts:now},tess:{name:'Tess',token:'bat',ts:now}};
-  if(!S.token) S.token='tophat';
+  DB.members={me:{name:'Ryan',ts:now},maya:{name:'Maya',ts:now},jordan:{name:'Jordan',ts:now},priya:{name:'Priya',ts:now},sam:{name:'Sam',ts:now},alex:{name:'Alex',ts:now},tess:{name:'Tess',ts:now}};
   const loose={sam:{n:101,next:20},alex:{n:12,next:33},tess:{n:111,next:20}};
   DB.status={me:{at:18,next:33,favs:[33,101,40],ts:now-2*min}};
   DB.pos={};

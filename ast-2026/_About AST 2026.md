@@ -16,7 +16,7 @@ Live address once published: https://danceauthority.github.io/ast-2026/
 
 ## How it works
 - **Menu (☰).** Holds the tour-day picker, the crew status, sharing and import, and demo on/off. The green dot on the button means crew sync is connected.
-- **Map follows the tab.** Route zooms to your route and fades other stops. Stops shows only the stops that match your search and filters. Meet shows the proposed meetup spots with time labels. Crew shows everyone's live position with name labels.
+- **Map follows the tab.** Route zooms to your route and fades other stops. Studios shows only the studios that match your search and filters. Meet shows the proposed meetup spots with time labels. Crew shows everyone's live position with name labels.
 - **Map first.** The map is the main screen. Tapping a stop opens its full listing in the bottom drawer: hours, parking notes, each artist's photo, "what to expect" and bio. **Plan mode** makes each tap add or remove a stop, which is the fast way to build a route.
 - **Route.** Drawn along bike-friendly streets using the free OSRM bike router (routing.openstreetmap.de). If that service is down, it falls back to straight dashed lines. "Optimize order" re-sorts the remaining stops into the shortest ride starting from where you are. ETAs use your pace (default 9 mph) plus time at each stop (default 20 min) and flag anything after 5pm.
 - **After each stop.** Tap "I'm here" (or accept the automatic "You're at #18" prompt when GPS is on). The app marks the stop visited, shows the planned next stop and suggests 3 nearby ones.
@@ -59,6 +59,7 @@ The Firebase web config is not a secret. Google designs it to sit in public web 
 ## Log
 - 2026-11-10: Created folder; first version published.
 - 2026-11-14: Renamed the app to "Austin Studio Tour Mission Control".
+- 2026-11-14: One route only — in a crew, everyone uses the crew route (the "Just mine" option is gone; stops planned before joining become the crew route if it is still empty). "Stops" tab renamed "Studios". Title and menu button centered.
 - 2026-11-14: Bottom panel can be dragged from anywhere (handle, tabs, or the list when it's scrolled to the top); a "Show the map" button appears when it's fully open.
 - 2026-11-14: One-line title; the day picker and crew status moved into a menu (☰, green dot = crew connected). Switching Route / Stops / Meet / Crew now moves the map to show those items and fades everything else.
 - 2026-11-11: Added demo crew (`?demo=1`), a close (X) button on every pop-up, and renamed the meetup form to "Propose a meetup" with the field "Proposed time to meet".

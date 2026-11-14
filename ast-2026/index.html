@@ -26,7 +26,7 @@ h1,h2,h3{font-family:Fraunces,Georgia,serif;margin:0;letter-spacing:-.01em}
 /* top bar */
 #top{position:fixed;left:0;right:0;top:0;z-index:900;padding:calc(8px + var(--st)) 10px 12px;background:linear-gradient(var(--cream) 70%,rgba(251,245,238,0));pointer-events:none}
 #top>*{pointer-events:auto}
-.brand{display:flex;align-items:center;gap:8px;justify-content:space-between}
+.brand{display:flex;align-items:center;gap:10px;justify-content:center}
 .brand h1{font-size:min(18px,4.35vw);font-weight:800;color:var(--ink);line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
 .brand h1 span{color:#E8781A}
 .hamb{position:relative;flex:none;width:42px;height:42px;border-radius:12px;background:var(--paper);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.1)}
@@ -163,7 +163,7 @@ label.f{display:block;font-size:12px;font-weight:600;color:var(--mute);margin:12
   <button class="fab" id="gpsBtn" data-act="gps" title="My location"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3.5"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="8"/></svg></button>
   <button class="fab" data-act="pinMeet" title="Drop a meetup pin" style="color:var(--coral)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><path d="M12 6.5v6M9 9.5h6"/></svg></button>
   <button class="fab" data-act="fit" title="Show whole route"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
-  <button class="fab" data-act="filters" title="Filters"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M7 12h10M10 18h4"/></svg></button>
+  <button class="fab" data-act="filters" title="Find studios"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M7 12h10M10 18h4"/></svg></button>
 </div>
 
 <div id="drawer" class="half">
@@ -218,7 +218,7 @@ if(DEMO){ S.crew='demo'; S.src='crew'; S.day=1; S.name='Ryan'; }
 // ================= CREW (Firebase) =================
 const C={fb:null,uid:null,ready:false,err:null,plan:null,members:{},status:{},pos:{},meets:{}};
 const crewOn=()=>!!(C.ready&&S.crew);
-const shared=()=>crewOn()&&S.src==='crew';
+const shared=()=>crewOn();
 function plan(){ return shared()&&C.plan?(C.plan.stops||[]):S.plan; }
 function visited(){ return new Set(shared()&&C.plan?(C.plan.visited||[]):S.visited); }
 function meetups(){ return crewOn()?C.meets:S.localMeets; }
@@ -246,7 +246,7 @@ async function initCrew(){
     C.fb={db,d,root:'crews/'+S.crew};
     const cred=await auth.signInAnonymously(au); C.uid=cred.user.uid;
     const r=p=>db.ref(d,C.fb.root+(p?'/'+p:''));
-    db.onValue(r('plan'),s=>{ const v=s.val(); C.plan=v?{stops:v.stops||[],visited:v.visited||[],ts:v.ts,by:v.by}:{stops:[],visited:[]}; C.ready=true; renderAll(); },e=>{ C.err=String(e.code||e); renderAll(); });
+    db.onValue(r('plan'),s=>{ const v=s.val(); C.plan=v?{stops:v.stops||[],visited:v.visited||[],ts:v.ts,by:v.by}:{stops:[],visited:[]}; C.ready=true; if(!C.seeded){ C.seeded=true; if(!(C.plan.stops||[]).length&&S.plan.length){ setPlan({stops:S.plan.slice(),visited:S.visited.slice()}); toast('Your planned stops are now the crew route'); } } renderAll(); },e=>{ C.err=String(e.code||e); renderAll(); });
     db.onValue(r('members'),s=>{ C.members=s.val()||{}; renderAll(); });
     db.onValue(r('status'),s=>{ C.status=s.val()||{}; renderAll(); });
     db.onValue(r('pos'),s=>{ C.pos=s.val()||{}; renderMapPeople(); if(S.tab==='crew') renderDrawer(); });
@@ -496,7 +496,7 @@ let rdT=null; function renderDrawerSoon(){ clearTimeout(rdT); rdT=setTimeout(ren
 function head(){
   const v=visited(); const remN=plan().filter(n=>!v.has(n)).length;
   const meK=C.uid||'me'; const nMeet=upcomingMeets().filter(mt=>!mt.meta.locked).reduce((a,mt)=>a+sortedProps(mt).filter(p=>!p.up.includes(meK)&&!p.down.includes(meK)).length,0);
-  const tabs=[['route','Route',remN],['stops','Stops',0],['meet','Meet',nMeet],['crew','Crew',0]];
+  const tabs=[['route','Route',remN],['stops','Studios',0],['meet','Meet',nMeet],['crew','Crew',0]];
   if(S.tab==='stop') return '<div class="row"><button class="btn sm ghost" data-act="back">'+I.back+' Back</button><div class="grow"></div><button class="btn sm ghost" data-act="expand">'+(S.drawer==='full'?'Less':'More')+'</button></div>';
   return (S.drawer==='full'?'<button class="btn sm ghost block" style="margin-bottom:8px" data-act="shrink">'+I.down+' Show the map</button>':'')+'<div class="seg">'+tabs.map(([k,l,b])=>'<button class="'+(S.tab===k?'on':'')+'" data-act="tab" data-v="'+k+'">'+l+(b?'<span class="badge">'+b+'</span>':'')+'</button>').join('')+'</div>'+(S.tab==='route'?routeSummary():'');
 }
@@ -558,7 +558,6 @@ function suggestions(k){ const h=here(); if(!h) return []; const p=plan(), v=vis
 function routeView(){
   const p=plan(), v=visited(), ls=legs(), h=here();
   let s='';
-  if(shared()&&C.plan&&!(C.plan.stops||[]).length&&S.plan.length) s+='<div class="card"><div class="small">The crew route is empty. You have '+S.plan.length+' stops saved on this phone.</div><button class="btn sm teal" style="margin-top:8px" data-act="pushMine">Use my saved route for the crew</button></div>';
   if(shared()) s+='<div class="small muted" style="margin:2px 0 8px">Shared crew route · last change by '+esc(C.plan&&C.plan.by?nameOf(C.plan.by):'—')+'</div>';
   if(!h) s+='<div class="card"><div class="row"><div class="grow small"><b>Where are you?</b><div class="muted">Turn on location, or set a start point, to get ride times.</div></div></div><div class="btns" style="margin-top:8px"><button class="btn sm teal" data-act="gps">Use my location</button><button class="btn sm ghost" data-act="pickStart">'+I.pin+' Tap on map</button></div></div>';
   if(ls.length){ const n=ls[0];
@@ -591,8 +590,8 @@ function stopsView(){
   let rows=ALL.filter(stopMatches);
   if(h) rows.sort((a,b)=>hav(h,a)-hav(h,b)); else rows.sort((a,b)=>(b.nArt-a.nArt)||(a.n-b.n));
   const total=rows.length;
-  s+='<div class="small muted" style="margin:8px 0 0">'+total+' stops open '+DAYS.find(d=>d.b===S.day).lbl+(f.east?' · East side':'')+(h?' · nearest first':' · biggest first')+'</div>';
-  if(!total) s+='<div class="empty">Nothing matches — try clearing a filter.</div>';
+  s+='<div class="small muted" style="margin:8px 0 0">'+total+' studios open '+DAYS.find(d=>d.b===S.day).lbl+(f.east?' · East side':'')+(h?' · nearest first':' · biggest first')+'</div>';
+  if(!total) s+='<div class="empty">No studios match — try clearing a filter.</div>';
   rows.slice(0,listLimit).forEach(l=>{ const fav=S.favs.has(l.n), inP=plan().includes(l.n), d=h?bikeMi(h,l):null;
     s+='<div class="stop"><div class="num '+numCls(l)+'">'+l.n+'</div><div class="grow" data-act="open" data-n="'+l.n+'"><h3>'+esc(l.v)+'</h3><div class="small muted">'+esc(l.a.replace(/ \d{5}$/,''))+(d!=null?' · '+fmtMi(d)+' · '+mins(d)+' min':'')+'</div><div>'+stopTags(l)+[...l.meds].slice(0,3).map(i=>'<span class="tag">'+esc(M[i])+'</span>').join('')+'</div></div><div style="display:flex;flex-direction:column;gap:6px"><button class="icon-btn star '+(fav?'on':'')+'" data-act="fav" data-n="'+l.n+'">'+(fav?I.star:I.starO)+'</button><button class="icon-btn add '+(inP?'on':'')+'" data-act="togglePlan" data-n="'+l.n+'">'+(inP?I.check:I.plus)+'</button></div></div>'; });
   if(total>listLimit) s+='<button class="btn ghost block" style="margin-top:10px" data-act="more">Show more ('+(total-listLimit)+')</button>';
@@ -687,7 +686,6 @@ function crewView(){
   else {
     s+='<div class="card"><div class="row"><div class="grow"><h3 style="font-size:17px">Your crew</h3><div class="small muted">'+(C.ready?'<span class="dot on"></span> Live':'Connecting…')+(C.err&&C.err!=='nocfg'?' · '+esc(C.err):'')+'</div></div><button class="btn sm violet" data-act="shareCrew">Invite</button></div>';
     s+='<div class="row" style="margin-top:10px"><div class="grow small">You appear as <b>'+esc(S.name||'—')+'</b></div><button class="btn sm ghost" data-act="askName">Change</button></div>';
-    s+='<div class="small" style="margin-top:10px;font-weight:600">Route</div><div class="row" style="margin-top:4px;gap:6px"><button class="chip sm '+(S.src==='crew'?'on':'')+'" data-act="src" data-v="crew">Shared crew route</button><button class="chip sm '+(S.src==='me'?'on':'')+'" data-act="src" data-v="me">Just mine</button></div>';
     s+='</div>';
     // location sharing
     s+='<div class="card"><div class="row"><div class="grow"><b>My location</b><div class="small muted">Only used on this phone unless you share it.</div></div><label class="switch"><input type="checkbox" id="gpsSw" '+(S.gpsOn?'checked':'')+'><span></span></label></div>';
@@ -724,7 +722,7 @@ function openMenu(){
   openModal('<div id="menuBox"><h2 style="font-size:20px">Mission Control</h2>'+
     '<div class="row small" style="margin-top:6px"><span class="dot'+(C.ready?' on':'')+'"></span><span>'+esc(statusText())+'</span></div>'+
     '<label class="f">Tour day</label><div class="menu-day">'+DAYS.map(d=>'<button class="chip '+(S.day===d.b?'on':'')+'" data-act="day" data-b="'+d.b+'">'+d.lbl+'</button>').join('')+'</div>'+
-    '<div class="small muted" style="margin-top:6px">Showing stops open '+dayLbl+'.</div>'+
+    '<div class="small muted" style="margin-top:6px">Showing studios open '+dayLbl+'.</div>'+
     '<div style="margin-top:10px">'+
     '<button class="menu-row" data-act="tab" data-v="crew" data-close="1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.5a3.5 3.5 0 0 1 0 7M18 14a6 6 0 0 1 3.5 6"/></svg><span class="grow">Crew, invites & location sharing</span></button>'+
     '<button class="menu-row" data-act="gps" data-close="1">'+I.pin+'<span class="grow">'+(S.gpsOn?'Show me on the map':'Use my location')+'</span></button>'+
@@ -803,13 +801,11 @@ document.addEventListener('click',e=>{
     case 'sharePlan': copy(planText(),'Route copied'); break;
     case 'importPlan': openModal('<h2 style="font-size:20px">Import a route</h2><p class="small muted">Paste a shared link or message, or just stop numbers.</p><textarea id="impTxt" rows="5" placeholder="18, 101, 33"></textarea><div class="btns" style="margin-top:10px"><button class="btn ghost" data-act="closeModal">Cancel</button><button class="btn teal" data-act="doImport">Replace route</button></div>'); break;
     case 'doImport': { const s=$('#impTxt').value; const m=s.match(/plan=([\d,]+)/); const nums=(m?m[1]:s).match(/\d{1,3}/g)||[]; const p=[...new Set(nums.map(Number))].filter(x=>LOC.has(x)); closeModal(); if(!p.length){ toast('No stop numbers found'); break; } setPlan({stops:p}); toast('Imported '+p.length+' stops'); setTab('route'); break; }
-    case 'src': S.src=t.dataset.v; save(); renderAll(); break;
     case 'newCrew': S.crew=newCode(); save(); location.href=location.pathname+'?crew='+S.crew+'&new=1'; break;
     case 'joinCrew': { const v=($('#joinCode').value||'').trim(); const m=v.match(/crew=([a-z0-9]{8,24})/)||v.match(/^([a-z0-9]{8,24})$/); if(!m){ toast('That doesn’t look like a crew code'); break; } S.crew=m[1]; save(); location.href=location.pathname+'?crew='+S.crew; break; }
     case 'shareCrew': copy('Join my Studio Tour bike crew: '+crewLink(),'Invite link copied'); break;
     case 'leaveCrew': stopShare(); S.crew=null; save(); location.href=location.pathname; break;
     case 'askName': askName(); break;
-    case 'pushMine': setPlan({stops:S.plan.slice(),visited:S.visited.slice()}); toast('Crew route updated'); break;
     case 'saveName': { const v=($('#nameIn').value||'').trim().slice(0,30); if(!v){ toast('Type a name'); break; } S.name=v; save(); closeModal(); if(C.uid) fbSet('members/'+C.uid,{name:v,ts:Date.now()}); renderAll(); if(S._created) S._created(); break; }
     case 'exitDemo': if(window.AST_PREVIEW){ location.hash='solo'; location.reload(); } else location.href=location.pathname; break;
     case 'menu': openMenu(); break;

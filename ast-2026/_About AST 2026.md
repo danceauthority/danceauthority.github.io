@@ -58,6 +58,7 @@ The Firebase web config is not a secret. Google designs it to sit in public web 
 - Phone storage key: `ast26-crew-v2`.
 
 ## Log
+- 2026-11-14: Slimmer header; menu has "Start fresh on this phone" (clears this phone's route, stars, name and crew link).
 - 2026-11-10: Created folder; first version published.
 - 2026-11-14: Renamed the app to "Austin Studio Tour Mission Control".
 - 2026-11-14: Tried game-piece icons for crew members (emoji, then silhouettes) and went back to letters in a purple circle.

@@ -260,6 +260,9 @@ async function initCrew(){
     if(new URLSearchParams(location.search).get('new')){ history.replaceState(null,'',location.pathname+'?crew='+S.crew); S._created=()=>{ S._created=null; openModal('<h2 style="font-size:20px">Crew created</h2><p class="small muted">Send this link to your friends. Anyone with it can join, see the route and meetups, and see live locations of people who opt in.</p><div class="card" style="background:var(--cream);word-break:break-all">'+esc(crewLink())+'</div><div class="btns"><button class="btn violet" data-act="shareCrew">Share invite</button></div>'); }; if(S.name) setTimeout(S._created,600); }
     // resume location sharing after the phone reloads the page (iPhones do this often in the background)
     try{ const sm=JSON.parse(localStorage.getItem(SHK)||'null'); if(sm&&sm.crew===S.crew&&sm.until>Date.now()) startShare(0,sm.until); else if(sm) shareMem(null); }catch(e){}
+    // nudge: crew member whose location is off gets a one-tap way to turn it on
+    const nudge=()=>{ if(S.shareOn||!crewOn()) return; if($('#modal').classList.contains('on')){ setTimeout(nudge,3000); return; } log('share_nudge'); toast('📍 Your location is off — the crew can’t see you',{label:'Turn on',fn:()=>{ log('share_nudge_yes'); startShare(8); }},20000); };
+    setTimeout(nudge,2500);
   }catch(e){ C.err=String(e.code||e.message||e); log('fb_fail',{c:C.err.slice(0,120)}); renderAll(); }
 }
 function fbSet(p,v){ if(C.fb&&C.fb.demo){ demoWrite(p,v); return Promise.resolve(); } if(!C.fb||!S.crew) return Promise.resolve(); return C.fb.db.set(C.fb.db.ref(C.fb.d,C.fb.root+'/'+p),v).catch(e=>{ log('sync_fail',{p:String(p).split('/')[0],c:String(e.code||e.message).slice(0,80)}); toast('Sync failed: '+(e.code||e.message)); }); }

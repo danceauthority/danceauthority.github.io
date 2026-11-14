@@ -46,6 +46,14 @@ The Firebase web config is not a secret. Google designs it to sit in public web 
 - Nov 10, 2026: v2 built (map-first planning, full descriptions, real bike route lines, meetup voting, opt-in GPS, Firebase sync).
 - Tested in a phone-size browser in solo mode and with two simulated crew members (shared route, proposals, votes, live location). It hasn't been tested against a real Firebase project yet, so do a two-phone test before Saturday.
 
+## Usage study (Nov 14, 2026)
+- **What's recorded:** button taps, tabs, studios opened, route changes (full stop list each time), check-ins (manual and the automatic "You're at #…" prompt), handoffs to Apple/Google Maps, meetup actions, location on/off, search terms, filters, the app going to the background and coming back, connection drops, location-permission errors, failed bike routes or map images, and script errors. Each event has a timestamp, an anonymous phone ID (the same one used in the crew) and the crew code. No names.
+- **Ride paths:** saved only for people who ticked "Also save my ride path" (in the first-visit notice, or later in the ☰ menu), and only while their location sharing is on. One point every ~60 m or 90 s.
+- **Consent:** everyone sees a one-time notice on first open. "Don't record me" turns it off, and the ☰ menu has on/off switches for both.
+- **Where it goes:** Firebase › Realtime Database › `study/<phone id>/<batch>`. Events are sent in batches about every 20 seconds and whenever the app goes to the background. Nobody can read it from the app; only you can, from the Firebase console.
+- **Getting the data:** Firebase console › Realtime Database › Data › click `study` › ⋮ menu › **Export JSON**. Send me the file to analyze. Crew names and routes are under `crews` (export that too for planned-vs-actual).
+- **When done:** delete the `study` node (⋮ › Delete) once you have what you need.
+
 ## Rules and security
 - **Who can see a crew:** anyone with the crew link, signed in anonymously. Crew codes are 12 random characters, long enough to be unguessable. The rules refuse crew codes shorter than 10 characters.
 - **What people can change:** each person can only write their own name, check-in, live position and votes. Anyone in the crew can edit the shared route and lock or unlock meetups. Each person can only set their own 👍/👎. Only the author can edit or withdraw their own meetup proposal or delete their own meetup.
@@ -58,6 +66,7 @@ The Firebase web config is not a secret. Google designs it to sit in public web 
 - Phone storage key: `ast26-crew-v2`.
 
 ## Log
+- 2026-11-14: Usage study instrumentation added (event log, sessions, planned vs actual, errors; ride paths opt-in). Rules updated with a write-only `study` section — re-paste database.rules.json.
 - 2026-11-14: Fix: crew dots no longer blink on and off (markers update in place); friends draw on top of your own dot; Route view includes riders within 2.5 mi. Crew list tags each rider 📍 live / last seen / location off.
 - 2026-11-14: Crew tab condensed: crew name at the top (tap to rename; set when the crew is started), riders listed right under it, and a single "Share my location" switch (shares with the crew, turns off after 8 hours). Crew name is saved with the crew route.
 - 2026-11-14: Fix: people who open the invite link now appear in the crew right away, even before entering a name (shown as "New rider (no name yet)").

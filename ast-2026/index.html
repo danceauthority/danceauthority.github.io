@@ -24,11 +24,20 @@ button{font:inherit;color:inherit;cursor:pointer}
 h1,h2,h3{font-family:Fraunces,Georgia,serif;margin:0;letter-spacing:-.01em}
 #map{position:fixed;inset:0;background:#e8e4dc}
 /* top bar */
-#top{position:fixed;left:0;right:0;top:0;z-index:900;padding:calc(8px + var(--st)) 10px 8px;background:linear-gradient(var(--cream) 70%,rgba(251,245,238,0));pointer-events:none}
+#top{position:fixed;left:0;right:0;top:0;z-index:900;padding:calc(8px + var(--st)) 10px 12px;background:linear-gradient(var(--cream) 70%,rgba(251,245,238,0));pointer-events:none}
 #top>*{pointer-events:auto}
 .brand{display:flex;align-items:center;gap:8px;justify-content:space-between}
-.brand h1{font-size:18px;font-weight:800;color:var(--ink);line-height:1.08}
-.brand h1 span{color:#E8781A;display:block}
+.brand h1{font-size:min(18px,4.35vw);font-weight:800;color:var(--ink);line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.brand h1 span{color:#E8781A}
+.hamb{position:relative;flex:none;width:42px;height:42px;border-radius:12px;background:var(--paper);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.1)}
+.hamb svg{width:22px;height:22px}
+.hamb .dot{position:absolute;top:6px;right:6px;width:10px;height:10px;border:2px solid var(--paper);box-sizing:content-box}
+.menu-day{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.menu-row{display:flex;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid var(--line);width:100%;background:none;border-left:0;border-right:0;border-top:0;text-align:left;font-size:15px}
+.menu-row svg{width:20px;height:20px;flex:none;color:var(--mute)}
+.mk.dim{background:#b9b1a9;opacity:.55}
+.pt-lbl{background:var(--paper);border:1px solid var(--line);border-radius:8px;padding:2px 6px;font:600 11px Inter,sans-serif;color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.15)}
+.pt-lbl:before{display:none}
 .pill{white-space:nowrap;flex:none;display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;background:var(--paper);border:1px solid var(--line);border-radius:999px;padding:5px 10px}
 .dot{width:8px;height:8px;border-radius:50%;background:#bbb;display:inline-block}
 .dot.on{background:#27a35a}
@@ -126,7 +135,7 @@ label.f{display:block;font-size:12px;font-weight:600;color:var(--mute);margin:12
 .switch input:checked+span:before{transform:translateX(18px)}
 /* markers */
 .mk{border-radius:50%;display:flex;align-items:center;justify-content:center;font:700 10px Inter,sans-serif;color:#fff;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.35)}
-.mk.base{background:#5b524b} .mk.dim{background:#b9b1a9;opacity:.7}
+.mk.base{background:#5b524b}
 .mk.fav{background:var(--gold)} .mk.plan{background:var(--teal);font-size:12px} .mk.done{background:#9c948c}
 .mk.meet{background:var(--coral);border-radius:9px 9px 9px 0;font-size:11px}
 .mk.meet.alt{background:#f19a8c}
@@ -144,9 +153,8 @@ label.f{display:block;font-size:12px;font-weight:600;color:var(--mute);margin:12
 <div id="top">
   <div class="brand">
     <h1>Austin Studio Tour <span>Mission Control</span></h1>
-    <button class="pill" data-act="tab" data-v="crew" id="syncPill"><span class="dot" id="syncDot"></span><span id="syncTxt">Solo</span></button>
+    <button class="hamb" data-act="menu" aria-label="Menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg><span class="dot" id="syncDot"></span></button>
   </div>
-  <div class="days" id="days"></div>
 </div>
 
 <div class="mapbtns" id="mapbtns">
@@ -343,22 +351,34 @@ function initMap(){
     if(S.tab==='stop'){ setTab(S.prevTab||'route'); }
   });
 }
+function stopMatches(l){ const q=(S.q||'').trim().toLowerCase(); return passes(l)&&(!q||q.split(/\s+/).every(w=>l.hay.includes(w))); }
+function emph(l){ // is this stop one of "the selected items" for the current tab?
+  const t=S.tab==='stop'?(S.prevTab||'route'):S.tab;
+  if(S.stop===l.n) return true;
+  if(t==='route') return plan().includes(l.n);
+  if(t==='stops') return stopMatches(l);
+  if(t==='meet') return false;
+  if(t==='crew') return Object.values(C.status).some(st=>st&&(st.at===l.n||st.next===l.n));
+  return passes(l);
+}
 function mkIcon(l){
   const c=numCls(l), sel=S.stop===l.n, idx=plan().indexOf(l.n);
   const lbl=c==='plan'?(idx+1):c==='fav'?'★':c==='done'?'✓':(sel?l.n:'');
-  const dim=!passes(l); const sz=c==='plan'?26:(c?22:(sel?28:13));
-  return L.divIcon({className:sel?'sel':'',html:'<div class="mk '+(c||(dim?'dim':'base'))+'" style="width:'+sz+'px;height:'+sz+'px">'+lbl+'</div>',iconSize:[sz,sz],iconAnchor:[sz/2,sz/2]});
+  const e=emph(l); const dim=!e; const sz=c==='plan'?(e?26:20):(c?(e?22:16):(sel?28:(e?14:10)));
+  const cls=(c&&(e||c==='plan'))?c:(dim?'dim':'base');
+  return L.divIcon({className:sel?'sel':'',html:'<div class="mk '+cls+(dim&&c?' dim':'')+'" style="width:'+sz+'px;height:'+sz+'px">'+lbl+'</div>',iconSize:[sz,sz],iconAnchor:[sz/2,sz/2]});
 }
 function renderMarkers(){
   if(!map) return;
   ALL.forEach(l=>{
     const c=numCls(l);
     let m=markers.get(l.n);
-    if(!openToday(l)&&!c&&S.stop!==l.n){ if(m){ map.removeLayer(m); markers.delete(l.n); } return; }
+    const hide=(!openToday(l)&&!c&&S.stop!==l.n)||(S.tab==='stops'&&!emph(l)&&!c);
+    if(hide){ if(m){ map.removeLayer(m); markers.delete(l.n); } return; }
     const icon=mkIcon(l);
     if(!m){ m=L.marker([l.lat,l.lng],{icon,keyboard:false}).on('click',ev=>{ L.DomEvent.stopPropagation(ev); onMarker(l.n); }).addTo(map); markers.set(l.n,m); }
     else m.setIcon(icon);
-    m.setZIndexOffset(c==='plan'?600:(S.stop===l.n?800:(c?400:0)));
+    m.setZIndexOffset(S.stop===l.n?800:(emph(l)?(c==='plan'?600:400):(c?200:0)));
   });
 }
 // --- bike routing (OSRM, bike profile) ---
@@ -408,14 +428,29 @@ function renderMapPeople(){
   if(!crewOn()) return;
   Object.entries(C.pos).forEach(([uid,p])=>{ if(uid===C.uid||!p||Date.now()-p.ts>30*60e3||(p.until&&Date.now()>p.until)) return;
     const ageMin=Math.round((Date.now()-p.ts)/60e3);
-    peopleMks.push(L.marker([p.lat,p.lng],{icon:L.divIcon({className:'',html:'<div class="mk friend" style="width:26px;height:26px;font-size:12px">'+esc(initial(uid))+'</div>',iconSize:[26,26],iconAnchor:[13,13]}),zIndexOffset:950}).bindTooltip(esc(nameOf(uid))+' · '+(ageMin<1?'now':ageMin+' min ago'),{direction:'top'}).addTo(map)); });
+    peopleMks.push(L.marker([p.lat,p.lng],{icon:L.divIcon({className:'',html:'<div class="mk friend" style="width:26px;height:26px;font-size:12px">'+esc(initial(uid))+'</div>',iconSize:[26,26],iconAnchor:[13,13]}),zIndexOffset:950}).bindTooltip(esc(nameOf(uid))+(S.tab==='crew'?'':' · '+(ageMin<1?'now':ageMin+' min ago')),S.tab==='crew'?{permanent:true,direction:'auto',className:'pt-lbl'}:{direction:'top'}).addTo(map)); });
 }
 function renderMeetMarkers(){
   if(!map) return;
   meetMks.forEach(m=>map.removeLayer(m)); meetMks=[];
   upcomingMeets().forEach(mt=>{ const props=sortedProps(mt); props.forEach((p,i)=>{ const lead=i===0; if(!lead&&mt.meta.locked) return;
-    meetMks.push(L.marker([p.lat,p.lng],{icon:L.divIcon({className:'',html:'<div class="mk meet'+(lead?'':' alt')+'" style="width:'+(lead?28:22)+'px;height:'+(lead?28:22)+'px">'+(lead?'M':'?')+'</div>',iconSize:[28,28],iconAnchor:[2,28]}),zIndexOffset:lead?970:930}).on('click',ev=>{ L.DomEvent.stopPropagation(ev); setTab('meet'); }).bindTooltip(esc(p.label)+' · '+clock(new Date(p.when))+' · 👍 '+p.up.length,{direction:'top'}).addTo(map)); }); });
+    meetMks.push(L.marker([p.lat,p.lng],{icon:L.divIcon({className:'',html:'<div class="mk meet'+(lead?'':' alt')+'" style="width:'+(lead?28:22)+'px;height:'+(lead?28:22)+'px">'+(lead?'M':'?')+'</div>',iconSize:[28,28],iconAnchor:[2,28]}),zIndexOffset:lead?970:930}).on('click',ev=>{ L.DomEvent.stopPropagation(ev); setTab('meet'); }).bindTooltip(esc(p.label)+' · '+clock(new Date(p.when))+' · 👍 '+p.up.length,S.tab==='meet'?{permanent:true,direction:'auto',offset:[0,-14],className:'pt-lbl'}:{direction:'top'}).addTo(map)); }); });
 }
+function fitPts(pts,emptyMsg,rightPad){
+  if(!map) return; if(!pts.length){ if(emptyMsg) toast(emptyMsg); return; }
+  const top=(document.getElementById('top').getBoundingClientRect().height||60)+10;
+  const bot=Math.min(drawerPx(),window.innerHeight*0.62)+16;
+  if(pts.length===1) { map.setView(pts[0],16,{animate:true}); map.panBy([0,(bot-top)/2],{animate:false}); return; }
+  map.fitBounds(pts,{paddingTopLeft:[24,top],paddingBottomRight:[rightPad||64,bot],maxZoom:16,animate:true});
+}
+function fitTab(){
+  const t=S.tab; const h=here(); const me=h?[[h.lat,h.lng]]:[];
+  if(t==='route'){ const p=plan().map(n=>LOC.get(n)).filter(Boolean); fitPts(p.map(l=>[l.lat,l.lng]).concat(me)); }
+  else if(t==='stops'){ let r=ALL.filter(stopMatches); if(r.length>30){ if(h) r=r.sort((a,b)=>hav(h,a)-hav(h,b)).slice(0,30); else r=r.sort((a,b)=>(b.nArt-a.nArt)||(a.n-b.n)).slice(0,30); } fitPts(r.map(l=>[l.lat,l.lng]).concat(me)); }
+  else if(t==='meet'){ const pts=[]; upcomingMeets().forEach(mt=>sortedProps(mt).forEach(p=>{ if(!mt.meta.locked||mt.meta.locked===p.id) pts.push([p.lat,p.lng]); })); fitPts(pts.length?pts.concat(me):[],null,70); }
+  else if(t==='crew'){ const pts=me.slice(); Object.entries(C.pos).forEach(([u,p])=>{ if(u!==C.uid&&p&&Date.now()-p.ts<30*60e3) pts.push([p.lat,p.lng]); }); Object.entries(C.status).forEach(([u,st])=>{ if(u===C.uid||!st||!st.at) return; if(C.pos[u]) return; const l=LOC.get(st.at); if(l) pts.push([l.lat,l.lng]); }); fitPts(pts,null,70); }
+}
+let fitT=null; function fitTabSoon(){ clearTimeout(fitT); fitT=setTimeout(fitTab,350); }
 function fitRoute(){ const {pts}=routePts(); const all=pts.map(p=>[p.lat,p.lng]); plan().forEach(n=>{ const l=LOC.get(n); if(l) all.push([l.lat,l.lng]); }); if(all.length>1) map.fitBounds(all,{paddingTopLeft:[30,110],paddingBottomRight:[30,drawerPx()+20]}); else if(all.length) map.setView(all[0],16); else toast('Tap stops on the map to build your route'); }
 function onMarker(n){
   if(S.planMode){ togglePlan(n); return; }
@@ -431,7 +466,7 @@ function posBtns(){ $('#mapbtns').style.bottom=(Math.min(drawerPx(),window.inner
     el.addEventListener('touchend',e=>{ if(y0==null) return; const dy=e.changedTouches[0].clientY-y0; y0=null; const order=['peek','half','full']; let i=order.indexOf(S.drawer); if(dy<-40) i=Math.min(2,i+1); else if(dy>40) i=Math.max(0,i-1); else if(Math.abs(dy)<8&&Date.now()-t0<300&&e.target.closest('.handle')) i=(i+1)%3; setDrawer(order[i]); },{passive:true}); });
   $('#handle').addEventListener('click',()=>{ if('ontouchstart' in window) return; const order=['peek','half','full']; setDrawer(order[(order.indexOf(S.drawer)+1)%3]); });
 })();
-function setTab(t){ if(t!=='stop'){ S.prevTab=t; S.stop=null; } S.tab=t; if(S.drawer==='peek'&&t!=='route') setDrawer('half'); renderAll(); $('#dbody').scrollTop=0; }
+function setTab(t){ const was=S.tab; if(t!=='stop'){ S.prevTab=t; S.stop=null; } S.tab=t; if(t!=='stop'&&(S.drawer==='full'||(S.drawer==='peek'&&t!=='route'))) setDrawer('half'); renderAll(); $('#dbody').scrollTop=0; if(t!=='stop'&&(t!==was||was==='stop')) setTimeout(fitTab,280); }
 let rdT=null; function renderDrawerSoon(){ clearTimeout(rdT); rdT=setTimeout(renderDrawer,120); }
 function head(){
   const v=visited(); const remN=plan().filter(n=>!v.has(n)).length;
@@ -444,7 +479,7 @@ function routeSummary(){
   const ls=legs(); const h=here();
   if(!plan().length) return '<div class="sum"><div class="grow small muted">'+(S.planMode?'Plan mode on — tap stops on the map to add them.':'Tap a stop on the map, then “Add to route”.')+'</div><button class="chip sm plan '+(S.planMode?'on':'')+'" data-act="planMode">'+(S.planMode?'Planning…':'Plan mode')+'</button></div>';
   const mi=ls.reduce((a,x)=>a+x.mi,0), ride=ls.reduce((a,x)=>a+x.m,0); const end=ls.length?new Date(ls[ls.length-1].eta.getTime()+S.dwell*60e3):null;
-  return '<div class="sum"><div class="grow small"><b>'+ls.length+' to go</b> · '+fmtMi(mi)+' · '+fmtT(ride)+' riding'+(end&&h?' · done <span class="'+(end.getHours()>=17?'late':'')+'">~'+clock(end)+'</span>':'')+'</div><button class="chip sm plan '+(S.planMode?'on':'')+'" data-act="planMode">'+(S.planMode?'Planning…':'Plan mode')+'</button></div>';
+  return '<div class="sum"><div class="grow small"><b>'+DAYS.find(d=>d.b===S.day).lbl+' · '+ls.length+' to go</b> · '+fmtMi(mi)+' · '+fmtT(ride)+' riding'+(end&&h?' · done <span class="'+(end.getHours()>=17?'late':'')+'">~'+clock(end)+'</span>':'')+'</div><button class="chip sm plan '+(S.planMode?'on':'')+'" data-act="planMode">'+(S.planMode?'Planning…':'Plan mode')+'</button></div>';
 }
 function renderDrawer(){
   $('#dhead').innerHTML=head();
@@ -455,7 +490,7 @@ function renderDrawer(){
   else if(S.tab==='meet') b.innerHTML=meetView();
   else if(S.tab==='crew') b.innerHTML=crewView();
   b.scrollTop=st;
-  if(S.tab==='stops'){ const q=$('#q'); if(q){ q.value=S.q; q.oninput=()=>{ S.q=q.value; clearTimeout(qT); qT=setTimeout(()=>{ const pos=q.selectionStart; renderDrawer(); const q2=$('#q'); q2.focus(); q2.setSelectionRange(pos,pos); },200); }; } const ms=$('#medSel'); if(ms) ms.onchange=e=>{ S.f.med=e.target.value; save(); renderAll(); }; }
+  if(S.tab==='stops'){ const q=$('#q'); if(q){ q.value=S.q; q.oninput=()=>{ S.q=q.value; clearTimeout(qT); qT=setTimeout(()=>{ const pos=q.selectionStart; renderMarkers(); fitTabSoon(); renderDrawer(); const q2=$('#q'); q2.focus(); q2.setSelectionRange(pos,pos); },200); }; } const ms=$('#medSel'); if(ms) ms.onchange=e=>{ S.f.med=e.target.value; save(); renderAll(); fitTabSoon(); }; }
 }
 let qT=null;
 
@@ -528,7 +563,7 @@ function stopsView(){
   chips.splice(1,0,'<select class="chip sm" id="medSel">'+medOpts+'</select>');
   let s='<input id="q" type="search" placeholder="Search artists, venues, streets, #numbers…" autocomplete="off"><div class="filters">'+chips.join('')+'</div>';
   const q=S.q.trim().toLowerCase();
-  let rows=ALL.filter(passes).filter(l=>!q||q.split(/\s+/).every(w=>l.hay.includes(w)));
+  let rows=ALL.filter(stopMatches);
   if(h) rows.sort((a,b)=>hav(h,a)-hav(h,b)); else rows.sort((a,b)=>(b.nArt-a.nArt)||(a.n-b.n));
   const total=rows.length;
   s+='<div class="small muted" style="margin:8px 0 0">'+total+' stops open '+DAYS.find(d=>d.b===S.day).lbl+(f.east?' · East side':'')+(h?' · nearest first':' · biggest first')+'</div>';
@@ -656,11 +691,22 @@ function gpsPrompt(){
 }
 
 // ================= RENDER =================
-function renderTop(){
-  $('#days').innerHTML=DAYS.map(d=>'<button class="chip '+(S.day===d.b?'on':'')+'" data-act="day" data-b="'+d.b+'">'+d.lbl+'</button>').join('');
-  const live=Object.entries(C.pos).filter(([u,p])=>u!==C.uid&&p&&Date.now()-p.ts<30*60e3).length;
-  $('#syncDot').className='dot'+(C.ready?' on':'');
-  $('#syncPill').classList.toggle('demo-pill',DEMO); $('#syncTxt').textContent=DEMO?('Demo · '+Object.keys(C.members).length+' riders'):C.ready?(Object.keys(C.members).length+' in crew'+(live?' · '+live+' live':'')):(S.crew&&!C.err?'Connecting…':'Solo');
+function statusText(){ const live=Object.entries(C.pos).filter(([u,p])=>u!==C.uid&&p&&Date.now()-p.ts<30*60e3).length; const n=Object.keys(C.members).length;
+  return DEMO?'Demo crew · '+n+' riders'+(live?' · '+live+' live':''):C.ready?n+' in crew'+(live?' · '+live+' live':''):(S.crew&&!C.err?'Connecting…':'Solo — saved on this phone'); }
+function renderTop(){ $('#syncDot').className='dot'+(C.ready?' on':''); if($('#modal').classList.contains('on')&&$('#menuBox')) openMenu(); }
+function openMenu(){
+  const dayLbl=DAYS.find(d=>d.b===S.day).lbl;
+  openModal('<div id="menuBox"><h2 style="font-size:20px">Mission Control</h2>'+
+    '<div class="row small" style="margin-top:6px"><span class="dot'+(C.ready?' on':'')+'"></span><span>'+esc(statusText())+'</span></div>'+
+    '<label class="f">Tour day</label><div class="menu-day">'+DAYS.map(d=>'<button class="chip '+(S.day===d.b?'on':'')+'" data-act="day" data-b="'+d.b+'">'+d.lbl+'</button>').join('')+'</div>'+
+    '<div class="small muted" style="margin-top:6px">Showing stops open '+dayLbl+'.</div>'+
+    '<div style="margin-top:10px">'+
+    '<button class="menu-row" data-act="tab" data-v="crew" data-close="1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.5a3.5 3.5 0 0 1 0 7M18 14a6 6 0 0 1 3.5 6"/></svg><span class="grow">Crew, invites & location sharing</span></button>'+
+    '<button class="menu-row" data-act="gps" data-close="1">'+I.pin+'<span class="grow">'+(S.gpsOn?'Show me on the map':'Use my location')+'</span></button>'+
+    '<button class="menu-row" data-act="sharePlan" data-close="1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12v7h16v-7M12 3v12M7 8l5-5 5 5"/></svg><span class="grow">Share route as text</span></button>'+
+    '<button class="menu-row" data-act="importPlan">'+I.down+'<span class="grow">Import a route</span></button>'+
+    (DEMO?'<button class="menu-row" data-act="exitDemo">'+I.x+'<span class="grow">Exit demo</span></button>':'<button class="menu-row" data-act="goDemo">'+I.star+'<span class="grow">Try the demo crew</span></button>')+
+    '</div><div class="small muted" style="margin-top:10px">Studio data from atxstudiotour.com (Nov 10). Map © OpenStreetMap contributors.</div></div>');
 }
 function renderAll(){ renderTop(); renderMarkers(); renderMe(); renderMapPeople(); renderMeetMarkers(); scheduleRoute(); drawRoute(); renderDrawer(); }
 
@@ -679,7 +725,7 @@ function setHere(n){
 function planText(){ const v=visited(); const rem=plan().map(n=>LOC.get(n)).filter(l=>l&&!v.has(l.n)); let t='Studio Tour by bike — '+DAYS.find(d=>d.b===S.day).lbl+'\n'; rem.forEach((l,i)=>t+=(i+1)+'. #'+l.n+' '+l.v+' — '+l.a+'\n'); if(rem.length) t+='\nRoute: '+googleRoute(rem)+'\n'; t+='\nOpen in the app: '+location.origin+location.pathname+'?plan='+rem.map(l=>l.n).join(','); return t; }
 document.addEventListener('click',e=>{
   const t=e.target.closest('[data-act],[data-f]'); if(!t) return;
-  if(t.dataset.f){ S.f[t.dataset.f]=!S.f[t.dataset.f]; listLimit=50; save(); renderAll(); return; }
+  if(t.dataset.f){ S.f[t.dataset.f]=!S.f[t.dataset.f]; listLimit=50; save(); renderAll(); if(S.tab==='stops') fitTabSoon(); return; }
   const a=t.dataset.act, n=t.dataset.n?+t.dataset.n:null;
   if(t.dataset.close) closeModal();
   switch(a){
@@ -701,7 +747,7 @@ document.addEventListener('click',e=>{
     case 'clearPlan': openModal('<h2 style="font-size:20px">Clear the route?</h2><p class="small muted">'+(shared()?'This clears it for the whole crew.':'This clears your saved route.')+'</p><div class="btns"><button class="btn ghost" data-act="closeModal">Cancel</button><button class="btn coral" data-act="clearYes">Clear</button></div>'); break;
     case 'clearYes': closeModal(); setPlan({stops:[]}); break;
     case 'clearVisited': setPlan({visited:[]}); break;
-    case 'day': S.day=+t.dataset.b; save(); renderAll(); break;
+    case 'day': S.day=+t.dataset.b; save(); renderAll(); if($('#menuBox')) openMenu(); fitTab(); break;
     case 'more': listLimit+=50; renderDrawer(); break;
     case 'fit': fitRoute(); break;
     case 'filters': setTab('stops'); setDrawer('full'); break;
@@ -741,6 +787,8 @@ document.addEventListener('click',e=>{
     case 'pushMine': setPlan({stops:S.plan.slice(),visited:S.visited.slice()}); toast('Crew route updated'); break;
     case 'saveName': { const v=($('#nameIn').value||'').trim().slice(0,30); if(!v){ toast('Type a name'); break; } S.name=v; save(); closeModal(); if(C.uid) fbSet('members/'+C.uid,{name:v,ts:Date.now()}); renderAll(); if(S._created) S._created(); break; }
     case 'exitDemo': if(window.AST_PREVIEW){ location.hash='solo'; location.reload(); } else location.href=location.pathname; break;
+    case 'menu': openMenu(); break;
+    case 'goDemo': if(window.AST_PREVIEW){ location.hash='demo'; location.reload(); } else location.href=location.pathname+'?demo=1'; break;
     case 'closeModal': closeModal(); break;
   }
 });
@@ -781,7 +829,7 @@ function seedDemo(){
   demoSync();
   // the three loose riders drift a little so the map feels live
   setInterval(()=>{ ['sam','alex','tess'].forEach(u=>{ const p=DB.pos[u]; if(!p) return; p.lat=+(p.lat+(Math.random()-.5)*0.0006).toFixed(5); p.lng=+(p.lng+(Math.random()-.5)*0.0006).toFixed(5); p.ts=Date.now(); }); demoSync(); },20e3);
-  setTimeout(()=>{ toast('Demo crew loaded — 7 riders, sample data'); fitDemo(); },500);
+  setTimeout(()=>{ toast('Demo crew loaded — 7 riders, sample data'); fitTab(); },500);
 }
 function fitDemo(){ const pts=Object.values(C.pos).map(p=>[p.lat,p.lng]); plan().forEach(n=>{ const l=LOC.get(n); if(l) pts.push([l.lat,l.lng]); }); if(S.cur) pts.push([S.cur.lat,S.cur.lng]); if(pts.length>1) map.fitBounds(pts,{paddingTopLeft:[30,110],paddingBottomRight:[60,drawerPx()+20]}); }
 

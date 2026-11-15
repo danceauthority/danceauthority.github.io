@@ -6,6 +6,9 @@
 <meta name="theme-color" content="#FBF5EE">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Mission Control">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="manifest" href="manifest.json">
 <title>Austin Studio Tour Mission Control</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -217,18 +220,25 @@ function defaultDay(){ const t=new Date(); const iso=t.getFullYear()+'-'+String(
 const S={
   favs:new Set(ld.favs||[]), plan:ld.plan||[], visited:ld.visited||[], cur:ld.cur||null, day:ld.day||defaultDay(),
   f:Object.assign({east:true,med:'',fam:false,drinks:false,music:false,demo:false,favs:false,hide:false},ld.f||{}),
-  speed:ld.speed||9, dwell:ld.dwell||20, name:ld.name||'', look:!!ld.look, crew:ld.crew||null, src:ld.src||'crew', localMeets:ld.localMeets||{},
+  speed:ld.speed||9, dwell:ld.dwell||20, name:ld.name||'', look:!!ld.look, fromUid:ld.fromUid||null, crew:ld.crew||null, src:ld.src||'crew', localMeets:ld.localMeets||{},
   gpsOn:false, shareOn:false, shareUntil:0, gps:null,
   tab:'crew', stop:null, planMode:false, drawer:'peek', q:''
 };
 const DEMO=new URLSearchParams(location.search).has('demo')||location.hash==='#demo';
-function save(){ if(DEMO) return; try{ localStorage.setItem(KEY,JSON.stringify({favs:[...S.favs],plan:S.plan,visited:S.visited,cur:S.cur,day:S.day,f:S.f,speed:S.speed,dwell:S.dwell,name:S.name,look:S.look,crew:S.crew,src:S.src,localMeets:S.localMeets,planMode:S.planMode})); }catch(e){} }
+function save(){ if(DEMO) return; try{ localStorage.setItem(KEY,JSON.stringify({favs:[...S.favs],plan:S.plan,visited:S.visited,cur:S.cur,day:S.day,f:S.f,speed:S.speed,dwell:S.dwell,name:S.name,look:S.look,crew:S.crew,fromUid:S.fromUid||null,src:S.src,localMeets:S.localMeets,planMode:S.planMode})); }catch(e){} }
 const urlCrew=new URLSearchParams(location.search).get('crew');
 if(urlCrew && /^[a-z0-9]{8,24}$/.test(urlCrew)) S.crew=urlCrew;
 if(DEMO){ S.crew='demo'; S.src='crew'; S.day=1; S.name='Ryan'; }
+const STANDALONE=!!(navigator.standalone||matchMedia('(display-mode: standalone)').matches);
+(()=>{ const q=new URLSearchParams(location.search); const hn=q.get('hn'), hf=q.get('hf');
+  if(STANDALONE&&S.crew&&!S.name&&hn){ S.name=hn.slice(0,30); S.look=q.get('hl')==='1'; if(hf&&/^[A-Za-z0-9]{10,40}$/.test(hf)) S.fromUid=hf; save(); }
+  if(hn||hf||q.has('hl')){ q.delete('hn'); q.delete('hf'); q.delete('hl'); history.replaceState(null,'',location.pathname+(q.toString()?'?'+q:'')+location.hash); } })();
 
 // ================= CREW (Firebase) =================
-const C={fb:null,uid:null,ready:false,err:null,plan:null,members:{},status:{},pos:{},meets:{}};
+const C={fb:null,uid:null,ready:false,err:null,plan:null,members:{},status:{},pos:{},meets:{},raw:{members:{},status:{},pos:{}}};
+function applyHidden(){ const hid=new Set(); Object.entries(C.raw.members).forEach(([u,m])=>{ if(m&&m.from&&m.from!==u) hid.add(m.from); }); if(C.uid) hid.delete(C.uid);
+  const f=o=>{ const r={}; Object.entries(o||{}).forEach(([u,v])=>{ if(!hid.has(u)) r[u]=v; }); return r; };
+  C.members=f(C.raw.members); C.status=f(C.raw.status); C.pos=f(C.raw.pos); }
 const crewOn=()=>!!(C.ready&&S.crew);
 const shared=()=>crewOn();
 function plan(){ return shared()&&C.plan?(C.plan.stops||[]):S.plan; }
@@ -241,7 +251,7 @@ function setPlan(patch){
   else { S.plan=next.stops; S.visited=next.visited; save(); }
   log('plan',{stops:(next.stops||[]).slice(0,40),visited:(next.visited||[]).slice(0,40)}); pushStatus(); renderAll();
 }
-function memberRec(){ return {name:(S.name||'').slice(0,40),ts:Date.now(),look:!!S.look}; }
+function memberRec(){ const r={name:(S.name||'').slice(0,40),ts:Date.now(),look:!!S.look}; if(S.fromUid&&S.fromUid!==C.uid) r.from=S.fromUid; return r; }
 function crewName(){ return (C.plan&&C.plan.name)||'Unnamed crew'; }
 function nameOf(uid){ if(uid===(C.uid||'me')) return 'You'; return (C.members[uid]&&C.members[uid].name)||'New rider (no name yet)'; }
 function initial(uid){ const n=nameOf(uid); return n==='You'?(S.name||'Y')[0].toUpperCase():(n[0]||'?').toUpperCase(); }
@@ -263,9 +273,9 @@ async function initCrew(){
     const r=p=>db.ref(d,C.fb.root+(p?'/'+p:''));
     let netState=null; db.onValue(db.ref(d,'.info/connected'),s=>{ const v=!!s.val(); if(v!==netState){ if(netState!==null||v===false) log(v?'net_up':'net_down'); netState=v; } });
     db.onValue(r('plan'),s=>{ const v=s.val(); C.plan=v?{stops:v.stops||[],visited:v.visited||[],name:v.name||'',unlisted:!!v.unlisted,ts:v.ts,by:v.by}:{stops:[],visited:[],name:''}; C.ready=true; if(!C.seeded){ C.seeded=true; if(!(C.plan.stops||[]).length&&S.plan.length){ setPlan({stops:S.plan.slice(),visited:S.visited.slice()}); toast('Your planned stops are now the crew route'); } } renderAll(); },e=>{ C.err=String(e.code||e); renderAll(); });
-    db.onValue(r('members'),s=>{ C.members=s.val()||{}; renderAll(); dirSyncSoon(); });
-    db.onValue(r('status'),s=>{ C.status=s.val()||{}; renderAll(); });
-    db.onValue(r('pos'),s=>{ C.pos=s.val()||{}; if(!C.fitDone&&S.tab==='crew'){ C.fitDone=true; setTimeout(fitTab,400); } renderMapPeople(); if(S.tab==='crew') renderDrawer(); });
+    db.onValue(r('members'),s=>{ C.raw.members=s.val()||{}; applyHidden(); renderAll(); dirSyncSoon(); });
+    db.onValue(r('status'),s=>{ C.raw.status=s.val()||{}; applyHidden(); renderAll(); });
+    db.onValue(r('pos'),s=>{ C.raw.pos=s.val()||{}; applyHidden(); if(!C.fitDone&&S.tab==='crew'){ C.fitDone=true; setTimeout(fitTab,400); } renderMapPeople(); if(S.tab==='crew') renderDrawer(); });
     db.onValue(r('meetups'),s=>{ C.meets=s.val()||{}; renderAll(); });
     fbSet('members/'+C.uid,memberRec());
     pushStatus();
@@ -276,6 +286,9 @@ async function initCrew(){
     // nudge: crew member whose location is off gets a one-tap way to turn it on
     const nudge=()=>{ if(S.shareOn||!crewOn()||S.look) return; if($('#modal').classList.contains('on')){ setTimeout(nudge,3000); return; } log('share_nudge'); toast('📍 Your location is off — the crew can’t see you',{label:'Turn on',fn:()=>{ log('share_nudge_yes'); startShare(8); }},20000); };
     setTimeout(nudge,2500);
+    // one-time hint (2nd open on a phone): add to home screen
+    try{ const k='ast26-a2hs'; const st=JSON.parse(localStorage.getItem(k)||'{"opens":0}'); st.opens=(st.opens||0)+1; localStorage.setItem(k,JSON.stringify(st));
+      if(!STANDALONE&&!st.shown&&st.opens>=2&&/iPhone|Android/.test(navigator.userAgent)){ const tip=()=>{ if($('#modal').classList.contains('on')||$('#toast').classList.contains('on')){ setTimeout(tip,5000); return; } st.shown=1; localStorage.setItem(k,JSON.stringify(st)); log('install_tip'); toast('Put Mission Control on your home screen',{label:'How',fn:()=>installHelp()},12000); }; setTimeout(tip,30000); } }catch(e){}
   }catch(e){ C.err=String(e.code||e.message||e); log('fb_fail',{c:C.err.slice(0,120)}); renderAll(); }
 }
 function fbSet(p,v){ if(C.fb&&C.fb.demo){ demoWrite(p,v); return Promise.resolve(); } if(!C.fb||!S.crew) return Promise.resolve(); return C.fb.db.set(C.fb.db.ref(C.fb.d,C.fb.root+'/'+p),v).catch(e=>{ log('sync_fail',{p:String(p).split('/')[0],c:String(e.code||e.message).slice(0,80)}); toast('Sync failed: '+(e.code||e.message)); }); }
@@ -398,6 +411,23 @@ function locHelp(){
   log('loc_help',{});
   openModal('<h2 style="font-size:20px">Your phone is blocking location</h2><p class="small muted" style="margin:4px 0 8px">The app asked, but your phone said no. To fix it:</p><ol class="small" style="margin:0;padding-left:20px;line-height:1.6">'+steps.map(x=>'<li>'+x+'</li>').join('')+'</ol><div class="btns" style="margin-top:14px"><button class="btn ghost" data-act="closeModal">Not now</button><button class="btn teal" data-act="locOn">I changed it — try again</button></div>');
 }
+let bip=null; window.addEventListener('beforeinstallprompt',e=>{ e.preventDefault(); bip=e; });
+function installHelp(){
+  log('install_help',{});
+  if(S.crew&&!DEMO){ const q=new URLSearchParams(location.search); q.set('crew',S.crew); if(S.name) q.set('hn',S.name); if(C.uid) q.set('hf',C.uid); if(S.look) q.set('hl','1'); history.replaceState(null,'',location.pathname+'?'+q); }
+  const ua=navigator.userAgent, ios=/iPhone|iPad/.test(ua), crios=/CriOS/.test(ua), android=/Android/.test(ua), mac=/Macintosh/.test(ua)&&!/Chrome/.test(ua);
+  let steps;
+  if(ios&&crios) steps=['Leave this message open.','Tap the <b>Share</b> button (square with an arrow) at the right of the address bar.','Tap <b>Add to Home Screen</b>, then <b>Add</b>.'];
+  else if(ios) steps=['Leave this message open.','Tap the <b>Share</b> button (square with an arrow) at the bottom of the screen.','Scroll down and tap <b>Add to Home Screen</b>, then <b>Add</b>.'];
+  else if(android) steps=bip?null:['Tap <b>⋮</b> at the top right of Chrome.','Tap <b>Add to Home screen</b> (or <b>Install app</b>), then <b>Install</b>.'];
+  else if(mac) steps=['In Safari’s menu bar, choose <b>File › Add to Dock</b>.'];
+  else steps=bip?null:['In Chrome, tap <b>⋮</b> › <b>Cast, save, and share</b> › <b>Install page as app</b>.'];
+  const note=ios&&S.crew?'<p class="small muted" style="margin:10px 0 0">On iPhone the home-screen app is separate from your browser. It opens already in your crew with your name; you’ll be asked to turn location on once more there. Use the home-screen app from then on.</p>':'';
+  openModal('<h2 style="font-size:20px">Add to your Home Screen</h2><p class="small muted" style="margin:4px 0 8px">Mission Control opens like an app, full screen, one tap from your home screen.</p>'+
+    (steps?'<ol class="small" style="margin:0;padding-left:20px;line-height:1.6">'+steps.map(x=>'<li>'+x+'</li>').join('')+'</ol>':'<div class="btns"><button class="btn violet" data-act="doInstall">Install the app</button></div>')+note+
+    '<div class="btns" style="margin-top:14px"><button class="btn ghost" data-act="installDone">Close</button></div>');
+}
+function cleanInstallUrl(){ const q=new URLSearchParams(location.search); if(!q.has('hn')&&!q.has('hf')&&!q.has('hl')) return; q.delete('hn'); q.delete('hf'); q.delete('hl'); history.replaceState(null,'',location.pathname+(q.toString()?'?'+q:'')); }
 function stopGps(){ S._fix=false; if(watchId!=null) navigator.geolocation.clearWatch(watchId); watchId=null; S.gpsOn=false; S.gps=null; stopShare(); renderMe(); renderAll(); }
 const SHK='ast26-share';
 function shareMem(v){ try{ v?localStorage.setItem(SHK,JSON.stringify(v)):localStorage.removeItem(SHK); }catch(e){} }
@@ -866,6 +896,7 @@ function openMenu(){
     '<div style="margin-top:10px">'+
     '<button class="menu-row" data-act="tab" data-v="crew" data-close="1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.5a3.5 3.5 0 0 1 0 7M18 14a6 6 0 0 1 3.5 6"/></svg><span class="grow">Crew, invites & location sharing</span></button>'+
     '<button class="menu-row" data-act="gps" data-close="1">'+I.pin+'<span class="grow">'+(S.gpsOn?'Show me on the map':'Use my location')+'</span></button>'+
+    (!STANDALONE?'<button class="menu-row" data-act="installApp"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="2.5" width="12" height="19" rx="2.5"/><path d="M12 8v7M9 12l3 3 3-3"/></svg><span class="grow">Add to Home Screen</span></button>':'')+
     '<button class="menu-row" data-act="sharePlan" data-close="1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12v7h16v-7M12 3v12M7 8l5-5 5 5"/></svg><span class="grow">Share route as text</span></button>'+
     '<button class="menu-row" data-act="importPlan">'+I.down+'<span class="grow">Import a route</span></button>'+
     (!DEMO?'<button class="menu-row" data-act="resetPhone"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 3-6.7M3 4v5h5"/></svg><span class="grow">Start fresh on this phone</span></button>':'')+
@@ -988,7 +1019,10 @@ document.addEventListener('click',e=>{
     case 'resetYes': try{ stopShare(); localStorage.removeItem(KEY); }catch(e){} location.href=location.pathname; break;
     case 'shrink': setDrawer('half'); renderDrawer(); setTimeout(fitTab,280); break;
     case 'goDemo': if(window.AST_PREVIEW){ location.hash='demo'; location.reload(); } else location.href=location.pathname+'?demo=1'; break;
-    case 'closeModal': closeModal(); break;
+    case 'closeModal': if($('#modalBox').innerText.includes('Add to your Home Screen')) cleanInstallUrl(); closeModal(); break;
+    case 'installDone': cleanInstallUrl(); closeModal(); break;
+    case 'installApp': installHelp(); break;
+    case 'doInstall': if(bip){ bip.prompt(); bip.userChoice.then(c=>log('install_choice',{o:c&&c.outcome})).catch(()=>{}); bip=null; } cleanInstallUrl(); closeModal(); break;
     case 'nmHide': nmHidden.add(t.dataset.m); renderNextMeet(); break;
   }
 });

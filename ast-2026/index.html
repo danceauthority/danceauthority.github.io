@@ -219,7 +219,7 @@ const S={
   f:Object.assign({east:true,med:'',fam:false,drinks:false,music:false,demo:false,favs:false,hide:false},ld.f||{}),
   speed:ld.speed||9, dwell:ld.dwell||20, name:ld.name||'', crew:ld.crew||null, src:ld.src||'crew', localMeets:ld.localMeets||{},
   gpsOn:false, shareOn:false, shareUntil:0, gps:null,
-  tab:'route', stop:null, planMode:!!ld.planMode, drawer:'half', q:''
+  tab:'crew', stop:null, planMode:false, drawer:'peek', q:''
 };
 const DEMO=new URLSearchParams(location.search).has('demo')||location.hash==='#demo';
 function save(){ if(DEMO) return; try{ localStorage.setItem(KEY,JSON.stringify({favs:[...S.favs],plan:S.plan,visited:S.visited,cur:S.cur,day:S.day,f:S.f,speed:S.speed,dwell:S.dwell,name:S.name,crew:S.crew,src:S.src,localMeets:S.localMeets,planMode:S.planMode})); }catch(e){} }
@@ -264,7 +264,7 @@ async function initCrew(){
     db.onValue(r('plan'),s=>{ const v=s.val(); C.plan=v?{stops:v.stops||[],visited:v.visited||[],name:v.name||'',unlisted:!!v.unlisted,ts:v.ts,by:v.by}:{stops:[],visited:[],name:''}; C.ready=true; if(!C.seeded){ C.seeded=true; if(!(C.plan.stops||[]).length&&S.plan.length){ setPlan({stops:S.plan.slice(),visited:S.visited.slice()}); toast('Your planned stops are now the crew route'); } } renderAll(); },e=>{ C.err=String(e.code||e); renderAll(); });
     db.onValue(r('members'),s=>{ C.members=s.val()||{}; renderAll(); dirSyncSoon(); });
     db.onValue(r('status'),s=>{ C.status=s.val()||{}; renderAll(); });
-    db.onValue(r('pos'),s=>{ C.pos=s.val()||{}; renderMapPeople(); if(S.tab==='crew') renderDrawer(); });
+    db.onValue(r('pos'),s=>{ C.pos=s.val()||{}; if(!C.fitDone&&S.tab==='crew'){ C.fitDone=true; setTimeout(fitTab,400); } renderMapPeople(); if(S.tab==='crew') renderDrawer(); });
     db.onValue(r('meetups'),s=>{ C.meets=s.val()||{}; renderAll(); });
     fbSet('members/'+C.uid,{name:(S.name||'').slice(0,40),ts:Date.now()});
     pushStatus();
@@ -481,7 +481,7 @@ function stopMatches(l){ const q=(S.q||'').trim().toLowerCase(); return passes(l
 function emph(l){ // is this stop one of "the selected items" for the current tab?
   const t=S.tab==='stop'?(S.prevTab||'route'):S.tab;
   if(S.stop===l.n) return true;
-  if(t==='route') return plan().includes(l.n);
+  if(t==='route') return S.planMode?passes(l)||plan().includes(l.n):plan().includes(l.n);
   if(t==='stops') return stopMatches(l);
   if(t==='meet') return false;
   if(t==='crew') return Object.values(C.status).some(st=>st&&(st.at===l.n||st.next===l.n));
@@ -490,7 +490,7 @@ function emph(l){ // is this stop one of "the selected items" for the current ta
 function mkIcon(l){
   const c=numCls(l), sel=S.stop===l.n, idx=plan().indexOf(l.n);
   const lbl=c==='plan'?(idx+1):c==='fav'?'★':c==='done'?'✓':(sel?l.n:'');
-  const e=emph(l); const dim=!e; const sz=c==='plan'?(e?26:20):(c?(e?22:16):(sel?28:(e?14:10)));
+  const e=emph(l); const dim=!e; const sz=c==='plan'?(e?26:20):(c?(e?22:16):(sel?28:(e?(S.planMode&&S.tab==='route'?20:14):10)));
   const cls=(c&&(e||c==='plan'))?c:(dim?'dim':'base');
   return L.divIcon({className:sel?'sel':'',html:'<div class="mk '+cls+(dim&&c?' dim':'')+'" style="width:'+sz+'px;height:'+sz+'px">'+lbl+'</div>',iconSize:[sz,sz],iconAnchor:[sz/2,sz/2]});
 }
@@ -630,20 +630,20 @@ function posBtns(){ $('#mapbtns').style.bottom=(Math.min(drawerPx(),window.inner
   d.addEventListener('touchend',end); d.addEventListener('touchcancel',end);
   $('#handle').addEventListener('click',()=>{ if('ontouchstart' in window) return; setDrawer(S.drawer==='full'?'half':S.drawer==='half'?'peek':'half'); });
 })();
-function setTab(t){ const was=S.tab; if(t!=='stop'){ S.prevTab=t; S.stop=null; } S.tab=t; if(t!=='stop'&&(S.drawer==='full'||(S.drawer==='peek'&&t!=='route'))) setDrawer('half'); renderAll(); $('#dbody').scrollTop=0; if(t!=='stop'&&(t!==was||was==='stop')) setTimeout(fitTab,280); }
+function setTab(t){ const was=S.tab; if(t!=='route'&&t!=='stop') S.planMode=false; if(t!=='stop'){ S.prevTab=t; S.stop=null; } S.tab=t; if(t!=='stop'&&(S.drawer==='full'||(S.drawer==='peek'&&t!=='route'))) setDrawer('half'); renderAll(); $('#dbody').scrollTop=0; if(t!=='stop'&&(t!==was||was==='stop')) setTimeout(fitTab,280); }
 let rdT=null; function renderDrawerSoon(){ clearTimeout(rdT); rdT=setTimeout(renderDrawer,120); }
 function head(){
   const v=visited(); const remN=plan().filter(n=>!v.has(n)).length;
   const meK=C.uid||'me'; const nMeet=upcomingMeets().filter(mt=>!mt.meta.locked).reduce((a,mt)=>a+sortedProps(mt).filter(p=>!p.up.includes(meK)&&!p.down.includes(meK)).length,0);
-  const tabs=[['route','Route',remN],['stops','Studios',0],['meet','Meet',nMeet],['crew','Crew',crewOn()?pendingReqs().length:0]];
+  const tabs=[['crew','Crew',crewOn()?pendingReqs().length:0],['stops','Studios',0],['meet','Meet',nMeet],['route','Route',remN]];
   if(S.tab==='stop') return '<div class="row"><button class="btn sm ghost" data-act="back">'+I.back+' Back</button><div class="grow"></div><button class="btn sm ghost" data-act="expand">'+(S.drawer==='full'?'Less':'More')+'</button></div>';
   return (S.drawer==='full'?'<button class="btn sm ghost block" style="margin-bottom:8px" data-act="shrink">'+I.down+' Show the map</button>':'')+'<div class="seg">'+tabs.map(([k,l,b])=>'<button class="'+(S.tab===k?'on':'')+'" data-act="tab" data-v="'+k+'">'+l+(b?'<span class="badge">'+b+'</span>':'')+'</button>').join('')+'</div>'+(S.tab==='route'?routeSummary():'');
 }
 function routeSummary(){
   const ls=legs(); const h=here();
-  if(!plan().length) return '<div class="sum"><div class="grow small muted">'+(S.planMode?'Plan mode on — tap stops on the map to add them.':'Tap a stop on the map, then “Add to route”.')+'</div><button class="chip sm plan '+(S.planMode?'on':'')+'" data-act="planMode">'+(S.planMode?'Planning…':'Plan mode')+'</button></div>';
+  if(!plan().length) return '<div class="sum"><div class="grow small muted">'+(S.planMode?'Tap studios on the map to add them. Tap again to remove.':'Tap “Add studios”, then tap them on the map.')+'</div><button class="chip sm plan '+(S.planMode?'on':'')+'" data-act="planMode">'+(S.planMode?'✓ Done adding':'＋ Add studios')+'</button></div>';
   const mi=ls.reduce((a,x)=>a+x.mi,0), ride=ls.reduce((a,x)=>a+x.m,0); const end=ls.length?new Date(ls[ls.length-1].eta.getTime()+S.dwell*60e3):null;
-  return '<div class="sum"><div class="grow small"><b>'+DAYS.find(d=>d.b===S.day).lbl+' · '+ls.length+' to go</b> · '+fmtMi(mi)+' · '+fmtT(ride)+' riding'+(end&&h?' · done <span class="'+(end.getHours()>=17?'late':'')+'">~'+clock(end)+'</span>':'')+'</div><button class="chip sm plan '+(S.planMode?'on':'')+'" data-act="planMode">'+(S.planMode?'Planning…':'Plan mode')+'</button></div>';
+  return '<div class="sum"><div class="grow small"><b>'+DAYS.find(d=>d.b===S.day).lbl+' · '+ls.length+' to go</b> · '+fmtMi(mi)+' · '+fmtT(ride)+' riding'+(end&&h?' · done <span class="'+(end.getHours()>=17?'late':'')+'">~'+clock(end)+'</span>':'')+'</div><button class="chip sm plan '+(S.planMode?'on':'')+'" data-act="planMode">'+(S.planMode?'✓ Done adding':'＋ Add studios')+'</button></div>';
 }
 function renderDrawer(){
   $('#dhead').innerHTML=head();
@@ -704,7 +704,7 @@ function routeView(){
       '<div class="btns" style="margin-top:8px"><button class="btn sm ghost" data-act="here" data-n="'+n.l.n+'">Arrived ✓</button><button class="btn sm ghost" data-act="skip" data-n="'+n.l.n+'">Skip</button><button class="btn sm ghost" data-act="open" data-n="'+n.l.n+'">Details</button></div></div>'; }
   const sg=suggestions(4);
   if(sg.length){ s+='<div class="card"><h3 style="font-size:16px">Close by, not on the route</h3>'; sg.forEach(({l,d})=>{ s+='<div class="sugg"><div class="num '+numCls(l)+'" style="width:30px;height:30px">'+l.n+'</div><div class="grow" data-act="open" data-n="'+l.n+'"><div style="font-weight:600;font-size:14px">'+esc(l.v)+'</div><div class="small muted">'+fmtMi(d)+' · '+mins(d)+' min · '+l.nArt+' artist'+(l.nArt!==1?'s':'')+(S.favs.has(l.n)?' · ★':'')+'</div></div><button class="btn sm teal" data-act="addNext" data-n="'+l.n+'">Next</button></div>'; }); s+='</div>'; }
-  if(!p.length){ s+='<div class="empty">No stops yet.<br>Tap stops on the map — or switch on <b>Plan mode</b> to add with one tap each.</div>'; return s; }
+  if(!p.length){ s+='<div class="empty">No studios on the route yet.<br>Tap <b>＋ Add studios</b>, then tap studios on the map.</div>'; return s; }
   s+='<div class="row" style="margin:12px 0 2px"><h3 class="grow" style="font-size:18px">Route</h3><span class="small muted">'+p.length+' stops · '+v.size+' done</span></div>';
   const remN=ls.map(x=>x.l.n);
   p.forEach(n=>{ const l=LOC.get(n); if(!l) return; const done=v.has(n), li=remN.indexOf(n), lg=li>=0?ls[li]:null; const late=lg&&lg.eta.getHours()>=17;
@@ -908,7 +908,7 @@ document.addEventListener('click',e=>{
     case 'open': openStop(n); break;
     case 'fav': S.favs.has(n)?S.favs.delete(n):S.favs.add(n); save(); pushStatus(); renderAll(); break;
     case 'togglePlan': togglePlan(n); break;
-    case 'planMode': S.planMode=!S.planMode; save(); if(S.planMode){ setDrawer('peek'); toast('Plan mode: tap stops on the map to add or remove'); } renderAll(); break;
+    case 'planMode': S.planMode=!S.planMode; save(); if(S.planMode){ setDrawer('peek'); toast('Tap studios to add them to the route — tap again to remove'); setTimeout(()=>{ const h=here(); const r=ALL.filter(passes); const pts=(h?r.filter(l=>hav(h,l)<1.5):r).map(l=>[l.lat,l.lng]); fitPts(pts.length?pts:r.map(l=>[l.lat,l.lng])); },280); } else toast('Route saved'); renderAll(); break;
     case 'addNext': { const p=plan().filter(x=>x!==n), v=visited(); const i=p.findIndex(x=>!v.has(x)); if(i<0) p.push(n); else p.splice(i,0,n); setPlan({stops:p}); toast('#'+n+' is next'); break; }
     case 'mv': { const p=plan().slice(); const i=p.indexOf(n), j=i+(+t.dataset.d); if(j<0||j>=p.length) return; [p[i],p[j]]=[p[j],p[i]]; setPlan({stops:p}); break; }
     case 'skip': { const before=plan().slice(); setPlan({stops:plan().filter(x=>x!==n)}); toast('Skipped #'+n,{label:'Undo',fn:()=>setPlan({stops:before})}); break; }

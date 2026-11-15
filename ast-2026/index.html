@@ -110,6 +110,16 @@ select.chip{appearance:none;-webkit-appearance:none;padding-right:22px;backgroun
 .next .btn.ghost{background:rgba(255,255,255,.14);color:#fff;border-color:rgba(255,255,255,.3)}
 .toast{position:fixed;left:50%;top:calc(58px + var(--st));transform:translateX(-50%);background:var(--ink);color:#fff;padding:9px 14px;border-radius:999px;font-size:13px;z-index:1200;opacity:0;transition:opacity .2s;pointer-events:none;max-width:92%;text-align:center}
 .toast.on{opacity:1}
+#nextMeet{position:fixed;left:10px;right:10px;z-index:860;top:calc(52px + var(--st));background:var(--paper);border:1px solid var(--line);border-left:4px solid var(--coral);border-radius:12px;box-shadow:0 2px 12px rgba(0,0,0,.14);padding:7px 8px 7px 10px;display:flex;align-items:center;gap:8px;font-size:13px}
+#nextMeet[hidden]{display:none}
+#nextMeet .nm-t{flex:1;min-width:0;cursor:pointer}
+#nextMeet .nm-t b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:14px}
+#nextMeet .nm-t span{color:var(--muted);display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#nextMeet .nm-b{border:1px solid var(--line);background:var(--paper);border-radius:10px;height:36px;min-width:44px;font-size:16px;padding:0 6px}
+#nextMeet .nm-b.on-up{background:#d9f1ec;border-color:#9fd7cc}
+#nextMeet .nm-b.on-dn{background:#fbe1da;border-color:#f0b4a5}
+#nextMeet .nm-x{border:0;background:none;color:var(--muted);width:24px;height:30px;font-size:18px;padding:0}
+body.has-nm .toast{top:calc(118px + var(--st))}
 .toast.low{top:auto;bottom:calc(20px + var(--sb))}
 .toast button{pointer-events:auto;background:none;border:0;color:#9fe0d8;font-weight:700;margin-left:8px}
 .modal{position:fixed;inset:0;background:rgba(30,25,21,.45);z-index:1100;display:none;align-items:flex-end}
@@ -158,6 +168,8 @@ label.f{display:block;font-size:12px;font-weight:600;color:var(--mute);margin:12
     <button class="hamb" data-act="menu" aria-label="Menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg><span class="dot" id="syncDot"></span></button>
   </div>
 </div>
+
+<div id="nextMeet" hidden></div>
 
 <div class="mapbtns" id="mapbtns">
   <button class="fab" id="gpsBtn" data-act="gps" title="My location"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3.5"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="8"/></svg></button>
@@ -341,7 +353,7 @@ async function dirSync(){ // members keep their crew's public listing fresh
 function pendingReqs(){ return Object.entries(DIR.reqs||{}).filter(([u,r])=>r&&r.status==='pending'&&Date.now()-(r.ts||0)<6*3600e3); }
 let spotMk=null;
 function spotlight(lat,lng,label){ if(!map) return; if(spotMk){ map.removeLayer(spotMk); spotMk=null; }
-  setDrawer('half'); const top=(document.getElementById('top').getBoundingClientRect().height||50); const bot=Math.min(drawerPx(),window.innerHeight*0.62);
+  setDrawer('half'); const top=topPx(); const bot=Math.min(drawerPx(),window.innerHeight*0.62);
   const z=Math.max(map.getZoom(),16); const c=map.unproject(map.project([lat,lng],z).add([0,(bot-top)/2]),z); map.setView(c,z,{animate:true});
   spotMk=L.circleMarker([lat,lng],{radius:22,color:'#7a4fd6',weight:3,fill:false,opacity:.9,interactive:false}).addTo(map);
   if(label) spotMk.bindTooltip(label,{permanent:true,direction:'top',offset:[0,-20],className:'pt-lbl'}).openTooltip();
@@ -372,8 +384,18 @@ function startGps(){
     S.gps={lat:p.coords.latitude,lng:p.coords.longitude,acc:p.coords.accuracy,ts:Date.now()};
     if(!S._fix){ S._fix=true; if(map) map.setView([S.gps.lat,S.gps.lng],Math.max(map.getZoom(),15)); }
     renderMe(); maybeShare(); nearCheck(); if(S.tab==='route'||S.tab==='stops') renderDrawerSoon();
-  },e=>{ log('gps_err',{c:e.code}); if(e.code===1){ toast('Location permission denied — turn it on in your browser settings'); stopGps(); } else toast('Can’t get your location right now — still trying'); },{enableHighAccuracy:true,maximumAge:10000,timeout:20000});
+  },e=>{ log('gps_err',{c:e.code}); if(e.code===1){ stopGps(); locHelp(); } else toast('Can’t get your location right now — still trying'); },{enableHighAccuracy:true,maximumAge:10000,timeout:20000});
   S.gpsOn=true; renderAll();
+}
+function locHelp(){
+  const ua=navigator.userAgent, ios=/iPhone|iPad/.test(ua), crios=/CriOS/.test(ua), android=/Android/.test(ua);
+  let steps;
+  if(ios&&crios) steps=['Open the iPhone <b>Settings</b> app.','Scroll down and tap <b>Chrome</b> › <b>Location</b>.','Choose <b>While Using the App</b>.','Also check <b>Settings › Privacy &amp; Security › Location Services</b> is on.'];
+  else if(ios) steps=['Open the iPhone <b>Settings</b> app.','Tap <b>Privacy &amp; Security</b> › <b>Location Services</b> (make sure it’s on).','Scroll down to <b>Safari Websites</b> and choose <b>While Using the App</b>.','Back in Safari, tap <b>aA</b> in the address bar › <b>Website Settings</b> › <b>Location</b> › <b>Allow</b>.'];
+  else if(android) steps=['Tap the icon at the left of the address bar.','Tap <b>Permissions</b> (or <b>Site settings</b>) › <b>Location</b> › <b>Allow</b>.','If it still fails, pull down from the top of the screen and turn <b>Location</b> on.'];
+  else steps=['Click the icon at the left of the address bar.','Set <b>Location</b> to <b>Allow</b>.'];
+  log('loc_help',{});
+  openModal('<h2 style="font-size:20px">Your phone is blocking location</h2><p class="small muted" style="margin:4px 0 8px">The app asked, but your phone said no. To fix it:</p><ol class="small" style="margin:0;padding-left:20px;line-height:1.6">'+steps.map(x=>'<li>'+x+'</li>').join('')+'</ol><div class="btns" style="margin-top:14px"><button class="btn ghost" data-act="closeModal">Not now</button><button class="btn teal" data-act="locOn">I changed it — try again</button></div>');
 }
 function stopGps(){ S._fix=false; if(watchId!=null) navigator.geolocation.clearWatch(watchId); watchId=null; S.gpsOn=false; S.gps=null; stopShare(); renderMe(); renderAll(); }
 const SHK='ast26-share';
@@ -386,11 +408,20 @@ function maybeShare(force){
   const g=S.gps; const moved=lastShare?hav(lastShare,g)*1609:1e9; const age=lastShare?Date.now()-lastShare.ts:1e9;
   if(force||moved>60||age>90e3){ lastShare={lat:g.lat,lng:g.lng,ts:Date.now()}; if(ST.trail) log('trail',{lat:+g.lat.toFixed(5),lng:+g.lng.toFixed(5),acc:Math.round(g.acc||0)}); fbSet('pos/'+C.uid,{lat:+g.lat.toFixed(5),lng:+g.lng.toFixed(5),acc:Math.round(g.acc||0),ts:Date.now(),until:S.shareUntil}); }
 }
+let nearSince=null; const DWELL=3*60e3;
 function nearCheck(){
   if(!S.gps) return; let best=null,bd=1e9;
   ALL.forEach(l=>{ if(!openToday(l)) return; const d=hav(S.gps,l)*1609; if(d<bd){bd=d;best=l;} });
-  if(best && bd<70 && !(S.cur&&S.cur.n===best.n) && !nearAsked[best.n]){ nearAsked[best.n]=1; log('near',{n:best.n,m:Math.round(bd)}); toast('You’re at #'+best.n+' '+best.v,{label:'Check in',fn:()=>{ log('autocheckin_ok',{n:best.n}); setHere(best.n); }},6000); }
+  if(!best||bd>=70){ nearSince=null; return; }
+  if(!nearSince||nearSince.n!==best.n){ nearSince={n:best.n,t:Date.now()}; if(!nearAsked[best.n]){ nearAsked[best.n]=1; log('near',{n:best.n,m:Math.round(bd)}); } return; }
+  // stayed near the same studio for a few minutes: check in automatically (once per studio)
+  if(Date.now()-nearSince.t>=DWELL && !(S.cur&&S.cur.n===best.n) && !visited().has(best.n) && nearAsked[best.n]!==2){
+    nearAsked[best.n]=2; const prevCur=S.cur; log('autocheckin',{n:best.n,m:Math.round(bd)});
+    S.cur={lat:best.lat,lng:best.lng,n:best.n}; save(); const v=[...visited(),best.n]; setPlan({visited:v}); dirSyncSoon();
+    toast('Checked in at #'+best.n+' '+best.v,{label:'Undo',fn:()=>{ log('autocheckin_undo',{n:best.n}); S.cur=prevCur; save(); setPlan({visited:[...visited()].filter(x=>x!==best.n)}); }},9000);
+  }
 }
+setInterval(()=>{ if(S.gpsOn) nearCheck(); },60e3);
 
 // ================= FILTERS =================
 const openToday=l=>(l.dm&S.day)!==0;
@@ -424,8 +455,8 @@ const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;'
 let tT=null, toastFn=null;
 function toast(m,action,ms){ const t=$('#toast'); t.innerHTML=esc(m)+(action?'<button id="toastBtn">'+esc(action.label)+'</button>':''); toastFn=action?action.fn:null; t.classList.toggle('low',S.drawer==='full'); t.classList.add('on'); t.style.pointerEvents=action?'auto':'none'; if(action) $('#toastBtn').onclick=()=>{ t.classList.remove('on'); toastFn&&toastFn(); }; clearTimeout(tT); tT=setTimeout(()=>{ t.classList.remove('on'); t.style.pointerEvents='none'; },ms||2400); }
 async function copy(txt,msg){ try{ if(navigator.share && /iPhone|Android/.test(navigator.userAgent)){ await navigator.share({text:txt}); return; } }catch(e){ if(e&&e.name==='AbortError') return; } try{ await navigator.clipboard.writeText(txt); toast(msg||'Copied'); }catch(e){ openModal('<h2 style="font-size:19px">Copy this</h2><textarea rows="8" readonly>'+esc(txt)+'</textarea><div class="btns" style="margin-top:10px"><button class="btn ghost" data-act="closeModal">Close</button></div>'); } }
-function openModal(h){ $('#modalBox').innerHTML='<button class="mclose" data-act="closeModal" aria-label="Close">'+I.x+'</button>'+h; $('#modal').classList.add('on'); }
-function closeModal(){ $('#modal').classList.remove('on'); }
+function openModal(h,lock){ $('#modalBox').innerHTML=(lock?'':'<button class="mclose" data-act="closeModal" aria-label="Close">'+I.x+'</button>')+h; $('#modal').classList.add('on'); $('#modal').dataset.lock=lock?'1':''; }
+function closeModal(force){ if($('#modal').dataset.lock==='1'&&!force) return; $('#modal').dataset.lock=''; $('#modal').classList.remove('on'); }
 function numCls(l){ if(visited().has(l.n)) return 'done'; if(plan().includes(l.n)) return 'plan'; if(S.favs.has(l.n)) return 'fav'; return ''; }
 function stopTags(l){ let t=''; if(l.nArt) t+='<span class="tag hot">'+l.nArt+' artist'+(l.nArt>1?'s':'')+'</span>'; if(l.f) t+='<span class="tag fam">Family</span>'; if(l.drinks) t+='<span class="tag">Drinks/food</span>'; if(l.music) t+='<span class="tag">Music</span>'; if(l.demo) t+='<span class="tag">Demos/talks</span>'; const cs=crewStars(l.n); if(cs) t+='<span class="tag crew">★ '+cs+' crew</span>'; return t; }
 function dayDate(b){ return DAYS.find(d=>d.b===b).d; }
@@ -548,7 +579,7 @@ function renderMeetMarkers(){
 }
 function fitPts(pts,emptyMsg,rightPad){
   if(!map) return; if(!pts.length){ if(emptyMsg) toast(emptyMsg); return; }
-  const top=(document.getElementById('top').getBoundingClientRect().height||60)+10;
+  const top=topPx()+10;
   const bot=Math.min(drawerPx(),window.innerHeight*0.62)+16;
   if(pts.length===1) { map.setView(pts[0],16,{animate:true}); map.panBy([0,(bot-top)/2],{animate:false}); return; }
   map.fitBounds(pts,{paddingTopLeft:[24,top],paddingBottomRight:[rightPad||64,bot],maxZoom:16,animate:true});
@@ -569,7 +600,7 @@ function onMarker(n){ log('marker',{n,plan:!!S.planMode});
 
 // ================= DRAWER =================
 function drawerPx(){ return $('#drawer').getBoundingClientRect().height; }
-function setDrawer(st){ const was=S.drawer; S.drawer=st; if(was!==st&&(was==='full'||st==='full')) setTimeout(renderDrawer,0); const d=$('#drawer'); d.classList.remove('half','full'); if(st!=='peek') d.classList.add(st); setTimeout(posBtns,260); posBtns(); }
+function setDrawer(st){ const was=S.drawer; S.drawer=st; if(was!==st&&(was==='full'||st==='full')) setTimeout(renderDrawer,0); const d=$('#drawer'); d.classList.remove('half','full'); if(st!=='peek') d.classList.add(st); setTimeout(posBtns,260); posBtns(); renderNextMeet(); }
 function posBtns(){ $('#mapbtns').style.bottom=(Math.min(drawerPx(),window.innerHeight*0.6)+12)+'px'; }
 (function(){ // drag the panel from anywhere: handle, tabs, or the content (when it can't scroll further)
   const d=$('#drawer'), body=$('#dbody'); const order=['peek','half','full'];
@@ -811,7 +842,7 @@ function crewView(){
   return s;
 }
 function ago(ts){ const m=Math.round((Date.now()-ts)/60e3); if(m<1) return 'just now'; if(m<60) return m+' min ago'; return Math.round(m/60)+'h ago'; }
-function askName(){ const starter=!!S._created; openModal((starter?'<h2 style="font-size:20px">Name your crew</h2><label class="f">Crew name</label><input type="text" id="crewNameIn" maxlength="40" placeholder="e.g. Saturday East Side"><div style="height:6px"></div>':'')+'<h2 style="font-size:20px">What should the crew call you?</h2><p class="small muted" style="margin:4px 0 0">You’re already in the crew — this is just the name they’ll see.</p><label class="f">Name</label><input type="text" id="nameIn" maxlength="30" value="'+esc(S.name)+'" placeholder="e.g. Ryan"><div class="btns" style="margin-top:14px"><button class="btn violet" data-act="saveName">Save</button></div>'); setTimeout(()=>$('#nameIn')&&$('#nameIn').focus(),100); }
+function askName(){ const starter=!!S._created; const must=crewOn()&&!S.name; log('ask_name',{must}); openModal((starter?'<h2 style="font-size:20px">Name your crew</h2><label class="f">Crew name</label><input type="text" id="crewNameIn" maxlength="40" placeholder="e.g. Saturday East Side"><div style="height:6px"></div>':'')+'<h2 style="font-size:20px">What should the crew call you?</h2><p class="small muted" style="margin:4px 0 0">You’re in the crew. Pick the name the crew sees on the map and in meetups, so they know who’s who.</p><label class="f">Name</label><input type="text" id="nameIn" maxlength="30" value="'+esc(S.name)+'" placeholder="e.g. Ryan"><div class="btns" style="margin-top:14px"><button class="btn violet" data-act="saveName">Save</button></div>',must); setTimeout(()=>$('#nameIn')&&$('#nameIn').focus(),100); }
 function locOn(){ if(crewOn()&&!DEMO) startShare(8); else startGps(); }
 function gpsPrompt(){
   openModal('<h2 style="font-size:20px">Share my location?</h2><p class="small muted">Your phone will ask for permission. '+(crewOn()?'Your crew sees your dot while the app is open; it switches off by itself after 8 hours.':'Used on this phone for the blue dot and distances.')+'</p>'+
@@ -837,7 +868,20 @@ function openMenu(){
     (DEMO?'<button class="menu-row" data-act="exitDemo">'+I.x+'<span class="grow">Exit demo</span></button>':'<button class="menu-row" data-act="goDemo">'+I.star+'<span class="grow">Try the demo crew</span></button>')+
     '</div>'+(!DEMO&&!window.AST_PREVIEW?'<div class="hr"></div><div class="small" style="font-weight:600">Usage study (today)</div><div class="row" style="margin-top:6px"><div class="grow small">Record which buttons I tap (no names)</div><button class="chip sm '+(ST.on?'on':'')+'" data-act="studyToggle">'+(ST.on?'On':'Off')+'</button></div><div class="row" style="margin-top:6px"><div class="grow small">Also save my ride path while sharing location</div><button class="chip sm '+(ST.trail?'on':'')+'" data-act="trailToggle">'+(ST.trail?'On':'Off')+'</button></div>':'')+'<div class="small muted" style="margin-top:10px">Studio data from atxstudiotour.com (Nov 10). Map © OpenStreetMap contributors.</div></div>');
 }
-function renderAll(){ renderTop(); renderMarkers(); renderMe(); renderMapPeople(); renderMeetMarkers(); scheduleRoute(); drawRoute(); renderDrawer(); }
+const nmHidden=new Set();
+function topPx(){ const nm=document.getElementById('nextMeet'); if(nm&&!nm.hidden) return nm.getBoundingClientRect().bottom; return document.getElementById('top').getBoundingClientRect().height||50; }
+function renderNextMeet(){
+  const el=$('#nextMeet'); if(!el) return; const me=C.uid||'me';
+  const mt=upcomingMeets().find(m=>!nmHidden.has(m.id)); const top=document.getElementById('top');
+  if(!mt||S.drawer==='full'||S.tab==='meet'){ el.hidden=true; document.body.classList.remove('has-nm'); return; }
+  const ps=sortedProps(mt); const p=mt.meta.locked?(ps.find(x=>x.id===mt.meta.locked)||ps[0]):ps[0]; if(!p){ el.hidden=true; document.body.classList.remove('has-nm'); return; }
+  const mine=p.up.includes(me)?1:(p.down.includes(me)?-1:0); const more=!mt.meta.locked&&ps.length>1?' · +'+(ps.length-1)+' other option'+(ps.length>2?'s':''):'';
+  el.innerHTML='<div class="nm-t" data-act="tab" data-v="meet"><b>'+esc(mt.meta.title&&mt.meta.title!=='Meetup'?mt.meta.title+' · ':'Meetup · ')+clock(new Date(p.when))+' · '+esc(p.label)+'</b><span>👍 '+p.up.length+(p.up.length?' '+nameList(p.up):'')+(p.down.length?' · 👎 '+p.down.length:'')+more+(mt.meta.locked?' · locked in ✓':'')+'</span></div>'+
+    '<button class="nm-b'+(mine===1?' on-up':'')+'" data-act="rsvp" data-m="'+mt.id+'" data-p="'+p.id+'" data-v="1" aria-label="I can make it">👍</button><button class="nm-b'+(mine===-1?' on-dn':'')+'" data-act="rsvp" data-m="'+mt.id+'" data-p="'+p.id+'" data-v="-1" aria-label="I can’t make it">👎</button><button class="nm-x" data-act="nmHide" data-m="'+mt.id+'" aria-label="Hide">×</button>';
+  if(top) el.style.top=(top.getBoundingClientRect().bottom+6)+'px';
+  el.hidden=false; document.body.classList.add('has-nm');
+}
+function renderAll(){ renderNextMeet(); renderTop(); renderMarkers(); renderMe(); renderMapPeople(); renderMeetMarkers(); scheduleRoute(); drawRoute(); renderDrawer(); }
 
 // ================= ACTIONS =================
 function togglePlan(n){ const p=plan().slice(); const i=p.indexOf(n); if(i>=0){ p.splice(i,1); setPlan({stops:p}); toast('Removed #'+n,{label:'Undo',fn:()=>{ const q=plan().slice(); q.splice(i,0,n); setPlan({stops:q}); }}); } else { p.push(n); setPlan({stops:p}); toast('#'+n+' added as stop '+p.length,{label:'Undo',fn:()=>setPlan({stops:plan().filter(x=>x!==n)})}); } }
@@ -916,7 +960,7 @@ document.addEventListener('click',e=>{
     case 'shareCrew': copy('Join my Studio Tour bike crew: '+crewLink(),'Invite link copied'); break;
     case 'leaveCrew': stopShare(); S.crew=null; save(); location.href=location.pathname; break;
     case 'askName': askName(); break;
-    case 'saveName': { const v=($('#nameIn').value||'').trim().slice(0,30); if(!v){ toast('Type a name'); break; } S.name=v; save(); const cn=$('#crewNameIn')?($('#crewNameIn').value||'').trim().slice(0,40):null; closeModal(); if(cn!=null) setPlan({name:cn||(v+'’s crew')}); if(S._afterName){ const f=S._afterName; S._afterName=null; f(); } if(C.uid) fbSet('members/'+C.uid,{name:v,ts:Date.now()}); renderAll(); if(S._created) S._created(); break; }
+    case 'saveName': { const v=($('#nameIn').value||'').trim().slice(0,30); if(!v){ toast('Type a name'); break; } S.name=v; save(); const cn=$('#crewNameIn')?($('#crewNameIn').value||'').trim().slice(0,40):null; closeModal(true); if(cn!=null) setPlan({name:cn||(v+'’s crew')}); if(S._afterName){ const f=S._afterName; S._afterName=null; f(); } if(C.uid) fbSet('members/'+C.uid,{name:v,ts:Date.now()}); renderAll(); if(S._created) S._created(); break; }
     case 'exitDemo': if(window.AST_PREVIEW){ location.hash='solo'; location.reload(); } else location.href=location.pathname; break;
     case 'menu': openMenu(); break;
     case 'showRider': { const u=t.dataset.u; const me=u===C.uid; const p=me?(S.gps||S.cur):C.pos[u]; const live=p&&(me||Date.now()-(p.ts||0)<30*60e3);
@@ -941,6 +985,7 @@ document.addEventListener('click',e=>{
     case 'shrink': setDrawer('half'); renderDrawer(); setTimeout(fitTab,280); break;
     case 'goDemo': if(window.AST_PREVIEW){ location.hash='demo'; location.reload(); } else location.href=location.pathname+'?demo=1'; break;
     case 'closeModal': closeModal(); break;
+    case 'nmHide': nmHidden.add(t.dataset.m); renderNextMeet(); break;
   }
 });
 document.addEventListener('change',e=>{

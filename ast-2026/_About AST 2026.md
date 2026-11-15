@@ -1,5 +1,7 @@
 # About AST 2026 (Austin Studio Tour Mission Control)
 
+This file is the technical log. The project's front door (status, decisions, next steps) is Ryan's Obsidian vault: `Personal/Projects/Austin Studio Tour Mission Control/_About Austin Studio Tour Mission Control.md`. Data exports: **Personal Drive** (ryangossen@gmail.com) › Projects › Austin Studio Tour Mission Control.
+
 ## What this is
 A phone web app for riding the Austin Studio Tour (Nov 14–15 and 21–22, 2026) by bike with a group. You plan on the map first: tap studios to add them to a route, see the bike route drawn on the map, re-plan after each stop, set up meetups that the crew votes on, and hand off turn-by-turn directions to Apple Maps or Google Maps.
 

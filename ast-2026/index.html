@@ -218,14 +218,14 @@ const KEY='ast26-crew-v2';
 const ld=(()=>{ try{ return JSON.parse(localStorage.getItem(KEY)||'{}'); }catch(e){ return {}; } })();
 function defaultDay(){ const t=new Date(); const iso=t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0')+'-'+String(t.getDate()).padStart(2,'0'); return (DAYS.find(x=>x.d>=iso)||DAYS[0]).b; }
 const S={
-  favs:new Set(ld.favs||[]), plan:ld.plan||[], visited:ld.visited||[], cur:ld.cur||null, day:ld.day||defaultDay(),
+  favs:new Set(ld.favs||[]), plan:ld.plan||[], visited:ld.visited||[], pin:ld.pin||null, cur:ld.cur||null, day:ld.day||defaultDay(),
   f:Object.assign({east:true,med:'',fam:false,drinks:false,music:false,demo:false,favs:false,hide:false},ld.f||{}),
   speed:ld.speed||9, dwell:ld.dwell||20, name:ld.name||'', look:!!ld.look, fromUid:ld.fromUid||null, crew:ld.crew||null, src:ld.src||'crew', localMeets:ld.localMeets||{},
   gpsOn:false, shareOn:false, shareUntil:0, gps:null,
   tab:'crew', stop:null, planMode:false, drawer:'peek', q:''
 };
 const DEMO=new URLSearchParams(location.search).has('demo')||location.hash==='#demo';
-function save(){ if(DEMO) return; try{ localStorage.setItem(KEY,JSON.stringify({favs:[...S.favs],plan:S.plan,visited:S.visited,cur:S.cur,day:S.day,f:S.f,speed:S.speed,dwell:S.dwell,name:S.name,look:S.look,crew:S.crew,fromUid:S.fromUid||null,src:S.src,localMeets:S.localMeets,planMode:S.planMode})); }catch(e){} }
+function save(){ if(DEMO) return; try{ localStorage.setItem(KEY,JSON.stringify({favs:[...S.favs],plan:S.plan,visited:S.visited,pin:S.pin||null,cur:S.cur,day:S.day,f:S.f,speed:S.speed,dwell:S.dwell,name:S.name,look:S.look,crew:S.crew,fromUid:S.fromUid||null,src:S.src,localMeets:S.localMeets,planMode:S.planMode})); }catch(e){} }
 const urlCrew=new URLSearchParams(location.search).get('crew');
 if(urlCrew && /^[a-z0-9]{8,24}$/.test(urlCrew)) S.crew=urlCrew;
 if(DEMO){ S.crew='demo'; S.src='crew'; S.day=1; S.name='Ryan'; }
@@ -247,8 +247,9 @@ function meetups(){ return crewOn()?C.meets:S.localMeets; }
 function setPlan(patch){
   const cur={stops:plan().slice(),visited:[...visited()]};
   const next=Object.assign(cur,patch);
-  if(shared()){ const nm=(patch.name!=null?patch.name:(C.plan&&C.plan.name))||''; const ul=patch.unlisted!=null?!!patch.unlisted:!!(C.plan&&C.plan.unlisted); C.plan=Object.assign({},next,{name:nm,unlisted:ul,ts:Date.now(),by:C.uid}); fbSet('plan',{stops:next.stops,visited:next.visited,name:nm,unlisted:ul,ts:Date.now(),by:C.uid}); }
-  else { S.plan=next.stops; S.visited=next.visited; save(); }
+  const pin=patch.pin!==undefined?patch.pin:(shared()&&C.plan?C.plan.pin:S.pin)||null;
+  if(shared()){ const nm=(patch.name!=null?patch.name:(C.plan&&C.plan.name))||''; const ul=patch.unlisted!=null?!!patch.unlisted:!!(C.plan&&C.plan.unlisted); C.plan=Object.assign({},next,{name:nm,unlisted:ul,pin,ts:Date.now(),by:C.uid}); fbSet('plan',{stops:next.stops,visited:next.visited,name:nm,unlisted:ul,pin,ts:Date.now(),by:C.uid}); }
+  else { S.plan=next.stops; S.visited=next.visited; S.pin=pin; save(); }
   log('plan',{stops:(next.stops||[]).slice(0,40),visited:(next.visited||[]).slice(0,40)}); pushStatus(); renderAll();
 }
 function memberRec(){ const r={name:(S.name||'').slice(0,40),ts:Date.now(),look:!!S.look}; if(S.fromUid&&S.fromUid!==C.uid) r.from=S.fromUid; return r; }
@@ -272,7 +273,7 @@ async function initCrew(){
     if(!S.crew){ renderAll(); return; }
     const r=p=>db.ref(d,C.fb.root+(p?'/'+p:''));
     let netState=null; db.onValue(db.ref(d,'.info/connected'),s=>{ const v=!!s.val(); if(v!==netState){ if(netState!==null||v===false) log(v?'net_up':'net_down'); netState=v; } });
-    db.onValue(r('plan'),s=>{ const v=s.val(); C.plan=v?{stops:v.stops||[],visited:v.visited||[],name:v.name||'',unlisted:!!v.unlisted,ts:v.ts,by:v.by}:{stops:[],visited:[],name:''}; C.ready=true; if(!C.seeded){ C.seeded=true; if(!(C.plan.stops||[]).length&&S.plan.length){ setPlan({stops:S.plan.slice(),visited:S.visited.slice()}); toast('Your planned stops are now the crew route'); } } renderAll(); },e=>{ C.err=String(e.code||e); renderAll(); });
+    db.onValue(r('plan'),s=>{ const v=s.val(); C.plan=v?{stops:v.stops||[],visited:v.visited||[],name:v.name||'',unlisted:!!v.unlisted,pin:v.pin||null,ts:v.ts,by:v.by}:{stops:[],visited:[],name:''}; C.ready=true; if(!C.seeded){ C.seeded=true; if(!(C.plan.stops||[]).length&&S.plan.length){ setPlan({stops:S.plan.slice(),visited:S.visited.slice()}); toast('Your planned stops are now the crew route'); } } renderAll(); },e=>{ C.err=String(e.code||e); renderAll(); });
     db.onValue(r('members'),s=>{ C.raw.members=s.val()||{}; applyHidden(); renderAll(); dirSyncSoon(); });
     db.onValue(r('status'),s=>{ C.raw.status=s.val()||{}; applyHidden(); renderAll(); });
     db.onValue(r('pos'),s=>{ C.raw.pos=s.val()||{}; applyHidden(); if(!C.fitDone&&S.tab==='crew'){ C.fitDone=true; setTimeout(fitTab,400); } renderMapPeople(); if(S.tab==='crew') renderDrawer(); });
@@ -714,15 +715,34 @@ function stopView(l){
 
 // ---- route ----
 function legs(){ const {pts,rem,hasStart}=routePts(); const out=[]; let t=new Date(); rem.forEach((l,i)=>{ const prev=hasStart?pts[i]:(i?rem[i-1]:null); const mi=prev?legMiles(hasStart?i:i-1,prev,l):0; const m=prev?mins(mi):0; t=new Date(t.getTime()+(i?S.dwell*60e3:0)+m*60e3); out.push({l,mi,m,eta:new Date(t)}); }); return out; }
-function optimize(){
-  const p=plan(), v=visited(); const done=p.filter(n=>v.has(n)); const rem=p.filter(n=>!v.has(n)).map(n=>LOC.get(n)).filter(Boolean);
-  if(rem.length<2){ toast('Need at least 2 stops left'); return; }
-  const start=here(); let pool=rem.slice(), order=[], cur=start||pool.shift(); if(!start) order.push(cur);
-  while(pool.length){ let bi=0,bd=1e9; pool.forEach((s,i)=>{ const d=hav(cur,s); if(d<bd){bd=d;bi=i;} }); cur=pool.splice(bi,1)[0]; order.push(cur); }
-  let arr=start?[start].concat(order):order; const len=a=>a.reduce((s,x,i)=>i?s+hav(a[i-1],x):0,0);
-  for(let g=0,imp=true;imp&&g<50;g++){ imp=false; for(let i=start?1:0;i<arr.length-1;i++) for(let k=i+1;k<arr.length;k++){ const nn=arr.slice(0,i).concat(arr.slice(i,k+1).reverse(),arr.slice(k+1)); if(len(nn)+1e-9<len(arr)){ arr=nn; imp=true; } } }
-  setPlan({stops:done.concat((start?arr.slice(1):arr).map(l=>l.n))}); toast('Re-ordered for the shortest ride');
+// Best visiting order for the stops not yet visited: shortest total ride from where you are
+// (or from the first stop), keeping a stop chosen with "Go next" first. Exact for up to 10 stops.
+function bestOrder(stops){
+  const v=visited(); const done=stops.filter(n=>v.has(n)); let rem=stops.filter(n=>!v.has(n));
+  const pinN=(shared()&&C.plan?C.plan.pin:S.pin); const head=[];
+  if(pinN&&rem.includes(pinN)){ head.push(pinN); rem=rem.filter(n=>n!==pinN); }
+  const h=here(); let start=head.length?LOC.get(head[0]):(h&&h.lat?h:null);
+  if(!start&&rem.length){ start=LOC.get(rem[0]); head.push(rem[0]); rem=rem.slice(1); }
+  const L2=rem.map(n=>LOC.get(n)).filter(Boolean), k=L2.length;
+  if(k<2||!start) return done.concat(head,L2.map(l=>l.n));
+  const d=(a,b)=>hav(a,b);
+  let order;
+  if(k<=10){ // Held-Karp: exact shortest open path from start through all stops
+    const N=1<<k, dp=new Float64Array(N*k).fill(Infinity), par=new Int8Array(N*k).fill(-1);
+    for(let j=0;j<k;j++) dp[(1<<j)*k+j]=d(start,L2[j]);
+    for(let m=1;m<N;m++) for(let j=0;j<k;j++){ const c=dp[m*k+j]; if(!(m&(1<<j))||c===Infinity) continue;
+      for(let x=0;x<k;x++){ if(m&(1<<x)) continue; const m2=m|(1<<x), c2=c+d(L2[j],L2[x]); if(c2<dp[m2*k+x]){ dp[m2*k+x]=c2; par[m2*k+x]=j; } } }
+    let m=N-1, j=0, best=Infinity; for(let x=0;x<k;x++) if(dp[m*k+x]<best){ best=dp[m*k+x]; j=x; }
+    order=[]; while(j>=0){ order.unshift(L2[j]); const pj=par[m*k+j]; m^=(1<<j); j=pj; }
+  } else { // nearest neighbour, then 2-opt
+    let pool=L2.slice(), cur=start; order=[];
+    while(pool.length){ let bi=0,bd=1e9; pool.forEach((q,i)=>{ const dd=d(cur,q); if(dd<bd){bd=dd;bi=i;} }); cur=pool.splice(bi,1)[0]; order.push(cur); }
+    const len=a=>a.reduce((t,x,i)=>t+d(i?a[i-1]:start,x),0);
+    for(let g=0,imp=true;imp&&g<60;g++){ imp=false; for(let i=0;i<order.length-1;i++) for(let q=i+1;q<order.length;q++){ const nn=order.slice(0,i).concat(order.slice(i,q+1).reverse(),order.slice(q+1)); if(len(nn)+1e-9<len(order)){ order=nn; imp=true; } } }
+  }
+  return done.concat(head,order.map(l=>l.n));
 }
+function optimize(){ const p=plan(); if(p.filter(n=>!visited().has(n)).length<2){ toast('Need at least 2 stops left'); return; } const prev=p.slice(); setPlan({stops:bestOrder(p)}); toast('Re-ordered for the shortest ride',{label:'Undo',fn:()=>setPlan({stops:prev})}); }
 function suggestions(k){ const h=here(); if(!h) return []; const p=plan(), v=visited();
   return ALL.filter(l=>passes(l)&&!v.has(l.n)&&!p.includes(l.n)).map(l=>{ const d=bikeMi(h,l); let s=d; if(S.favs.has(l.n)) s-=1.2; s-=Math.min(l.nArt,12)*0.04; if(!l.nArt) s+=0.6; s-=crewStars(l.n)*0.4; return {l,d,s}; }).sort((a,b)=>a.s-b.s).slice(0,k||4); }
 function routeView(){
@@ -919,7 +939,7 @@ function renderNextMeet(){
 function renderAll(){ renderNextMeet(); renderTop(); renderMarkers(); renderMe(); renderMapPeople(); renderMeetMarkers(); scheduleRoute(); drawRoute(); renderDrawer(); }
 
 // ================= ACTIONS =================
-function togglePlan(n){ const p=plan().slice(); const i=p.indexOf(n); if(i>=0){ p.splice(i,1); setPlan({stops:p}); toast('Removed #'+n,{label:'Undo',fn:()=>{ const q=plan().slice(); q.splice(i,0,n); setPlan({stops:q}); }}); } else { p.push(n); setPlan({stops:p}); toast('#'+n+' added as stop '+p.length,{label:'Undo',fn:()=>setPlan({stops:plan().filter(x=>x!==n)})}); } }
+function togglePlan(n){ const p=plan().slice(); const i=p.indexOf(n); if(i>=0){ p.splice(i,1); setPlan({stops:p}); toast('Removed #'+n,{label:'Undo',fn:()=>{ const q=plan().slice(); q.splice(i,0,n); setPlan({stops:q}); }}); } else { const prev=plan().slice(); p.push(n); const o=bestOrder(p); setPlan({stops:o}); const v=visited(); const pos=o.filter(x=>!v.has(x)).indexOf(n)+1; toast('#'+n+' added as stop '+pos+' of '+o.filter(x=>!v.has(x)).length+' (best order)',{label:'Undo',fn:()=>setPlan({stops:prev})}); } }
 function setHere(n){ dirSyncSoon(); log('here',{n,gps:!!S.gps,acc:S.gps?Math.round(S.gps.acc||0):null});
   const l=LOC.get(n); S.cur={lat:l.lat,lng:l.lng,n}; save();
   const v=[...visited()]; if(!v.includes(n)) v.push(n); setPlan({visited:v});
@@ -944,7 +964,7 @@ document.addEventListener('click',e=>{
     case 'fav': S.favs.has(n)?S.favs.delete(n):S.favs.add(n); save(); pushStatus(); renderAll(); break;
     case 'togglePlan': togglePlan(n); break;
     case 'planMode': S.planMode=!S.planMode; save(); if(S.planMode){ setDrawer('peek'); toast('Tap studios to add them to the route — tap again to remove'); setTimeout(()=>{ const h=here(); const r=ALL.filter(passes); const pts=(h?r.filter(l=>hav(h,l)<1.5):r).map(l=>[l.lat,l.lng]); fitPts(pts.length?pts:r.map(l=>[l.lat,l.lng])); },280); } else toast('Route saved'); renderAll(); break;
-    case 'addNext': { const p=plan().filter(x=>x!==n), v=visited(); const i=p.findIndex(x=>!v.has(x)); if(i<0) p.push(n); else p.splice(i,0,n); setPlan({stops:p}); toast('#'+n+' is next'); break; }
+    case 'addNext': { const p=plan().filter(x=>x!==n), v=visited(); const i=p.findIndex(x=>!v.has(x)); if(i<0) p.push(n); else p.splice(i,0,n); setPlan({stops:p,pin:n}); toast('#'+n+' is next'); break; }
     case 'mv': { const p=plan().slice(); const i=p.indexOf(n), j=i+(+t.dataset.d); if(j<0||j>=p.length) return; [p[i],p[j]]=[p[j],p[i]]; setPlan({stops:p}); break; }
     case 'skip': { const before=plan().slice(); setPlan({stops:plan().filter(x=>x!==n)}); toast('Skipped #'+n,{label:'Undo',fn:()=>setPlan({stops:before})}); break; }
     case 'here': setHere(n); break;

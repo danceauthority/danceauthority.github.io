@@ -217,12 +217,12 @@ function defaultDay(){ const t=new Date(); const iso=t.getFullYear()+'-'+String(
 const S={
   favs:new Set(ld.favs||[]), plan:ld.plan||[], visited:ld.visited||[], cur:ld.cur||null, day:ld.day||defaultDay(),
   f:Object.assign({east:true,med:'',fam:false,drinks:false,music:false,demo:false,favs:false,hide:false},ld.f||{}),
-  speed:ld.speed||9, dwell:ld.dwell||20, name:ld.name||'', crew:ld.crew||null, src:ld.src||'crew', localMeets:ld.localMeets||{},
+  speed:ld.speed||9, dwell:ld.dwell||20, name:ld.name||'', look:!!ld.look, crew:ld.crew||null, src:ld.src||'crew', localMeets:ld.localMeets||{},
   gpsOn:false, shareOn:false, shareUntil:0, gps:null,
   tab:'crew', stop:null, planMode:false, drawer:'peek', q:''
 };
 const DEMO=new URLSearchParams(location.search).has('demo')||location.hash==='#demo';
-function save(){ if(DEMO) return; try{ localStorage.setItem(KEY,JSON.stringify({favs:[...S.favs],plan:S.plan,visited:S.visited,cur:S.cur,day:S.day,f:S.f,speed:S.speed,dwell:S.dwell,name:S.name,crew:S.crew,src:S.src,localMeets:S.localMeets,planMode:S.planMode})); }catch(e){} }
+function save(){ if(DEMO) return; try{ localStorage.setItem(KEY,JSON.stringify({favs:[...S.favs],plan:S.plan,visited:S.visited,cur:S.cur,day:S.day,f:S.f,speed:S.speed,dwell:S.dwell,name:S.name,look:S.look,crew:S.crew,src:S.src,localMeets:S.localMeets,planMode:S.planMode})); }catch(e){} }
 const urlCrew=new URLSearchParams(location.search).get('crew');
 if(urlCrew && /^[a-z0-9]{8,24}$/.test(urlCrew)) S.crew=urlCrew;
 if(DEMO){ S.crew='demo'; S.src='crew'; S.day=1; S.name='Ryan'; }
@@ -241,6 +241,7 @@ function setPlan(patch){
   else { S.plan=next.stops; S.visited=next.visited; save(); }
   log('plan',{stops:(next.stops||[]).slice(0,40),visited:(next.visited||[]).slice(0,40)}); pushStatus(); renderAll();
 }
+function memberRec(){ return {name:(S.name||'').slice(0,40),ts:Date.now(),look:!!S.look}; }
 function crewName(){ return (C.plan&&C.plan.name)||'Unnamed crew'; }
 function nameOf(uid){ if(uid===(C.uid||'me')) return 'You'; return (C.members[uid]&&C.members[uid].name)||'New rider (no name yet)'; }
 function initial(uid){ const n=nameOf(uid); return n==='You'?(S.name||'Y')[0].toUpperCase():(n[0]||'?').toUpperCase(); }
@@ -266,14 +267,14 @@ async function initCrew(){
     db.onValue(r('status'),s=>{ C.status=s.val()||{}; renderAll(); });
     db.onValue(r('pos'),s=>{ C.pos=s.val()||{}; if(!C.fitDone&&S.tab==='crew'){ C.fitDone=true; setTimeout(fitTab,400); } renderMapPeople(); if(S.tab==='crew') renderDrawer(); });
     db.onValue(r('meetups'),s=>{ C.meets=s.val()||{}; renderAll(); });
-    fbSet('members/'+C.uid,{name:(S.name||'').slice(0,40),ts:Date.now()});
+    fbSet('members/'+C.uid,memberRec());
     pushStatus();
     if(!S.name) setTimeout(()=>askName(),400);
     if(new URLSearchParams(location.search).get('new')){ history.replaceState(null,'',location.pathname+'?crew='+S.crew); S._created=()=>{ S._created=null; openModal('<h2 style="font-size:20px">Crew created</h2><p class="small muted">Send this link to your friends. Anyone with it can join, see the route and meetups, and see live locations of people who opt in.</p><div class="card" style="background:var(--cream);word-break:break-all">'+esc(crewLink())+'</div><div class="btns"><button class="btn violet" data-act="shareCrew">Share invite</button></div>'); }; if(S.name) setTimeout(S._created,600); }
     // resume location sharing after the phone reloads the page (iPhones do this often in the background)
     try{ const sm=JSON.parse(localStorage.getItem(SHK)||'null'); if(sm&&sm.crew===S.crew&&sm.until>Date.now()) startShare(0,sm.until); else if(sm) shareMem(null); }catch(e){}
     // nudge: crew member whose location is off gets a one-tap way to turn it on
-    const nudge=()=>{ if(S.shareOn||!crewOn()) return; if($('#modal').classList.contains('on')){ setTimeout(nudge,3000); return; } log('share_nudge'); toast('📍 Your location is off — the crew can’t see you',{label:'Turn on',fn:()=>{ log('share_nudge_yes'); startShare(8); }},20000); };
+    const nudge=()=>{ if(S.shareOn||!crewOn()||S.look) return; if($('#modal').classList.contains('on')){ setTimeout(nudge,3000); return; } log('share_nudge'); toast('📍 Your location is off — the crew can’t see you',{label:'Turn on',fn:()=>{ log('share_nudge_yes'); startShare(8); }},20000); };
     setTimeout(nudge,2500);
   }catch(e){ C.err=String(e.code||e.message||e); log('fb_fail',{c:C.err.slice(0,120)}); renderAll(); }
 }
@@ -400,7 +401,7 @@ function locHelp(){
 function stopGps(){ S._fix=false; if(watchId!=null) navigator.geolocation.clearWatch(watchId); watchId=null; S.gpsOn=false; S.gps=null; stopShare(); renderMe(); renderAll(); }
 const SHK='ast26-share';
 function shareMem(v){ try{ v?localStorage.setItem(SHK,JSON.stringify(v)):localStorage.removeItem(SHK); }catch(e){} }
-function startShare(hours,until){ log('share_on',{h:hours,resume:!!until}); S.shareOn=true; S.shareUntil=until||Date.now()+hours*3600e3; if(!DEMO) shareMem({crew:S.crew,until:S.shareUntil}); lastShare=null; if(!S.gpsOn) startGps(); maybeShare(true); renderAll(); toast(until?'Still sharing your location with the crew':'Sharing your location with the crew'); }
+function startShare(hours,until){ log('share_on',{h:hours,resume:!!until}); if(S.look){ S.look=false; save(); if(C.uid&&S.crew) fbSet('members/'+C.uid,memberRec()); } S.shareOn=true; S.shareUntil=until||Date.now()+hours*3600e3; if(!DEMO) shareMem({crew:S.crew,until:S.shareUntil}); lastShare=null; if(!S.gpsOn) startGps(); maybeShare(true); renderAll(); toast(until?'Still sharing your location with the crew':'Sharing your location with the crew'); }
 function stopShare(){ shareMem(null); if(S.shareOn){ log('share_off'); S.shareOn=false; fbRemove('pos/'+C.uid); renderAll(); } }
 function maybeShare(force){
   if(!S.shareOn||!S.gps||!C.fb) return;
@@ -829,7 +830,7 @@ function crewView(){
     s+='<div class="card"><div class="row"><div class="grow" style="min-width:0"><button data-act="renameCrew" style="border:0;background:none;padding:0;text-align:left;font:inherit;display:block;width:100%"><h3 style="font-size:19px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(crewName())+' <span style="font:500 13px Inter,sans-serif;color:var(--mute)">✎</span></h3></button><div class="small muted">'+(C.ready?'<span class="dot on"></span> Live · '+mem.length+' rider'+(mem.length!==1?'s':''):'Connecting…')+(C.err&&C.err!=='nocfg'?' · '+esc(C.err):'')+'</div></div><button class="btn sm violet" data-act="shareCrew">Invite</button></div>';
     mem.sort((a,b)=>(b===C.uid)-(a===C.uid)||((C.status[b]||{}).ts||0)-((C.status[a]||{}).ts||0)).forEach(uid=>{ const st=C.status[uid]||{}; const pos=C.pos[uid]; const at=st.at?LOC.get(st.at):null, nx=st.next?LOC.get(st.next):null; const live=pos&&Date.now()-pos.ts<30*60e3;
       const h=here(); const dist=live&&h?bikeMi(h,pos):null; const me=uid===C.uid;
-      s+='<div class="friend"><div class="av" style="'+(me?'background:var(--sky)':'')+'">'+esc(initial(uid))+'</div><div class="grow" style="min-width:0" data-act="showRider" data-u="'+uid+'"><div style="font-weight:600">'+(me?esc(S.name||'You')+' <span class="small muted" style="font-weight:400">(you)</span>':esc(nameOf(uid)))+(!me?(live?' <span class="tag" style="background:#efe7fb;color:#5b33b4;border-color:#d9c9f5">📍 live</span>':(pos?' <span class="tag">📍 '+ago(pos.ts)+'</span>':' <span class="tag">location off</span>')):(S.shareOn?' <span class="tag" style="background:#efe7fb;color:#5b33b4;border-color:#d9c9f5">📍 sharing</span>':''))+(dist!=null&&!me&&dist<0.12?' <span class="tag fam">with you</span>':'')+'</div><div class="small muted">'+(at?'At #'+at.n+' '+esc(at.v):'Joined'+((C.members[uid]||{}).ts?' '+ago(C.members[uid].ts):''))+(nx?' → next #'+nx.n:'')+(at&&st.ts?' · '+ago(st.ts):'')+(dist!=null&&!me?' · '+fmtMi(dist)+' away':'')+'</div></div>'+(me?'<button class="btn sm ghost" data-act="askName">Rename</button>':(live?'<button class="btn sm ghost" data-act="showOnMap" data-lat="'+pos.lat+'" data-lng="'+pos.lng+'">Map</button>':''))+'</div>'; });
+      s+='<div class="friend"><div class="av" style="'+(me?'background:var(--sky)':'')+'">'+esc(initial(uid))+'</div><div class="grow" style="min-width:0" data-act="showRider" data-u="'+uid+'"><div style="font-weight:600">'+(me?esc(S.name||'You')+' <span class="small muted" style="font-weight:400">(you)</span>':esc(nameOf(uid)))+(!me?(live?' <span class="tag" style="background:#efe7fb;color:#5b33b4;border-color:#d9c9f5">📍 live</span>':(pos?' <span class="tag">📍 '+ago(pos.ts)+'</span>':((C.members[uid]||{}).look?' <span class="tag">👀 just looking</span>':' <span class="tag">location off</span>'))):(S.shareOn?' <span class="tag" style="background:#efe7fb;color:#5b33b4;border-color:#d9c9f5">📍 sharing</span>':''))+(dist!=null&&!me&&dist<0.12?' <span class="tag fam">with you</span>':'')+'</div><div class="small muted">'+(at?'At #'+at.n+' '+esc(at.v):'Joined'+((C.members[uid]||{}).ts?' '+ago(C.members[uid].ts):''))+(nx?' → next #'+nx.n:'')+(at&&st.ts?' · '+ago(st.ts):'')+(dist!=null&&!me?' · '+fmtMi(dist)+' away':'')+'</div></div>'+(me?'<button class="btn sm ghost" data-act="askName">Rename</button>':(live?'<button class="btn sm ghost" data-act="showOnMap" data-lat="'+pos.lat+'" data-lng="'+pos.lng+'">Map</button>':''))+'</div>'; });
     const pr=pendingReqs();
     if(pr.length){ s+='<div class="card" style="background:#f3edfc;border-color:#d9c9f5;margin:10px 0 0;padding:10px"><div class="small" style="font-weight:700">'+pr.length+' asking to join</div>'+pr.map(([u,r])=>'<div class="row" style="margin-top:8px"><div class="grow"><b>'+esc(r.name||'Someone')+'</b> <span class="small muted">'+ago(r.ts)+'</span></div><button class="btn sm ghost" data-act="declineReq" data-u="'+u+'">Decline</button><button class="btn sm violet" data-act="approveReq" data-u="'+u+'">Let in</button></div>').join('')+'</div>'; }
     s+='<div class="row" style="padding-top:12px"><div class="grow"><b>Share my location</b>'+(S.shareOn?'<div class="small muted">On until '+clock(new Date(S.shareUntil))+'</div>':'')+'</div><label class="switch"><input type="checkbox" id="locSw" '+((S.shareOn||(!crewOn()&&S.gpsOn))?'checked':'')+'><span></span></label></div>';
@@ -842,7 +843,10 @@ function crewView(){
   return s;
 }
 function ago(ts){ const m=Math.round((Date.now()-ts)/60e3); if(m<1) return 'just now'; if(m<60) return m+' min ago'; return Math.round(m/60)+'h ago'; }
-function askName(){ const starter=!!S._created; const must=crewOn()&&!S.name; log('ask_name',{must}); openModal((starter?'<h2 style="font-size:20px">Name your crew</h2><label class="f">Crew name</label><input type="text" id="crewNameIn" maxlength="40" placeholder="e.g. Saturday East Side"><div style="height:6px"></div>':'')+'<h2 style="font-size:20px">What should the crew call you?</h2><p class="small muted" style="margin:4px 0 0">You’re in the crew. Pick the name the crew sees on the map and in meetups, so they know who’s who.</p><label class="f">Name</label><input type="text" id="nameIn" maxlength="30" value="'+esc(S.name)+'" placeholder="e.g. Ryan"><div class="btns" style="margin-top:14px"><button class="btn violet" data-act="saveName">Save</button></div>',must); setTimeout(()=>$('#nameIn')&&$('#nameIn').focus(),100); }
+function askName(){ const starter=!!S._created; const must=crewOn()&&!S.name; const choose=must&&!S.shareOn; log('ask_name',{must});
+  const nameBlock='<h2 style="font-size:20px">What should the crew call you?</h2><p class="small muted" style="margin:4px 0 0">Any name or alias is fine. It’s what the crew sees on the map and in meetups.</p><label class="f">Name</label><input type="text" id="nameIn" maxlength="30" value="'+esc(S.name)+'" placeholder="e.g. Ryan, or an alias">';
+  const btns=choose?'<p class="small muted" style="margin:14px 0 0">Sharing your location is what makes this work: friends can find you and you can find them. Only this crew sees it, and it switches off after 8 hours.</p><div class="btns" style="margin-top:10px;flex-direction:column;align-items:stretch"><button class="btn violet" data-act="saveName" data-loc="1">Join and share my location</button><button class="btn ghost" data-act="saveName" data-loc="0">Just looking</button></div><p class="small muted" style="margin:8px 0 0">Just looking: you see the crew; they see your name but not where you are. You can share later from the Crew tab.</p>':'<div class="btns" style="margin-top:14px"><button class="btn violet" data-act="saveName">Save</button></div>';
+  openModal((starter?'<h2 style="font-size:20px">Name your crew</h2><label class="f">Crew name</label><input type="text" id="crewNameIn" maxlength="40" placeholder="e.g. Saturday East Side"><div style="height:6px"></div>':'')+nameBlock+btns,must); setTimeout(()=>$('#nameIn')&&$('#nameIn').focus(),100); }
 function locOn(){ if(crewOn()&&!DEMO) startShare(8); else startGps(); }
 function gpsPrompt(){
   openModal('<h2 style="font-size:20px">Share my location?</h2><p class="small muted">Your phone will ask for permission. '+(crewOn()?'Your crew sees your dot while the app is open; it switches off by itself after 8 hours.':'Used on this phone for the blue dot and distances.')+'</p>'+
@@ -960,7 +964,7 @@ document.addEventListener('click',e=>{
     case 'shareCrew': copy('Join my Studio Tour bike crew: '+crewLink(),'Invite link copied'); break;
     case 'leaveCrew': stopShare(); S.crew=null; save(); location.href=location.pathname; break;
     case 'askName': askName(); break;
-    case 'saveName': { const v=($('#nameIn').value||'').trim().slice(0,30); if(!v){ toast('Type a name'); break; } S.name=v; save(); const cn=$('#crewNameIn')?($('#crewNameIn').value||'').trim().slice(0,40):null; closeModal(true); if(cn!=null) setPlan({name:cn||(v+'’s crew')}); if(S._afterName){ const f=S._afterName; S._afterName=null; f(); } if(C.uid) fbSet('members/'+C.uid,{name:v,ts:Date.now()}); renderAll(); if(S._created) S._created(); break; }
+    case 'saveName': { const v=($('#nameIn').value||'').trim().slice(0,30); if(!v){ toast('Type a name or alias'); break; } S.name=v; const lc=t.dataset.loc; if(lc==='0'){ S.look=true; log('join_choice',{share:false}); } else if(lc==='1'){ S.look=false; log('join_choice',{share:true}); } save(); const cn=$('#crewNameIn')?($('#crewNameIn').value||'').trim().slice(0,40):null; closeModal(true); if(lc==='1') locOn(); if(cn!=null) setPlan({name:cn||(v+'’s crew')}); if(S._afterName){ const f=S._afterName; S._afterName=null; f(); } if(C.uid) fbSet('members/'+C.uid,memberRec()); renderAll(); if(S._created) S._created(); break; }
     case 'exitDemo': if(window.AST_PREVIEW){ location.hash='solo'; location.reload(); } else location.href=location.pathname; break;
     case 'menu': openMenu(); break;
     case 'showRider': { const u=t.dataset.u; const me=u===C.uid; const p=me?(S.gps||S.cur):C.pos[u]; const live=p&&(me||Date.now()-(p.ts||0)<30*60e3);
@@ -994,7 +998,7 @@ document.addEventListener('change',e=>{
 $('#modal').addEventListener('click',e=>{ if(e.target.id==='modal') closeModal(); });
 document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeModal(); });
 setInterval(()=>{ if(S.shareOn) maybeShare(); renderMapPeople(); },30e3);
-document.addEventListener('visibilitychange',()=>{ if(document.visibilityState!=='visible') return; if(S.shareOn) maybeShare(true); if(C.fb&&C.uid&&!DEMO){ fbSet('members/'+C.uid,{name:(S.name||'').slice(0,40),ts:Date.now()}); pushStatus(); } });
+document.addEventListener('visibilitychange',()=>{ if(document.visibilityState!=='visible') return; if(S.shareOn) maybeShare(true); if(C.fb&&C.uid&&!DEMO){ fbSet('members/'+C.uid,memberRec()); pushStatus(); } });
 
 
 // ================= DEMO CREW (?demo=1) =================

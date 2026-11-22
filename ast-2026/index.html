@@ -278,7 +278,7 @@ async function initCrew(){
     if(!S.crew){ renderAll(); return; }
     const r=p=>db.ref(d,C.fb.root+(p?'/'+p:''));
     let netState=null; db.onValue(db.ref(d,'.info/connected'),s=>{ const v=!!s.val(); if(v!==netState){ if(netState!==null||v===false) log(v?'net_up':'net_down'); netState=v; } });
-    db.onValue(r('plan'),s=>{ const v=s.val(); C.plan=v?{stops:v.stops||[],visited:v.visited||[],name:v.name||'',unlisted:!!v.unlisted,pin:v.pin||null,ts:v.ts,by:v.by}:{stops:[],visited:[],name:''}; C.ready=true; if(!C.seeded){ C.seeded=true; if(!(C.plan.stops||[]).length&&S.plan.length){ setPlan({stops:S.plan.slice(),visited:S.visited.slice()}); toast('Your planned stops are now the crew route'); } } renderAll(); },e=>{ C.err=String(e.code||e); renderAll(); });
+    db.onValue(r('plan'),s=>{ const v=s.val(); C.plan=v?{stops:v.stops||[],visited:v.visited||[],name:v.name||'',unlisted:!!v.unlisted,pin:v.pin||null,ts:v.ts,by:v.by}:{stops:[],visited:[],name:''}; C.ready=true; if(!C.seeded){ C.seeded=true; if(!v&&S.plan.length){ setPlan({stops:S.plan.slice(),visited:S.visited.slice()}); toast('Your planned stops are now the crew route'); } } renderAll(); },e=>{ C.err=String(e.code||e); renderAll(); });
     db.onValue(r('members'),s=>{ C.raw.members=s.val()||{}; applyHidden(); renderAll(); dirSyncSoon(); });
     db.onValue(r('status'),s=>{ C.raw.status=s.val()||{}; applyHidden(); renderAll(); });
     db.onValue(r('pos'),s=>{ C.raw.pos=s.val()||{}; applyHidden(); if(!C.fitDone&&S.tab==='crew'){ C.fitDone=true; setTimeout(fitTab,400); } renderMapPeople(); if(S.tab==='crew') renderDrawer(); });

@@ -100,3 +100,4 @@ The Firebase web config is not a secret. Google designs it to sit in public web 
 - 2026-11-15: Add to Home Screen: menu item and a one-time hint on a phone's second open; app icon and manifest. On iPhone the home-screen copy has its own storage, so the app hands over crew, name and just-looking choice in the link while the instructions are open (only honoured inside the home-screen app), and the old browser identity is hidden from the crew list.
 - 2026-11-15: Adding a studio puts the route in the shortest order automatically (from the rider's location, exact for up to 10 remaining stops; visited stops and a "Go next" choice stay put; Undo restores the previous order).
 - 2026-11-15: Route tab: "⇅ Reverse order" button next to Optimize order (visited stops stay put; Undo).
+- 2026-11-22: Renamed to *Studio Tourist* (header: "Studio Tourist · austin studio tour 11.22.26"; home-screen name Studio Tourist).

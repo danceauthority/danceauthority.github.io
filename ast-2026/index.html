@@ -6,10 +6,10 @@
 <meta name="theme-color" content="#FBF5EE">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="Mission Control">
+<meta name="apple-mobile-web-app-title" content="Studio Tourist">
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="manifest" href="manifest.json">
-<title>Austin Studio Tour Mission Control</title>
+<title>Studio Tourist · Austin Studio Tour 11.22.26</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
@@ -31,7 +31,8 @@ h1,h2,h3{font-family:Fraunces,Georgia,serif;margin:0;letter-spacing:-.01em}
 #top>*{pointer-events:auto}
 .brand{display:flex;align-items:center;gap:10px;justify-content:space-between;min-height:38px}
 .brand h1{font-size:min(18px,4.35vw);font-weight:800;color:var(--ink);line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
-.brand h1 span{color:#E8781A}
+.brand h1 i{font-style:italic}
+.brand h1 span{color:#E8781A;font-weight:600;font-size:.72em;letter-spacing:.01em}
 .hamb{position:relative;flex:none;width:44px;height:38px;border-radius:12px;background:var(--paper);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;box-shadow:0 2px 10px rgba(0,0,0,.14)}
 .hamb svg{width:22px;height:22px}
 .hamb .dot{position:absolute;top:6px;right:6px;width:10px;height:10px;border:2px solid var(--paper);box-sizing:content-box}
@@ -167,7 +168,7 @@ label.f{display:block;font-size:12px;font-weight:600;color:var(--mute);margin:12
 
 <div id="top">
   <div class="brand">
-    <h1>Austin Studio Tour <span>Mission Control</span></h1>
+    <h1><i>Studio Tourist</i> <span>austin studio tour 11.22.26</span></h1>
     <button class="hamb" data-act="menu" aria-label="Menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg><span class="dot" id="syncDot"></span></button>
   </div>
 </div>
@@ -289,7 +290,7 @@ async function initCrew(){
     setTimeout(nudge,2500);
     // one-time hint (2nd open on a phone): add to home screen
     try{ const k='ast26-a2hs'; const st=JSON.parse(localStorage.getItem(k)||'{"opens":0}'); st.opens=(st.opens||0)+1; localStorage.setItem(k,JSON.stringify(st));
-      if(!STANDALONE&&!st.shown&&st.opens>=2&&/iPhone|Android/.test(navigator.userAgent)){ const tip=()=>{ if($('#modal').classList.contains('on')||$('#toast').classList.contains('on')){ setTimeout(tip,5000); return; } st.shown=1; localStorage.setItem(k,JSON.stringify(st)); log('install_tip'); toast('Put Mission Control on your home screen',{label:'How',fn:()=>installHelp()},12000); }; setTimeout(tip,30000); } }catch(e){}
+      if(!STANDALONE&&!st.shown&&st.opens>=2&&/iPhone|Android/.test(navigator.userAgent)){ const tip=()=>{ if($('#modal').classList.contains('on')||$('#toast').classList.contains('on')){ setTimeout(tip,5000); return; } st.shown=1; localStorage.setItem(k,JSON.stringify(st)); log('install_tip'); toast('Put Studio Tourist on your home screen',{label:'How',fn:()=>installHelp()},12000); }; setTimeout(tip,30000); } }catch(e){}
   }catch(e){ C.err=String(e.code||e.message||e); log('fb_fail',{c:C.err.slice(0,120)}); renderAll(); }
 }
 function fbSet(p,v){ if(C.fb&&C.fb.demo){ demoWrite(p,v); return Promise.resolve(); } if(!C.fb||!S.crew) return Promise.resolve(); return C.fb.db.set(C.fb.db.ref(C.fb.d,C.fb.root+'/'+p),v).catch(e=>{ log('sync_fail',{p:String(p).split('/')[0],c:String(e.code||e.message).slice(0,80)}); toast('Sync failed: '+(e.code||e.message)); }); }
@@ -424,7 +425,7 @@ function installHelp(){
   else if(mac) steps=['In Safari’s menu bar, choose <b>File › Add to Dock</b>.'];
   else steps=bip?null:['In Chrome, tap <b>⋮</b> › <b>Cast, save, and share</b> › <b>Install page as app</b>.'];
   const note=ios&&S.crew?'<p class="small muted" style="margin:10px 0 0">On iPhone the home-screen app is separate from your browser. It opens already in your crew with your name; you’ll be asked to turn location on once more there. Use the home-screen app from then on.</p>':'';
-  openModal('<h2 style="font-size:20px">Add to your Home Screen</h2><p class="small muted" style="margin:4px 0 8px">Mission Control opens like an app, full screen, one tap from your home screen.</p>'+
+  openModal('<h2 style="font-size:20px">Add to your Home Screen</h2><p class="small muted" style="margin:4px 0 8px">Studio Tourist opens like an app, full screen, one tap from your home screen.</p>'+
     (steps?'<ol class="small" style="margin:0;padding-left:20px;line-height:1.6">'+steps.map(x=>'<li>'+x+'</li>').join('')+'</ol>':'<div class="btns"><button class="btn violet" data-act="doInstall">Install the app</button></div>')+note+
     '<div class="btns" style="margin-top:14px"><button class="btn ghost" data-act="installDone">Close</button></div>');
 }
@@ -909,7 +910,7 @@ function statusText(){ const live=Object.entries(C.pos).filter(([u,p])=>u!==C.ui
 function renderTop(){ $('#syncDot').className='dot'+(C.ready?' on':''); if($('#modal').classList.contains('on')&&$('#menuBox')) openMenu(); }
 function openMenu(){
   const dayLbl=DAYS.find(d=>d.b===S.day).lbl;
-  openModal('<div id="menuBox"><h2 style="font-size:20px">Mission Control</h2>'+
+  openModal('<div id="menuBox"><h2 style="font-size:20px"><i>Studio Tourist</i></h2>'+
     '<div class="row small" style="margin-top:6px"><span class="dot'+(C.ready?' on':'')+'"></span><span>'+esc(statusText())+'</span></div>'+
     '<label class="f">Tour day</label><div class="menu-day">'+DAYS.map(d=>'<button class="chip '+(S.day===d.b?'on':'')+'" data-act="day" data-b="'+d.b+'">'+d.lbl+'</button>').join('')+'</div>'+
     '<div class="small muted" style="margin-top:6px">Showing studios open '+dayLbl+'.</div>'+

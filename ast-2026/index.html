@@ -237,7 +237,11 @@ const STANDALONE=!!(navigator.standalone||matchMedia('(display-mode: standalone)
 
 // ================= CREW (Firebase) =================
 const C={fb:null,uid:null,ready:false,err:null,plan:null,members:{},status:{},pos:{},meets:{},raw:{members:{},status:{},pos:{}}};
-function applyHidden(){ const hid=new Set(); Object.entries(C.raw.members).forEach(([u,m])=>{ if(m&&m.from&&m.from!==u) hid.add(m.from); }); if(C.uid) hid.delete(C.uid);
+const STALE=18*3600e3; // riders who haven't opened the app in 18 hours are hidden (e.g. last weekend's crew)
+function applyHidden(){ const hid=new Set(); const now=Date.now(); let stale=0;
+  Object.entries(C.raw.members).forEach(([u,m])=>{ if(m&&m.from&&m.from!==u) hid.add(m.from); });
+  Object.entries(C.raw.members).forEach(([u,m])=>{ if(u!==C.uid&&!hid.has(u)&&(!m||!m.ts||now-m.ts>STALE)){ hid.add(u); stale++; } });
+  C.staleN=stale; if(C.uid) hid.delete(C.uid);
   const f=o=>{ const r={}; Object.entries(o||{}).forEach(([u,v])=>{ if(!hid.has(u)) r[u]=v; }); return r; };
   C.members=f(C.raw.members); C.status=f(C.raw.status); C.pos=f(C.raw.pos); }
 const crewOn=()=>!!(C.ready&&S.crew);
@@ -324,6 +328,7 @@ window.addEventListener('unhandledrejection',ev=>log('err',{m:String((ev.reason&
 document.addEventListener('visibilitychange',()=>{ log(document.visibilityState==='visible'?'fg':'bg'); if(document.visibilityState!=='visible') flushLog(); });
 window.addEventListener('pagehide',()=>{ log('close'); flushLog(); });
 setInterval(()=>{ if(crewOn()) dirSync(); },10*60e3);
+setInterval(()=>{ if(C.raw&&Object.keys(C.raw.members).length){ applyHidden(); renderAll(); } },5*60e3);
 setInterval(()=>{ if(tileErr){ log('tile_err',{n:tileErr}); tileErr=0; } },60000);
 // handoffs to Maps (links) — logged before the phone leaves for Apple/Google Maps
 document.addEventListener('click',e=>{ const a=e.target.closest('a[href]'); if(!a) return; const h=a.getAttribute('href')||''; const app=/maps\.apple/.test(h)?'apple':/google\.[a-z.]+\/maps/.test(h)?'google':/atxstudiotour/.test(h)?'profile':null; if(!app) return; const m=h.match(/destination=([-\d.]+),([-\d.]+)/); let n=null; if(m){ const L0=ALL.find(l=>Math.abs(l.lat-+m[1])<1e-4&&Math.abs(l.lng-+m[2])<1e-4); n=L0?L0.n:null; } log('handoff',{app,n,multi:/waypoints=/.test(h)}); flushLog(); },true);
@@ -884,6 +889,7 @@ function crewView(){
       s+='<div class="friend"><div class="av" style="'+(me?'background:var(--sky)':'')+'">'+esc(initial(uid))+'</div><div class="grow" style="min-width:0" data-act="showRider" data-u="'+uid+'"><div style="font-weight:600">'+(me?esc(S.name||'You')+' <span class="small muted" style="font-weight:400">(you)</span>':esc(nameOf(uid)))+(!me?(live?' <span class="tag" style="background:#efe7fb;color:#5b33b4;border-color:#d9c9f5">📍 live</span>':(pos?' <span class="tag">📍 '+ago(pos.ts)+'</span>':((C.members[uid]||{}).look?' <span class="tag">👀 just looking</span>':' <span class="tag">location off</span>'))):(S.shareOn?' <span class="tag" style="background:#efe7fb;color:#5b33b4;border-color:#d9c9f5">📍 sharing</span>':''))+(dist!=null&&!me&&dist<0.12?' <span class="tag fam">with you</span>':'')+'</div><div class="small muted">'+(at?'At #'+at.n+' '+esc(at.v):'Joined'+((C.members[uid]||{}).ts?' '+ago(C.members[uid].ts):''))+(nx?' → next #'+nx.n:'')+(at&&st.ts?' · '+ago(st.ts):'')+(dist!=null&&!me?' · '+fmtMi(dist)+' away':'')+'</div></div>'+(me?'<button class="btn sm ghost" data-act="askName">Rename</button>':(live?'<button class="btn sm ghost" data-act="showOnMap" data-lat="'+pos.lat+'" data-lng="'+pos.lng+'">Map</button>':''))+'</div>'; });
     const pr=pendingReqs();
     if(pr.length){ s+='<div class="card" style="background:#f3edfc;border-color:#d9c9f5;margin:10px 0 0;padding:10px"><div class="small" style="font-weight:700">'+pr.length+' asking to join</div>'+pr.map(([u,r])=>'<div class="row" style="margin-top:8px"><div class="grow"><b>'+esc(r.name||'Someone')+'</b> <span class="small muted">'+ago(r.ts)+'</span></div><button class="btn sm ghost" data-act="declineReq" data-u="'+u+'">Decline</button><button class="btn sm violet" data-act="approveReq" data-u="'+u+'">Let in</button></div>').join('')+'</div>'; }
+    if(C.staleN) s+='<div class="small muted" style="padding:6px 0 0">'+C.staleN+' rider'+(C.staleN>1?'s':'')+' who haven’t opened the app since yesterday '+(C.staleN>1?'are':'is')+' hidden.</div>';
     s+='<div class="row" style="padding-top:12px"><div class="grow"><b>Share my location</b>'+(S.shareOn?'<div class="small muted">On until '+clock(new Date(S.shareUntil))+'</div>':'')+'</div><label class="switch"><input type="checkbox" id="locSw" '+((S.shareOn||(!crewOn()&&S.gpsOn))?'checked':'')+'><span></span></label></div>';
     s+='</div>';
     s+='<div class="card"><div class="row"><h3 class="grow" style="font-size:16px">Other crews out today</h3><button class="chip sm '+((C.plan&&C.plan.unlisted)?'':'on')+'" data-act="toggleListed">'+((C.plan&&C.plan.unlisted)?'We’re hidden':'We’re listed')+'</button></div>'+dirCards(DIR.pub)+'</div>';

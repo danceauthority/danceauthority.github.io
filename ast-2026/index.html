@@ -681,6 +681,7 @@ let rdT=null; function renderDrawerSoon(){ clearTimeout(rdT); rdT=setTimeout(ren
 function navApp(){ try{ return localStorage.getItem('ast26-nav')||'google'; }catch(e){ return 'google'; } }
 // "Where am I on the route, what's next": one line under the tabs while the route has stops left
 function nextStrip(){
+  if(S.tab==='crew') return ''; // the Crew tab is just the crew
   if(S.tab==='route'&&S.drawer!=='peek') return ''; // the route page shows the same stop expanded
   const p=plan(), v=visited(); const rem=p.filter(n=>!v.has(n)); if(!rem.length) return '';
   const ls=legs(); const x=ls[0]; if(!x) return ''; const h=here(); const k=p.length-rem.length+1;
@@ -697,10 +698,9 @@ function head(){
   return '<div class="seg">'+tabs.map(([k,l,b])=>'<button class="'+(S.tab===k?'on':'')+'" data-act="tab" data-v="'+k+'">'+l+(b?'<span class="badge">'+b+'</span>':'')+'</button>').join('')+'</div>'+nextStrip()+(S.tab==='route'?routeSummary():'');
 }
 function routeSummary(){
-  const ls=legs(); const h=here();
-  if(!plan().length) return '<div class="sum"><div class="grow small muted">'+(S.planMode?'Tap studios on the map to add them. Tap again to remove.':'Tap “Add studios”, then tap them on the map.')+'</div><button class="chip sm plan '+(S.planMode?'on':'')+'" data-act="planMode">'+(S.planMode?'✓ Done adding':'＋ Add studios')+'</button></div>';
-  const mi=ls.reduce((a,x)=>a+x.mi,0), ride=ls.reduce((a,x)=>a+x.m,0); const end=ls.length?new Date(ls[ls.length-1].eta.getTime()+S.dwell*60e3):null;
-  return '<div class="sum"><div class="grow small"><b>'+DAYS.find(d=>d.b===S.day).lbl+' · '+ls.length+' to go</b> · '+fmtMi(mi)+' · '+fmtT(ride)+' riding'+(end&&h?' · done <span class="'+(end.getHours()>=17?'late':'')+'">~'+clock(end)+'</span>':'')+'</div><button class="chip sm plan '+(S.planMode?'on':'')+'" data-act="planMode">'+(S.planMode?'✓ Done adding':'＋ Add studios')+'</button></div>';
+  const btn='<button class="chip sm plan '+(S.planMode?'on':'')+'" data-act="planMode">'+(S.planMode?'✓ Done adding':'＋ Add studios')+'</button>';
+  const hint=S.planMode?'Tap studios on the map to add them. Tap again to remove.':(!plan().length?'Tap “Add studios”, then tap them on the map.':'');
+  return '<div class="sum"><div class="grow small muted">'+hint+'</div>'+btn+'</div>';
 }
 function renderDrawer(){
   $('#dhead').innerHTML=head();
@@ -785,9 +785,9 @@ function routeView(){
       s+=stopRow(n,'✓','past',(atNow?'<b style="color:var(--teal)">You’re here</b> · ':'')+esc(l.a.replace(/ \d{5}$/,'')),'<button class="icon-btn" data-act="unvisit" data-n="'+n+'" title="Not visited">↺</button>'); }); }
   // where you are now: the next stop, expanded
   if(ls.length){ const x=ls[0], l=x.l; const late=x.eta.getHours()>=17; const k=done.length+1;
-    const atCur=S.cur&&S.cur.n&&v.has(S.cur.n)&&h&&h.n===S.cur.n?LOC.get(S.cur.n):null;
-    s+='<div class="card next" id="routeNow"><div class="small muted">'+(atCur?'Done at #'+atCur.n+'? ':'')+'Stop '+k+' of '+p.length+' · next up</div><div class="row" style="margin-top:4px"><div class="num" style="background:#fff;color:var(--teal)">'+l.n+'</div><div class="grow" data-act="open" data-n="'+l.n+'"><h2 style="font-size:19px">'+esc(l.v)+'</h2><div class="small muted">'+esc(l.a)+(h&&x.mi?' · '+fmtMi(x.mi)+' · ~'+x.m+' min':'')+(h?' · <span class="'+(late?'late':'')+'">ETA '+clock(x.eta)+'</span>':'')+(openToday(l)?'':' · <span class="late">closed today</span>')+'</div></div></div>'+navBtns(l)+
-      '<div class="btns" style="margin-top:8px"><button class="btn sm ghost" data-act="here" data-n="'+l.n+'">Arrived ✓</button><button class="btn sm ghost" data-act="skip" data-n="'+l.n+'">Next →</button><button class="btn sm ghost" data-act="open" data-n="'+l.n+'">Details</button></div></div>'; }
+    const nowL=nowAt();
+    s+='<div class="card next" id="routeNow">'+(nowL?'<div class="small" style="opacity:.85">Now at #'+nowL.n+' '+esc(nowL.v)+'</div>':'')+'<div class="small muted">Next · stop '+k+' of '+p.length+'</div><div class="row" style="margin-top:4px"><div class="num" style="background:#fff;color:var(--teal)">'+l.n+'</div><div class="grow" data-act="open" data-n="'+l.n+'"><h2 style="font-size:19px">'+esc(l.v)+'</h2><div class="small muted">'+esc(l.a)+(h&&x.mi?' · '+fmtMi(x.mi)+' · ~'+x.m+' min':'')+(h?' · <span class="'+(late?'late':'')+'">ETA '+clock(x.eta)+'</span>':'')+(openToday(l)?'':' · <span class="late">closed today</span>')+'</div></div></div>'+navBtns(l)+
+      '<div class="btns" style="margin-top:8px"><button class="btn sm ghost" data-act="skip" data-n="'+l.n+'">Next →</button><button class="btn sm ghost" data-act="open" data-n="'+l.n+'">Details</button></div></div>'; }
   else s+='<div class="card next" id="routeNow"><b>Route done</b><div class="small muted">Every studio on the route is visited. Add more with ＋ Add studios.</div></div>';
   // later stops
   if(ls.length>1){ s+='<div class="tl-h">Coming up · '+(ls.length-1)+'</div>';
@@ -797,6 +797,8 @@ function routeView(){
         '<button class="icon-btn" data-act="mv" data-d="-1" data-n="'+n+'">'+I.up+'</button><button class="icon-btn" data-act="mv" data-d="1" data-n="'+n+'">'+I.down+'</button><button class="icon-btn" data-act="togglePlan" data-n="'+n+'">'+I.x+'</button>'); }); }
   return s+routeExtras(ls);
 }
+// the studio you're standing at: nearest within ~70 m by GPS, or your last check-in when location is off
+function nowAt(){ if(S.gpsOn&&S.gps){ let best=null,bd=1e9; ALL.forEach(l=>{ const d=hav(S.gps,l)*1609; if(d<bd){bd=d;best=l;} }); return bd<70?best:null; } return S.cur&&S.cur.n?LOC.get(S.cur.n):null; }
 function scrollToNow(){ const b=$('#dbody'), e=$('#routeNow'); if(b&&e) b.scrollTop=Math.max(0,b.scrollTop+e.getBoundingClientRect().top-b.getBoundingClientRect().top-8); }
 function routeExtras(ls){
   let s='';

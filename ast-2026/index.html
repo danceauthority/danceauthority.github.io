@@ -29,14 +29,14 @@ h1,h2,h3{font-family:Fraunces,Georgia,serif;margin:0;letter-spacing:-.01em}
 /* top bar */
 #top{position:fixed;left:0;right:0;top:0;z-index:900;padding:calc(3px + var(--st)) 10px 3px;background:rgba(251,245,238,.96);border-bottom:1px solid var(--line);box-shadow:0 2px 10px rgba(0,0,0,.06);pointer-events:none}
 #top>*{pointer-events:auto}
-.brand{display:flex;align-items:center;gap:10px;justify-content:space-between;min-height:38px}
+.brand{display:flex;align-items:center;gap:8px;justify-content:flex-start;min-height:38px}
 .brand h1{display:flex;align-items:center;gap:12px;color:var(--ink);min-width:0;margin:0}
 /* Brand face: Dharma Gothic once a web-font licence is added (see _About AST 2026.md); Bebas Neue (free, same foundry) until then */
 .brand .wm{font-family:'Dharma Gothic E','Dharma Gothic M','Bebas Neue',Impact,'Arial Narrow',sans-serif;font-weight:400;font-size:min(36px,9vw);line-height:.9;letter-spacing:.01em;white-space:nowrap;padding-top:3px}
 .brand .ev{min-width:0;overflow:hidden;display:flex;flex-direction:column;align-items:flex-start;color:#E8781A;font-family:Inter,sans-serif;font-weight:600;font-size:min(12px,3.3vw);line-height:1.2;text-transform:lowercase;white-space:nowrap}
-.hamb{position:relative;flex:none;width:44px;height:38px;border-radius:12px;background:var(--paper);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;box-shadow:0 2px 10px rgba(0,0,0,.14)}
-.hamb svg{width:22px;height:22px}
-.hamb .dot{position:absolute;top:6px;right:6px;width:10px;height:10px;border:2px solid var(--paper);box-sizing:content-box}
+.hamb{position:relative;flex:none;width:34px;height:38px;margin-left:-4px;padding:0;border:0;background:none;color:#E8781A;display:flex;align-items:center;justify-content:center}
+.hamb svg{width:26px;height:26px}
+.hamb .dot{position:absolute;top:5px;right:1px;width:8px;height:8px;border:2px solid var(--cream);box-sizing:content-box}
 .menu-day{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
 .menu-row{display:flex;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid var(--line);width:100%;background:none;border-left:0;border-right:0;border-top:0;text-align:left;font-size:15px}
 .menu-row svg{width:20px;height:20px;flex:none;color:var(--mute)}
@@ -176,8 +176,8 @@ label.f{display:block;font-size:12px;font-weight:600;color:var(--mute);margin:12
 
 <div id="top">
   <div class="brand">
+    <button class="hamb" data-act="menu" aria-label="Menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg><span class="dot" id="syncDot"></span></button>
     <h1><span class="wm">Studio Tourist</span><span class="ev"><span>austin studio tour</span><span>11.22.26</span></span></h1>
-    <button class="hamb" data-act="menu" aria-label="Menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg><span class="dot" id="syncDot"></span></button>
   </div>
 </div>
 

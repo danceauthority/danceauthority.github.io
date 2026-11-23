@@ -102,3 +102,4 @@ The Firebase web config is not a secret. Google designs it to sit in public web 
 - 2026-11-15: Route tab: "⇅ Reverse order" button next to Optimize order (visited stops stay put; Undo).
 - 2026-11-22: Renamed to *Studio Tourist* (header: "Studio Tourist · austin studio tour 11.22.26"; home-screen name Studio Tourist).
 - 2026-11-22: Riders who haven't opened the app in 18 hours are hidden from the crew list, map and counts, with a one-line note (last weekend's crew had been reused).
+- 2026-11-23: "Next up" line under the tabs whenever the route has stops left: stop k of N, next studio, distance and time, and a Go button that opens the Maps app the rider last used. Tapping the line collapses the panel and shows you and the next studios on the map. After an automatic check-in the line updates straight away.

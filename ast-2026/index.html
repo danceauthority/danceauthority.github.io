@@ -67,6 +67,10 @@ h1,h2,h3{font-family:Fraunces,Georgia,serif;margin:0;letter-spacing:-.01em}
 #drawer .handle{flex:none;padding:7px 0 3px;cursor:grab}
 #drawer .handle i{display:block;width:40px;height:5px;border-radius:3px;background:#d9d2ca;margin:0 auto}
 #dhead{flex:none;padding:0 12px 8px;touch-action:none}
+.nextup{display:flex;align-items:center;gap:10px;margin-top:8px;padding:8px 10px;border:1px solid var(--line);border-left:4px solid var(--teal);border-radius:12px;background:var(--paper);cursor:pointer}
+.nextup .grow{min-width:0}
+.nextup b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:15px}
+.nextup .btn{flex:none}
 #dbody{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:0 12px calc(16px + var(--sb));touch-action:pan-y;overscroll-behavior:contain}
 .seg{display:flex;background:var(--cream);border:1px solid var(--line);border-radius:11px;padding:3px;gap:3px}
 .seg button{flex:1;border:0;background:none;border-radius:8px;padding:7px 4px;font-size:13px;font-weight:600;color:var(--mute);position:relative}
@@ -331,7 +335,7 @@ setInterval(()=>{ if(crewOn()) dirSync(); },10*60e3);
 setInterval(()=>{ if(C.raw&&Object.keys(C.raw.members).length){ applyHidden(); renderAll(); } },5*60e3);
 setInterval(()=>{ if(tileErr){ log('tile_err',{n:tileErr}); tileErr=0; } },60000);
 // handoffs to Maps (links) — logged before the phone leaves for Apple/Google Maps
-document.addEventListener('click',e=>{ const a=e.target.closest('a[href]'); if(!a) return; const h=a.getAttribute('href')||''; const app=/maps\.apple/.test(h)?'apple':/google\.[a-z.]+\/maps/.test(h)?'google':/atxstudiotour/.test(h)?'profile':null; if(!app) return; const m=h.match(/destination=([-\d.]+),([-\d.]+)/); let n=null; if(m){ const L0=ALL.find(l=>Math.abs(l.lat-+m[1])<1e-4&&Math.abs(l.lng-+m[2])<1e-4); n=L0?L0.n:null; } log('handoff',{app,n,multi:/waypoints=/.test(h)}); flushLog(); },true);
+document.addEventListener('click',e=>{ const a=e.target.closest('a[href]'); if(!a) return; const h=a.getAttribute('href')||''; const app=/maps\.apple/.test(h)?'apple':/google\.[a-z.]+\/maps/.test(h)?'google':/atxstudiotour/.test(h)?'profile':null; if(!app) return; const m=h.match(/destination=([-\d.]+),([-\d.]+)/); let n=null; if(m){ const L0=ALL.find(l=>Math.abs(l.lat-+m[1])<1e-4&&Math.abs(l.lng-+m[2])<1e-4); n=L0?L0.n:null; } log('handoff',{app,n,multi:/waypoints=/.test(h)}); if(app==='apple'||app==='google'){ try{ localStorage.setItem('ast26-nav',app); }catch(e){} } flushLog(); },true);
 // every in-app button press, generically
 document.addEventListener('click',e=>{ const t=e.target.closest('[data-act],[data-f]'); if(!t) return; const d={}; ['n','v','d','b','m','p','h'].forEach(k=>{ if(t.dataset[k]!=null) d[k]=t.dataset[k]; }); if(t.dataset.f){ log('filter',{f:t.dataset.f,on:!S.f[t.dataset.f]}); return; } log('tap',Object.assign({a:t.dataset.act},d)); },true);
 
@@ -456,7 +460,7 @@ function nearCheck(){
   if(Date.now()-nearSince.t>=DWELL && !(S.cur&&S.cur.n===best.n) && !visited().has(best.n) && nearAsked[best.n]!==2){
     nearAsked[best.n]=2; const prevCur=S.cur; log('autocheckin',{n:best.n,m:Math.round(bd)});
     S.cur={lat:best.lat,lng:best.lng,n:best.n}; save(); const v=[...visited(),best.n]; setPlan({visited:v}); dirSyncSoon();
-    toast('Checked in at #'+best.n+' '+best.v,{label:'Undo',fn:()=>{ log('autocheckin_undo',{n:best.n}); S.cur=prevCur; save(); setPlan({visited:[...visited()].filter(x=>x!==best.n)}); }},9000);
+    renderDrawer(); toast('Checked in at #'+best.n+' '+best.v+' — see what’s next below',{label:'Undo',fn:()=>{ log('autocheckin_undo',{n:best.n}); S.cur=prevCur; save(); setPlan({visited:[...visited()].filter(x=>x!==best.n)}); }},9000);
   }
 }
 setInterval(()=>{ if(S.gpsOn) nearCheck(); },60e3);
@@ -670,12 +674,22 @@ function posBtns(){ $('#mapbtns').style.bottom=(Math.min(drawerPx(),window.inner
 })();
 function setTab(t){ const was=S.tab; if(t!=='route'&&t!=='stop') S.planMode=false; if(t!=='stop'){ S.prevTab=t; S.stop=null; } S.tab=t; if(t!=='stop'&&(S.drawer==='full'||(S.drawer==='peek'&&t!=='route'))) setDrawer('half'); renderAll(); $('#dbody').scrollTop=0; if(t!=='stop'&&(t!==was||was==='stop')) setTimeout(fitTab,280); }
 let rdT=null; function renderDrawerSoon(){ clearTimeout(rdT); rdT=setTimeout(renderDrawer,120); }
+function navApp(){ try{ return localStorage.getItem('ast26-nav')||'google'; }catch(e){ return 'google'; } }
+// "Where am I on the route, what's next": one line under the tabs while the route has stops left
+function nextStrip(){
+  const p=plan(), v=visited(); const rem=p.filter(n=>!v.has(n)); if(!rem.length) return '';
+  const ls=legs(); const x=ls[0]; if(!x) return ''; const h=here(); const k=p.length-rem.length+1;
+  const dist=h&&x.mi?fmtMi(x.mi)+' · ~'+x.m+' min':'';
+  const href=navApp()==='apple'?apple(x.l):google(x.l);
+  return '<div class="nextup" data-act="orient"><div class="grow"><div class="small muted">Stop '+k+' of '+p.length+(v.size?' · '+[...v].filter(n=>p.includes(n)).length+' visited':'')+'</div><b>Next: #'+x.l.n+' '+esc(x.l.v)+'</b>'+(dist?'<div class="small muted">'+dist+'</div>':'')+'</div><a class="btn sm teal" target="_blank" rel="noopener" href="'+href+'">'+I.nav+' Go</a></div>';
+}
+function orient(){ const ls=legs(); const h=here(); const pts=[]; if(h&&h.lat) pts.push([h.lat,h.lng]); ls.slice(0,2).forEach(x=>pts.push([x.l.lat,x.l.lng])); setDrawer('peek'); setTimeout(()=>fitPts(pts,'Add studios to the route first'),260); log('orient',{n:ls[0]?ls[0].l.n:null}); }
 function head(){
   const v=visited(); const remN=plan().filter(n=>!v.has(n)).length;
   const meK=C.uid||'me'; const nMeet=upcomingMeets().filter(mt=>!mt.meta.locked).reduce((a,mt)=>a+sortedProps(mt).filter(p=>!p.up.includes(meK)&&!p.down.includes(meK)).length,0);
   const tabs=[['crew','Crew',crewOn()?pendingReqs().length:0],['stops','Studios',0],['meet','Meet',nMeet],['route','Route',remN]];
   if(S.tab==='stop') return '<div class="row"><button class="btn sm ghost" data-act="back">'+I.back+' Back</button><div class="grow"></div><button class="btn sm ghost" data-act="expand">'+(S.drawer==='full'?'Less':'More')+'</button></div>';
-  return (S.drawer==='full'?'<button class="btn sm ghost block" style="margin-bottom:8px" data-act="shrink">'+I.down+' Show the map</button>':'')+'<div class="seg">'+tabs.map(([k,l,b])=>'<button class="'+(S.tab===k?'on':'')+'" data-act="tab" data-v="'+k+'">'+l+(b?'<span class="badge">'+b+'</span>':'')+'</button>').join('')+'</div>'+(S.tab==='route'?routeSummary():'');
+  return (S.drawer==='full'?'<button class="btn sm ghost block" style="margin-bottom:8px" data-act="shrink">'+I.down+' Show the map</button>':'')+'<div class="seg">'+tabs.map(([k,l,b])=>'<button class="'+(S.tab===k?'on':'')+'" data-act="tab" data-v="'+k+'">'+l+(b?'<span class="badge">'+b+'</span>':'')+'</button>').join('')+'</div>'+nextStrip()+(S.tab==='route'?routeSummary():'');
 }
 function routeSummary(){
   const ls=legs(); const h=here();
@@ -685,6 +699,7 @@ function routeSummary(){
 }
 function renderDrawer(){
   $('#dhead').innerHTML=head();
+  document.documentElement.style.setProperty('--peek',($('#dhead .nextup')?200:132)+'px'); if(S.drawer==='peek') setTimeout(posBtns,0);
   const b=$('#dbody'); const st=b.scrollTop;
   if(S.tab==='stop') b.innerHTML=stopView(LOC.get(S.stop));
   else if(S.tab==='route') b.innerHTML=routeView();
@@ -1047,6 +1062,7 @@ document.addEventListener('click',e=>{
     case 'resetYes': try{ stopShare(); localStorage.removeItem(KEY); }catch(e){} location.href=location.pathname; break;
     case 'shrink': setDrawer('half'); renderDrawer(); setTimeout(fitTab,280); break;
     case 'goDemo': if(window.AST_PREVIEW){ location.hash='demo'; location.reload(); } else location.href=location.pathname+'?demo=1'; break;
+    case 'orient': if(e.target.closest('a')) break; orient(); break;
     case 'closeModal': if($('#modalBox').innerText.includes('Add to your Home Screen')) cleanInstallUrl(); closeModal(); break;
     case 'installDone': cleanInstallUrl(); closeModal(); break;
     case 'installApp': installHelp(); break;

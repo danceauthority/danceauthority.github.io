@@ -67,6 +67,9 @@ h1,h2,h3{font-family:Fraunces,Georgia,serif;margin:0;letter-spacing:-.01em}
 #drawer .handle{flex:none;padding:7px 0 3px;cursor:grab}
 #drawer .handle i{display:block;width:40px;height:5px;border-radius:3px;background:#d9d2ca;margin:0 auto}
 #dhead{flex:none;padding:0 12px 8px;touch-action:none}
+.tl-h{font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--mute);margin:14px 0 4px}
+.stop.past{opacity:.6}
+#routeNow{margin:10px 0 4px;scroll-margin-top:8px}
 .nextup{display:flex;align-items:center;gap:10px;margin-top:8px;padding:8px 10px;border:1px solid var(--line);border-left:4px solid var(--teal);border-radius:12px;background:var(--paper);cursor:pointer}
 .nextup .grow{min-width:0}
 .nextup b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:15px}
@@ -642,7 +645,7 @@ function onMarker(n){ log('marker',{n,plan:!!S.planMode});
 
 // ================= DRAWER =================
 function drawerPx(){ return $('#drawer').getBoundingClientRect().height; }
-function setDrawer(st){ const was=S.drawer; S.drawer=st; if(was!==st&&(was==='full'||st==='full')) setTimeout(renderDrawer,0); const d=$('#drawer'); d.classList.remove('half','full'); if(st!=='peek') d.classList.add(st); setTimeout(posBtns,260); posBtns(); renderNextMeet(); }
+function setDrawer(st){ const was=S.drawer; S.drawer=st; if(was!==st&&(was==='full'||st==='full'||S.tab==='route')) setTimeout(renderDrawer,0); const d=$('#drawer'); d.classList.remove('half','full'); if(st!=='peek') d.classList.add(st); setTimeout(posBtns,260); posBtns(); renderNextMeet(); }
 function posBtns(){ $('#mapbtns').style.bottom=(Math.min(drawerPx(),window.innerHeight*0.6)+12)+'px'; }
 (function(){ // drag the panel from anywhere: handle, tabs, or the content (when it can't scroll further)
   const d=$('#drawer'), body=$('#dbody'); const order=['peek','half','full'];
@@ -672,11 +675,12 @@ function posBtns(){ $('#mapbtns').style.bottom=(Math.min(drawerPx(),window.inner
   d.addEventListener('touchend',end); d.addEventListener('touchcancel',end);
   $('#handle').addEventListener('click',()=>{ if('ontouchstart' in window) return; setDrawer(S.drawer==='full'?'half':S.drawer==='half'?'peek':'half'); });
 })();
-function setTab(t){ const was=S.tab; if(t!=='route'&&t!=='stop') S.planMode=false; if(t!=='stop'){ S.prevTab=t; S.stop=null; } S.tab=t; if(t!=='stop'&&(S.drawer==='full'||(S.drawer==='peek'&&t!=='route'))) setDrawer('half'); renderAll(); $('#dbody').scrollTop=0; if(t!=='stop'&&(t!==was||was==='stop')) setTimeout(fitTab,280); }
+function setTab(t){ const was=S.tab; if(t!=='route'&&t!=='stop') S.planMode=false; if(t!=='stop'){ S.prevTab=t; S.stop=null; } S.tab=t; if(t!=='stop'&&(S.drawer==='full'||(S.drawer==='peek'&&t!=='route'))) setDrawer('half'); renderAll(); $('#dbody').scrollTop=0; if(t==='route'){ S._routeKey=null; setTimeout(scrollToNow,30); } if(t!=='stop'&&(t!==was||was==='stop')) setTimeout(fitTab,280); }
 let rdT=null; function renderDrawerSoon(){ clearTimeout(rdT); rdT=setTimeout(renderDrawer,120); }
 function navApp(){ try{ return localStorage.getItem('ast26-nav')||'google'; }catch(e){ return 'google'; } }
 // "Where am I on the route, what's next": one line under the tabs while the route has stops left
 function nextStrip(){
+  if(S.tab==='route'&&S.drawer!=='peek') return ''; // the route page shows the same stop expanded
   const p=plan(), v=visited(); const rem=p.filter(n=>!v.has(n)); if(!rem.length) return '';
   const ls=legs(); const x=ls[0]; if(!x) return ''; const h=here(); const k=p.length-rem.length+1;
   const dist=h&&x.mi?fmtMi(x.mi)+' · ~'+x.m+' min':'';
@@ -702,7 +706,7 @@ function renderDrawer(){
   document.documentElement.style.setProperty('--peek',($('#dhead .nextup')?200:132)+'px'); if(S.drawer==='peek') setTimeout(posBtns,0);
   const b=$('#dbody'); const st=b.scrollTop;
   if(S.tab==='stop') b.innerHTML=stopView(LOC.get(S.stop));
-  else if(S.tab==='route') b.innerHTML=routeView();
+  else if(S.tab==='route'){ b.innerHTML=routeView(); const nowEl=$('#routeNow'); const key=(legs()[0]||{l:{}}).l.n+'|'+visited().size; if(nowEl&&S._routeKey!==key){ S._routeKey=key; scrollToNow(); return; } }
   else if(S.tab==='stops') b.innerHTML=stopsView();
   else if(S.tab==='meet') b.innerHTML=meetView();
   else if(S.tab==='crew') b.innerHTML=crewView();
@@ -770,20 +774,34 @@ function routeView(){
   const p=plan(), v=visited(), ls=legs(), h=here();
   let s='';
   if(shared()) s+='<div class="small muted" style="margin:2px 0 8px">Shared crew route · last change by '+esc(C.plan&&C.plan.by?nameOf(C.plan.by):'—')+'</div>';
+  if(!p.length){ s+='<div class="empty">No studios on the route yet.<br>Tap <b>＋ Add studios</b>, then tap studios on the map.</div>'; return s+routeExtras(ls); }
   if(!h) s+='<div class="card"><div class="row"><div class="grow small"><b>Where are you?</b><div class="muted">Turn on location, or set a start point, to get ride times.</div></div></div><div class="btns" style="margin-top:8px"><button class="btn sm teal" data-act="gps">Use my location</button><button class="btn sm ghost" data-act="pickStart">'+I.pin+' Tap on map</button></div></div>';
-  if(ls.length){ const n=ls[0];
-    s+='<div class="card next"><div class="small muted">Next up</div><div class="row" style="margin-top:4px"><div class="num" style="background:#fff;color:var(--teal)">'+n.l.n+'</div><div class="grow"><h2 style="font-size:19px">'+esc(n.l.v)+'</h2><div class="small muted">'+esc(n.l.a)+(h?' · '+fmtMi(n.mi)+' · ~'+n.m+' min':'')+'</div></div></div>'+navBtns(n.l)+
-      '<div class="btns" style="margin-top:8px"><button class="btn sm ghost" data-act="here" data-n="'+n.l.n+'">Arrived ✓</button><button class="btn sm ghost" data-act="skip" data-n="'+n.l.n+'">Skip</button><button class="btn sm ghost" data-act="open" data-n="'+n.l.n+'">Details</button></div></div>'; }
+  const done=p.filter(n=>v.has(n)), rem=ls.map(x=>x.l.n);
+  const stopRow=(n,label,cls,sub,ctrls)=>{ const l=LOC.get(n); if(!l) return ''; return '<div class="stop '+cls+'"><div class="num '+(cls==='past'?'done':'plan')+'">'+label+'</div><div class="grow" data-act="open" data-n="'+n+'"><h3>#'+n+' '+esc(l.v)+'</h3><div class="small muted">'+sub+'</div></div><div class="row" style="gap:4px">'+ctrls+'</div></div>'; };
+  // earlier stops
+  if(done.length){ s+='<div class="tl-h">Earlier stops · '+done.length+'</div>';
+    done.forEach(n=>{ const l=LOC.get(n); if(!l) return; const atNow=S.cur&&S.cur.n===n&&h&&h.n===n;
+      s+=stopRow(n,'✓','past',(atNow?'<b style="color:var(--teal)">You’re here</b> · ':'')+esc(l.a.replace(/ \d{5}$/,'')),'<button class="icon-btn" data-act="unvisit" data-n="'+n+'" title="Not visited">↺</button>'); }); }
+  // where you are now: the next stop, expanded
+  if(ls.length){ const x=ls[0], l=x.l; const late=x.eta.getHours()>=17; const k=done.length+1;
+    const atCur=S.cur&&S.cur.n&&v.has(S.cur.n)&&h&&h.n===S.cur.n?LOC.get(S.cur.n):null;
+    s+='<div class="card next" id="routeNow"><div class="small muted">'+(atCur?'Done at #'+atCur.n+'? ':'')+'Stop '+k+' of '+p.length+' · next up</div><div class="row" style="margin-top:4px"><div class="num" style="background:#fff;color:var(--teal)">'+l.n+'</div><div class="grow" data-act="open" data-n="'+l.n+'"><h2 style="font-size:19px">'+esc(l.v)+'</h2><div class="small muted">'+esc(l.a)+(h&&x.mi?' · '+fmtMi(x.mi)+' · ~'+x.m+' min':'')+(h?' · <span class="'+(late?'late':'')+'">ETA '+clock(x.eta)+'</span>':'')+(openToday(l)?'':' · <span class="late">closed today</span>')+'</div></div></div>'+navBtns(l)+
+      '<div class="btns" style="margin-top:8px"><button class="btn sm ghost" data-act="here" data-n="'+l.n+'">Arrived ✓</button><button class="btn sm ghost" data-act="skip" data-n="'+l.n+'">Next →</button><button class="btn sm ghost" data-act="open" data-n="'+l.n+'">Details</button></div></div>'; }
+  else s+='<div class="card next" id="routeNow"><b>Route done</b><div class="small muted">Every studio on the route is visited. Add more with ＋ Add studios.</div></div>';
+  // later stops
+  if(ls.length>1){ s+='<div class="tl-h">Coming up · '+(ls.length-1)+'</div>';
+    ls.slice(1).forEach((x,i)=>{ const n=x.l.n, late=x.eta.getHours()>=17;
+      if(h&&x.mi>0) s+='<div class="leg">↓ '+fmtMi(x.mi)+' · '+x.m+' min</div>';
+      s+=stopRow(n,p.indexOf(n)+1,'future',esc(x.l.a.replace(/ \d{5}$/,''))+(h?' · <span class="'+(late?'late':'')+'">ETA '+clock(x.eta)+'</span>':'')+(openToday(x.l)?'':' · <span class="late">closed today</span>'),
+        '<button class="icon-btn" data-act="mv" data-d="-1" data-n="'+n+'">'+I.up+'</button><button class="icon-btn" data-act="mv" data-d="1" data-n="'+n+'">'+I.down+'</button><button class="icon-btn" data-act="togglePlan" data-n="'+n+'">'+I.x+'</button>'); }); }
+  return s+routeExtras(ls);
+}
+function scrollToNow(){ const b=$('#dbody'), e=$('#routeNow'); if(b&&e) b.scrollTop=Math.max(0,b.scrollTop+e.getBoundingClientRect().top-b.getBoundingClientRect().top-8); }
+function routeExtras(ls){
+  let s='';
+  if(plan().length) s+='<div class="btns" style="margin-top:12px"><button class="btn teal" data-act="optimize">Optimize order</button><button class="btn ghost" data-act="reverse">⇅ Reverse order</button><a class="btn ghost" target="_blank" rel="noopener" href="'+googleRoute(ls.map(x=>x.l))+'">'+I.g+' Whole route</a></div>';
   const sg=suggestions(4);
-  if(sg.length){ s+='<div class="card"><h3 style="font-size:16px">Close by, not on the route</h3>'; sg.forEach(({l,d})=>{ s+='<div class="sugg"><div class="num '+numCls(l)+'" style="width:30px;height:30px">'+l.n+'</div><div class="grow" data-act="open" data-n="'+l.n+'"><div style="font-weight:600;font-size:14px">'+esc(l.v)+'</div><div class="small muted">'+fmtMi(d)+' · '+mins(d)+' min · '+l.nArt+' artist'+(l.nArt!==1?'s':'')+(S.favs.has(l.n)?' · ★':'')+'</div></div><button class="btn sm teal" data-act="addNext" data-n="'+l.n+'">Next</button></div>'; }); s+='</div>'; }
-  if(!p.length){ s+='<div class="empty">No studios on the route yet.<br>Tap <b>＋ Add studios</b>, then tap studios on the map.</div>'; return s; }
-  s+='<div class="row" style="margin:12px 0 2px"><h3 class="grow" style="font-size:18px">Route</h3><span class="small muted">'+p.length+' stops · '+v.size+' done</span></div>';
-  const remN=ls.map(x=>x.l.n);
-  p.forEach(n=>{ const l=LOC.get(n); if(!l) return; const done=v.has(n), li=remN.indexOf(n), lg=li>=0?ls[li]:null; const late=lg&&lg.eta.getHours()>=17;
-    if(lg&&h&&lg.mi>0) s+='<div class="leg" style="margin-top:6px">↓ '+fmtMi(lg.mi)+' · '+lg.m+' min</div>';
-    s+='<div class="stop" style="'+(done?'opacity:.55':'')+'"><div class="num '+(done?'done':'plan')+'">'+(done?'✓':li+1)+'</div><div class="grow" data-act="open" data-n="'+n+'"><h3>#'+n+' '+esc(l.v)+'</h3><div class="small muted">'+esc(l.a.replace(/ \d{5}$/,''))+(lg&&h?' · <span class="'+(late?'late':'')+'">ETA '+clock(lg.eta)+'</span>':'')+(openToday(l)?'':' · <span class="late">closed today</span>')+'</div></div><div class="row" style="gap:4px">'+
-      (done?'<button class="icon-btn" data-act="unvisit" data-n="'+n+'">↺</button>':'<button class="icon-btn" data-act="mv" data-d="-1" data-n="'+n+'">'+I.up+'</button><button class="icon-btn" data-act="mv" data-d="1" data-n="'+n+'">'+I.down+'</button>')+'<button class="icon-btn" data-act="togglePlan" data-n="'+n+'">'+I.x+'</button></div></div>'; });
-  s+='<div class="btns" style="margin-top:12px"><button class="btn teal" data-act="optimize">Optimize order</button><button class="btn ghost" data-act="reverse">⇅ Reverse order</button><a class="btn ghost" target="_blank" rel="noopener" href="'+googleRoute(ls.map(x=>x.l))+'">'+I.g+' Whole route</a></div>';
+  if(sg.length){ s+='<div class="card" style="margin-top:12px"><h3 style="font-size:16px">Close by, not on the route</h3>'; sg.forEach(({l,d})=>{ s+='<div class="sugg"><div class="num '+numCls(l)+'" style="width:30px;height:30px">'+l.n+'</div><div class="grow" data-act="open" data-n="'+l.n+'"><div style="font-weight:600;font-size:14px">'+esc(l.v)+'</div><div class="small muted">'+fmtMi(d)+' · '+mins(d)+' min · '+l.nArt+' artist'+(l.nArt!==1?'s':'')+(S.favs.has(l.n)?' · ★':'')+'</div></div><button class="btn sm teal" data-act="addNext" data-n="'+l.n+'">Go next</button></div>'; }); s+='</div>'; }
   s+='<div class="btns" style="margin-top:8px"><button class="btn ghost" data-act="sharePlan">Share as text</button><button class="btn ghost" data-act="importPlan">Import</button></div>';
   s+='<div class="card" style="margin-top:12px"><div class="row"><div class="grow small"><b>Pace</b> '+S.speed+' mph</div><button class="btn sm ghost" data-act="speed" data-d="-1">−</button><button class="btn sm ghost" data-act="speed" data-d="1">+</button></div><div class="row" style="margin-top:8px"><div class="grow small"><b>Time at each stop</b> '+S.dwell+' min</div><button class="btn sm ghost" data-act="dwell" data-d="-5">−</button><button class="btn sm ghost" data-act="dwell" data-d="5">+</button></div><div class="small muted" style="margin-top:6px">Ride distances follow bike-friendly streets (OSRM). Most stops close at 5pm.</div><div class="hr"></div><button class="btn sm ghost" data-act="clearPlan">Clear route</button> <button class="btn sm ghost" data-act="clearVisited">Reset visited</button></div>';
   return s;
@@ -988,7 +1006,7 @@ document.addEventListener('click',e=>{
     case 'planMode': S.planMode=!S.planMode; save(); if(S.planMode){ setDrawer('peek'); toast('Tap studios to add them to the route — tap again to remove'); setTimeout(()=>{ const h=here(); const r=ALL.filter(passes); const pts=(h?r.filter(l=>hav(h,l)<1.5):r).map(l=>[l.lat,l.lng]); fitPts(pts.length?pts:r.map(l=>[l.lat,l.lng])); },280); } else toast('Route saved'); renderAll(); break;
     case 'addNext': { const p=plan().filter(x=>x!==n), v=visited(); const i=p.findIndex(x=>!v.has(x)); if(i<0) p.push(n); else p.splice(i,0,n); setPlan({stops:p,pin:n}); toast('#'+n+' is next'); break; }
     case 'mv': { const p=plan().slice(); const i=p.indexOf(n), j=i+(+t.dataset.d); if(j<0||j>=p.length) return; [p[i],p[j]]=[p[j],p[i]]; setPlan({stops:p}); break; }
-    case 'skip': { const before=plan().slice(); setPlan({stops:plan().filter(x=>x!==n)}); toast('Skipped #'+n,{label:'Undo',fn:()=>setPlan({stops:before})}); break; }
+    case 'skip': { const before=plan().slice(); setPlan({stops:plan().filter(x=>x!==n)}); toast('On to the next stop — #'+n+' taken off the route',{label:'Undo',fn:()=>setPlan({stops:before})}); break; }
     case 'here': setHere(n); break;
     case 'unvisit': setPlan({visited:[...visited()].filter(x=>x!==n)}); break;
     case 'optimize': optimize(); break;
